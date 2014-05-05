@@ -16,7 +16,7 @@ class State():
     def __init__(self,sent):
         self.queue=sent.split()
         self.stack=[]
-        self.tree=Tree()
+        self.tree=Tree(sent)
         self.score=0.0
 
 
@@ -47,6 +47,15 @@ class State():
     def swap(self):
         pass
 
+    def print_text(self):
+        print >> sys.stdout, "Tree ready?",self.tree.ready
+
+        print >> sys.stdout, "Stack:",self.stack
+        print >> sys.stdout, "Queue:",self.queue
+        print >> sys.stdout, "Score:",self.score
+        print >> sys.stdout, ""
+        for dep in self.tree.deps:
+            print >> sys.stdout, dep
 
 
 class Parser():
@@ -58,9 +67,39 @@ class Parser():
     def train(self):
         pass
 
+
+    def extract_transitions(self,gs_tree,sent):
+        transitions=[]
+        state=State(sent)
+        while not state.tree.ready:
+            if len(state.stack)>1:
+                move,dType=self.extract_dep(state,gs_tree)
+                if move is not None:
+                    transitions.append(move)
+                    trans=Transition(move,1.0,"dep")
+                    self.apply_trans(state,trans)
+                    continue
+            # cannot draw arc, shift
+            transitions.append(0)
+            trans=Transition(0,1.0,"dep")
+            self.apply_trans(state,trans)
+        print "GS:",gs_tree.deps
+        print "transitions:",transitions
+        return transitions
+            
+    def extract_dep(self,state,gs_tree):
+        first,sec=state.stack[-1],state.stack[-2]
+        t=gs_tree.has_dep(first,sec)
+        if t is not None:
+            return 2,t
+        t=gs_tree.has_dep(sec,first)
+        if t is not None:
+            return 1,t
+        return None,None      
+
     def parse_sent(self,sent):
         state=State(sent)
-        print >> sys.stdout, state.queue
+        print >> sys.stdout,"Sent:", sent
         while not state.tree.ready:
             trans=self.give_next_trans(state)
             if trans.move==0 and len(state.queue)==0:
@@ -70,12 +109,18 @@ class Parser():
                 print >> sys.stderr, "Invalid transition"
                 continue
             self.apply_trans(state,trans)
-            self.print_state(state)
-        self.print_state(state)
+        state.print_text()
 
     def give_next_trans(self,state):
         # TODO: ML
         try:
+            move=gs_transitions.pop(0)
+            trans=Transition(move,1.0,"dep")
+            return trans
+        except:
+            pass
+        try:
+            state.print_text()
             s = raw_input('transition: ')
             move=int(s)
         except EOFError:
@@ -87,19 +132,14 @@ class Parser():
     def apply_trans(self,state,trans):
         state.update(trans)
 
-    def print_state(self,state):
-        print >> sys.stdout, "Tree ready?",state.tree.ready
-
-        print >> sys.stdout, "Stack:",state.stack
-        print >> sys.stdout, "Queue:",state.queue
-        print >> sys.stdout, "Score:",state.score
-        print >> sys.stdout, ""
-        for dep in state.tree.deps:
-            print >> sys.stdout, dep
+    
 
 
 if __name__==u"__main__":
 
     parser=Parser()
+    tree=Tree("I really like dependency parsing .",[("like","really","dep"),("like","I","dep"),('parsing', 'dependency', 'dep'),('like', 'parsing', 'dep'),('like', '.', 'dep')])
+    gs_transitions=parser.extract_transitions(tree,"I really like dependency parsing .")
+
     parser.parse_sent("I really like dependency parsing .")
 

@@ -3,12 +3,23 @@
 
 class Tree():
 
-    def __init__(self):
-        self.deps=[]
-        self.ready=False
+    def __init__(self,sent,deps=None):
+        self.tokens=sent.split()
+        if deps is None:
+            self.deps=[]
+            self.ready=False
+        else:
+            self.deps=deps
+            self.ready=True
 
     def add_dep(self,gov,dep,dType):
         self.deps.append((gov,dep,dType))
+
+    def has_dep(self,g,d):
+        for dep in self.deps:
+            if dep[0]==g and dep[1]==d:
+                return dep[2]
+        return None
 
 
 class Token():
