@@ -90,10 +90,10 @@ class Parser():
     def extract_dep(self,state,gs_tree):
         first,sec=state.stack[-1],state.stack[-2]
         t=gs_tree.has_dep(first,sec)
-        if t is not None:
+        if (t is not None) and gs_tree.childs[sec]==state.tree.childs[sec]:
             return 2,t
         t=gs_tree.has_dep(sec,first)
-        if t is not None:
+        if (t is not None) and gs_tree.childs[first]==state.tree.childs[first]:
             return 1,t
         return None,None      
 
@@ -138,8 +138,12 @@ class Parser():
 if __name__==u"__main__":
 
     parser=Parser()
-    tree=Tree("I really like dependency parsing .",[("like","really","dep"),("like","I","dep"),('parsing', 'dependency', 'dep'),('like', 'parsing', 'dep'),('like', '.', 'dep')])
-    gs_transitions=parser.extract_transitions(tree,"I really like dependency parsing .")
 
+    tree=Tree("I really like parsing trees .",[("like","really","dep"),("like","I","dep"),('parsing', 'dependency', 'dep'),('like', 'parsing', 'dep'),('like', '.', 'dep')])
+    gs_transitions=parser.extract_transitions(tree,"I really like dependency parsing .")
     parser.parse_sent("I really like dependency parsing .")
+
+    tree=Tree("I really like parsing trees .",[("like","really","dep"),("like","I","dep"),('parsing', 'trees', 'dep'),('like', 'parsing', 'dep'),('like', '.', 'dep')])
+    gs_transitions=parser.extract_transitions(tree,"I really like parsing trees .")
+    parser.parse_sent("I really like parsing trees .")
 
