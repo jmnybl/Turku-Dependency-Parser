@@ -33,4 +33,4 @@ class GPerceptron(object):
         return res
 
     
-§
+
