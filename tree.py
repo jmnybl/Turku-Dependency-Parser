@@ -1,21 +1,33 @@
 # -*- coding: utf-8 -*-
-import collections
+from collections import defaultdict
 
 class Tree():
 
     
 
-    def __init__(self,sent,deps=None):
+    def __init__(self,sent,deps=None,conll=None):
         self.tokens=sent.split()
-        self.childs=collections.defaultdict(lambda:set())
-        if deps is None:
-            self.deps=[]
-            self.ready=False
-        else:
+        self.childs=defaultdict(lambda:set())
+        self.deps=[]
+        
+        if conll is not None: # TODO make a function
+            for line in conll:
+                gov=int(line[8])
+                if gov==0: continue
+                gov=conll[gov-1][1]
+                dep=line[1]
+                dType=line[10]
+                self.add_dep(gov,dep,dType)
+            self.ready=True
+        elif deps is not None:
             self.deps=deps
             for dep in deps:
                 self.childs[dep[0]].add(dep[1])
             self.ready=True
+        else:
+            self.deps=[]
+            self.ready=False
+        
 
     def add_dep(self,gov,dep,dType):
         self.deps.append((gov,dep,dType))
