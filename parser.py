@@ -40,7 +40,8 @@ class State():
 
     def add_arc(self,gov,dep,trans):
         """ Gov and dep are Token class instances. """
-        self.tree.add_dep(gov.text,dep.text,trans.dType)
+        dependency=Dep(gov,dep,trans.dType)
+        self.tree.add_dep(dependency)
         self.score+=trans.score
 
 
@@ -53,8 +54,19 @@ class State():
         self.queue.insert(0,self.stack.pop(-2))
         self.score+=trans.score
 
+    def valid_transitions(self):
+        moves=set()
+        if len(self.queue)>0: # SHIFT
+            moves.add(0)
+        if len(self.stack)>1: # ARCS
+            moves.add(1)
+            moves.add(2)
+        if len(self.stack)>1 and self.stack[-1].index<self.stack[-2].index: # SWAP
+            moves.add(3)
+        return moves
+
     def __str__(self):
-        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep[0]+u" "+dep[1]+u" "+dep[2]+u")" for dep in self.tree.deps)).encode(u"utf-8")
+        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep.gov.text+u" "+dep.dep.text+u" "+dep.dType+u")" for dep in self.tree.deps)).encode(u"utf-8")
 
 
 class Parser():
@@ -84,6 +96,7 @@ class Parser():
         global gs_transitions
         total=0
         failed=0
+        non=0
         sentences=self.read_conll(fName)
         for sent in sentences:
             total+=1
@@ -93,17 +106,21 @@ class Parser():
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
                 self.parse_sent(tokens)
             except ValueError:
+                if gs_tree.is_nonprojective():
+                    non+=1
                 traceback.print_exc()
                 failed+=1 # TODO non-projective
                 continue
         print u"Failed to parse:",failed
         print u"Total number of trees:",total
+        print u"Non-projectives:",non
 
 
     def extract_transitions(self,gs_tree,sent):
         transitions=[]
         state=State(sent)
         while not state.tree.ready:
+            #print state
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
                 if move is not None:
@@ -114,24 +131,20 @@ class Parser():
             # cannot draw arc, shift
             transitions.append(0)
             trans=Transition(0,1.0,"dep")
-            if trans.move==0 and len(state.queue)==0:
-                print state
-                raise ValueError("Invalid shift transition")
-            if (trans.move==1 or trans.move==2) and len(state.stack)<2:
-                print state
-                raise ValueError("Invalid arc transition")
+            if trans.move not in state.valid_transitions():
+                raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans)
-        print "GS:",gs_tree.deps
-        print "transitions:",transitions
+        #print "GS:",gs_tree.deps
+        #print "transitions:",transitions
         return transitions
             
     def extract_dep(self,state,gs_tree):
         first,sec=state.stack[-1],state.stack[-2]
         t=gs_tree.has_dep(first,sec)
-        if (t is not None) and self.subtree_ready(state,sec.text,gs_tree):
+        if (t is not None) and self.subtree_ready(state,sec,gs_tree):
             return 2,t
         t=gs_tree.has_dep(sec,first)
-        if (t is not None) and self.subtree_ready(state,first.text,gs_tree):
+        if (t is not None) and self.subtree_ready(state,first,gs_tree):
             return 1,t
         return None,None      
 
@@ -143,17 +156,13 @@ class Parser():
 
     def parse_sent(self,sent):
         state=State(sent)
-        print >> sys.stdout,"Sent:", sent
+        #print >> sys.stdout,"Sent:", sent
         while not state.tree.ready:
             trans=self.give_next_trans(state)
-            if trans.move==0 and len(state.queue)==0:
-                raise ValueError("Invalid shift transition")
-            if (trans.move==1 or trans.move==2) and len(state.stack)<2:
-                raise ValueError("Invalid arc transition")
-            if trans.move==3 and state.stack[-1].index<state.stack[-2].index: # already swapped!
-                raise ValueError("Invalid swap transition")
+            if trans.move not in state.valid_transitions():
+                raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans)
-        print state
+        #print state
 
     def give_next_trans(self,state):
         global gs_transitions
