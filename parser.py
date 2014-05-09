@@ -29,8 +29,10 @@ class State():
             self.add_arc(self.stack[-2],self.stack.pop(-1),trans) 
         elif trans.move==2: # LEFT ARC
             self.add_arc(self.stack[-1],self.stack.pop(-2),trans)
+        elif trans.move==3: # SWAP
+            self.swap(trans)
         else:
-            raise Exception("Incorrect transition")
+            raise ValueError("Incorrect transition")
         if len(self.queue)==0 and len(self.stack)==1:
             self.tree.ready=True
 
@@ -47,11 +49,12 @@ class State():
         self.score+=trans.score
 
 
-    def swap(self):
-        pass
+    def swap(self,trans):
+        self.queue.insert(0,self.stack.pop(-2))
+        self.score+=trans.score
 
     def __str__(self):
-        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"\nQueue: ["+u" ".join(token.text for token in self.queue)+u"\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep[0]+u" "+dep[1]+u" "+dep[2]+u")" for dep in self.tree.deps)).encode(u"utf-8")
+        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep[0]+u" "+dep[1]+u" "+dep[2]+u")" for dep in self.tree.deps)).encode(u"utf-8")
 
 
 class Parser():
@@ -89,7 +92,7 @@ class Parser():
             try:
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
                 self.parse_sent(tokens)
-            except:
+            except ValueError:
                 traceback.print_exc()
                 failed+=1 # TODO non-projective
                 continue
@@ -112,9 +115,11 @@ class Parser():
             transitions.append(0)
             trans=Transition(0,1.0,"dep")
             if trans.move==0 and len(state.queue)==0:
-                raise Exception("Invalid transition")
+                print state
+                raise ValueError("Invalid shift transition")
             if (trans.move==1 or trans.move==2) and len(state.stack)<2:
-                raise Exception("Invalid transition")
+                print state
+                raise ValueError("Invalid arc transition")
             self.apply_trans(state,trans)
         print "GS:",gs_tree.deps
         print "transitions:",transitions
@@ -123,12 +128,18 @@ class Parser():
     def extract_dep(self,state,gs_tree):
         first,sec=state.stack[-1],state.stack[-2]
         t=gs_tree.has_dep(first,sec)
-        if (t is not None) and gs_tree.childs[sec]==state.tree.childs[sec]:
+        if (t is not None) and self.subtree_ready(state,sec.text,gs_tree):
             return 2,t
         t=gs_tree.has_dep(sec,first)
-        if (t is not None) and gs_tree.childs[first]==state.tree.childs[first]:
+        if (t is not None) and self.subtree_ready(state,first.text,gs_tree):
             return 1,t
         return None,None      
+
+    def subtree_ready(self,state,tok,gs_tree):
+        if len(gs_tree.childs[tok])==0 and len(state.tree.childs[tok])==0: return True
+        elif gs_tree.childs[tok]!=state.tree.childs[tok]: return False
+        else:
+            for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
     def parse_sent(self,sent):
         state=State(sent)
@@ -136,9 +147,11 @@ class Parser():
         while not state.tree.ready:
             trans=self.give_next_trans(state)
             if trans.move==0 and len(state.queue)==0:
-                raise Exception("Invalid transition")
+                raise ValueError("Invalid shift transition")
             if (trans.move==1 or trans.move==2) and len(state.stack)<2:
-                raise Exception("Invalid transition")
+                raise ValueError("Invalid arc transition")
+            if trans.move==3 and state.stack[-1].index<state.stack[-2].index: # already swapped!
+                raise ValueError("Invalid swap transition")
             self.apply_trans(state,trans)
         print state
 
@@ -146,10 +159,11 @@ class Parser():
         global gs_transitions
         # TODO: ML
         try:
+            #raise ValueError
             move=gs_transitions.pop(0)
             trans=Transition(move,1.0,"dep")
             return trans
-        except:
+        except ValueError:
             pass
         try:
             print state
