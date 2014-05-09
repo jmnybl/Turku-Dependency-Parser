@@ -3,6 +3,7 @@
 import sys
 from tree import Token,Tree,Dep
 import codecs
+import traceback
 
 class Transition():
 
@@ -15,9 +16,9 @@ class Transition():
 class State():
 
     def __init__(self,sent):
-        self.queue=sent.split()
-        self.stack=[]
         self.tree=Tree(sent)
+        self.stack=[]
+        self.queue=self.tree.tokens
         self.score=0.0
 
 
@@ -36,7 +37,8 @@ class State():
 
 
     def add_arc(self,gov,dep,trans):
-        self.tree.add_dep(gov,dep,trans.dType)
+        """ Gov and dep are Token class instances. """
+        self.tree.add_dep(gov.text,dep.text,trans.dType)
         self.score+=trans.score
 
 
@@ -48,15 +50,8 @@ class State():
     def swap(self):
         pass
 
-    def print_text(self):
-        print >> sys.stdout, "Tree ready?",self.tree.ready
-
-        print >> sys.stdout, "Stack:",self.stack
-        print >> sys.stdout, "Queue:",self.queue
-        print >> sys.stdout, "Score:",self.score
-        print >> sys.stdout, ""
-        for dep in self.tree.deps:
-            print >> sys.stdout, dep
+    def __str__(self):
+        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"\nQueue: ["+u" ".join(token.text for token in self.queue)+u"\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep[0]+u" "+dep[1]+u" "+dep[2]+u")" for dep in self.tree.deps)).encode(u"utf-8")
 
 
 class Parser():
@@ -95,6 +90,7 @@ class Parser():
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
                 self.parse_sent(tokens)
             except:
+                traceback.print_exc()
                 failed+=1 # TODO non-projective
                 continue
         print u"Failed to parse:",failed
@@ -144,7 +140,7 @@ class Parser():
             if (trans.move==1 or trans.move==2) and len(state.stack)<2:
                 raise Exception("Invalid transition")
             self.apply_trans(state,trans)
-        state.print_text()
+        print state
 
     def give_next_trans(self,state):
         global gs_transitions
@@ -156,7 +152,7 @@ class Parser():
         except:
             pass
         try:
-            state.print_text()
+            print state
             s = raw_input('transition: ')
             move=int(s)
         except EOFError:
