@@ -1,14 +1,21 @@
 from __future__ import division
 import numpy
+import os.path
 
 class GPerceptron(object):
 
-    def __init__(self,w_len,float_array_type=numpy.float64,float_type=numpy.float64_):
+    @classmethod
+    def load(cls,model_name):
+        """
+        Load the perceptron from `model_name` (which is a directory holding all model files)
+        """
+        w=numpy.load(os.path.join(model_name,"w.npy")
+
+    def __init__(self,w_len,float_array_type=numpy.float64):
         self.w_len=w_len
         self.float_array_type=float_array_type 
-        self.float_type=float_type
-        self.w=numpy.zeros(w_len,float_type)
-        self.w_avg=numpy.zeros(w_len,float_type) #Running sum of self.w for the averaged perceptron
+        self.w=numpy.zeros(w_len,float_array_type)
+        self.w_avg=numpy.zeros(w_len,float_array_type) #Running sum of self.w for the averaged perceptron
         self.w_avg_N=0 #How many vectors are summed in w_avg?
 
     def feature2dim(self,feature_name):
