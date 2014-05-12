@@ -1,15 +1,64 @@
 from __future__ import division
 import numpy
+import os.path
+import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 class GPerceptron(object):
 
-    def __init__(self,w_len,float_array_type=numpy.float64,float_type=numpy.float64_):
+    @classmethod
+    def load(cls,model_name,retrainable=False):
+        """
+        Load the perceptron from `model_name` (which is a directory holding all model files)
+
+        `retrainable`: should we load also the weight vector and
+                       meta-data necessary for restarting the
+                       training?
+        """
+        if not os.path.exists(model_name):
+            raise ValueError(model_name+": no such model")
+        with open(os.path.join(model_name,"config.json"),"r") as f:
+            d=json.load(f) #dictionary with parameters
+        w=numpy.load(os.path.join(model_name,"w.npy"))
+        if os.path.exists(os.path.join(model_name,"w.npy")) and retrainable:
+            w=numpy.load(os.path.join(model_name,"w.npy"))
+        else:
+            w=None
+        w_avg=numpy.load(os.path.join(model_name,"w_avg.npy"))
+        float_array_type=w_avg.dtype
+        gp=cls(w=w,w_avg=w_avg,float_array_type=float_array_type,**d)
+        return gp
+
+    def save(self,model_name,retrainable=False):
+        """
+        Save the model. If `retrainable` is set, also save the current
+        vector and other run-time information needed to restart the
+        training.
+        """
+        if not os.path.exists(model_name):
+            os.makedirs(model_name)
+        numpy.save(os.path.join(model_name,"w_avg.npy"),self.w_avg)
+        d={"w_len":self.w_len}
+        if retrainable:
+            numpy.save(os.path.join(model_name,"w.npy"),self.w)
+            d["w_avg_N"]=self.w_avg_N
+        with open(os.path.join(model_name,"config.json"),"w") as f:
+            json.dump(d,f)
+
+    def __init__(self,w_len,w_avg=None,w=None,w_avg_N=0,float_array_type=numpy.float64):
         self.w_len=w_len
         self.float_array_type=float_array_type 
-        self.float_type=float_type
-        self.w=numpy.zeros(w_len,float_type)
-        self.w_avg=numpy.zeros(w_len,float_type) #Running sum of self.w for the averaged perceptron
-        self.w_avg_N=0 #How many vectors are summed in w_avg?
+        if w!=None:
+            self.w=numpy.zeros(w_len,float_array_type)
+        else:
+            self.w=w
+        if w_avg!=None:
+            self.w_avg=numpy.zeros(w_len,float_array_type) #Running sum of self.w for the averaged perceptron
+        else:
+            self.w_avg=w_avg
+        self.w_avg_N=w_avg_N #How many vectors are summed in w_avg?
 
     def feature2dim(self,feature_name):
         """
@@ -63,3 +112,11 @@ class GPerceptron(object):
                 self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
                 self.w_avg[dim]+=self.w[dim]
                 
+
+if __name__=="__main__":
+    #Little test only, really
+    gp=GPerceptron(w_len=100000)
+    gp.save("test.gp",retrainable=True)
+    gp=GPerceptron.load("test.gp",retrainable=True)
+
+    
