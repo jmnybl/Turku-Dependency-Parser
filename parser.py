@@ -5,7 +5,7 @@ from tree import Token,Tree,Dep
 import codecs
 import traceback
 
-class Transition():
+class Transition(object):
 
     def __init__(self,move,score,dType=None):
         self.move=move
@@ -13,7 +13,7 @@ class Transition():
         self.dType=dType
         
 
-class State():
+class State(object):
 
     def __init__(self,sent):
         self.tree=Tree(sent)
@@ -61,7 +61,7 @@ class State():
         if len(self.stack)>1: # ARCS
             moves.add(1)
             moves.add(2)
-        if len(self.stack)>1 and self.stack[-1].index<self.stack[-2].index: # SWAP
+        if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index: # SWAP
             moves.add(3)
         return moves
 
@@ -69,7 +69,7 @@ class State():
         return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep.gov.text+u" "+dep.dep.text+u" "+dep.dType+u")" for dep in self.tree.deps)).encode(u"utf-8")
 
 
-class Parser():
+class Parser(object):
 
 
     def __init__(self):
@@ -101,16 +101,21 @@ class Parser():
         for sent in sentences:
             total+=1
             tokens=u" ".join(t[1] for t in sent)
+            #print tokens
             gs_tree=Tree(tokens,conll=sent)
+            non_projs=gs_tree.is_nonprojective()
+            if len(non_projs)>0:
+                gs_tree.define_projective_order(non_projs)
+                print "Orig:",gs_tree.tokens
+                print "Proj:",gs_tree.projective_order
+                non+=1
             try:
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
                 self.parse_sent(tokens)
             except ValueError:
-                if gs_tree.is_nonprojective():
-                    non+=1
                 traceback.print_exc()
-                failed+=1 # TODO non-projective
-                continue
+                # TODO: more than one non-projective dependency
+                failed+=1
         print u"Failed to parse:",failed
         print u"Total number of trees:",total
         print u"Non-projectives:",non
@@ -126,11 +131,17 @@ class Parser():
                 if move is not None:
                     transitions.append(move)
                     trans=Transition(move,1.0,"dep")
+                    if trans.move not in state.valid_transitions():
+                        raise ValueError("Invalid transition:",trans.move)
                     self.apply_trans(state,trans)
                     continue
-            # cannot draw arc, shift
-            transitions.append(0)
-            trans=Transition(0,1.0,"dep")
+            # cannot draw arc
+            if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
+                    transitions.append(3)
+                    trans=Transition(3,1.0,"dep")
+            else: # SHIFT
+                transitions.append(0)
+                trans=Transition(0,1.0,"dep")
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans)

@@ -50,33 +50,59 @@ class Tree(object):
                 return dependency.dType
         return None
 
+    def token_dim(self,token):
+        if len(self.childs[token])==0: return 0
+        for child in self.childs[token]:
+            return 1+self.token_dim(child)
+
     def is_nonprojective(self):
+        """ Return 'non-projective dep' if tree is non-projective, else None"""
+        non_projs=set()
         rootdep=Dep(Token(-1,u""),self.root,u"dummydep")
         for i in xrange(0,len(self.deps)):
             dep1=self.deps[i]
+            if dep1.gov!=self.root and dep1.dep!=self.root:
+                non_proj=dep1.is_crossing(rootdep)
+                if non_proj is not None:
+                    non_projs.add(dep1.dep)
             for j in xrange(i+1,len(self.deps)):
                 dep2=self.deps[j]
                 if dep1.gov==dep2.gov or dep1.dep==dep2.dep or dep1.gov==dep2.dep or dep1.dep==dep2.gov: continue
-                if dep1.is_crossing(dep2): return True
-            if dep1.is_crossing(rootdep): return True
-        return False
+                non_proj=dep1.is_crossing(dep2)
+                if non_proj is not None:
+                    non_projs.add(non_proj)   
+        return non_projs
 
-    def define_projective_order(self,subtree):
+    def define_projective_order(self,tokens):
+        # TODO: process set of tokens
+        tokens=list(tokens)
+        govIdx=None
         main=[]
         sub=[]
         for token in self.tokens:
-            if self.part_of_subtree(token,subtree):
+            if self.part_of_subtree(token,tokens[0]):
                 sub.append(token)
             else:
                 main.append(token)
-        if True: #TODO: where to attach?
-            self.projective_order=main+subtree
-        else: self.projective_order=subtree+main
+            if tokens[0] in self.childs[token]:
+                govIdx=token.index
+        if govIdx<tokens[0].index: # gov > dep
+            self.projective_order=main[:govIdx+1]+sub+main[govIdx+1:]
+        else: # dep < gov
+            self.projective_order=main[:govIdx]+sub+main[govIdx:]
             
-    def part_of_subtree(self,token,subtree):
-        pass # TODO
+    def part_of_subtree(self,token,subtree_head):
+        if token==subtree_head: return True
+        if token in self.childs[subtree_head]: return True
+        for child in self.childs[subtree_head]:
+            return self.part_of_subtree(token,child)
+        return False
             
 
+    def is_proj(self,tok1,tok2):
+        if (self.tokens.index(tok1)<self.tokens.index(tok2)) and (self.projective_order.index(tok1)>self.projective_order.index(tok2)): return True
+        elif (self.tokens.index(tok1)>self.tokens.index(tok2)) and (self.projective_order.index(tok1)<self.projective_order.index(tok2)): return True
+        else: return False
 
 class Token(object):
 
@@ -108,23 +134,19 @@ class Dep(object):
         self.dType=dType
 
     def is_crossing(self,another):
-        if self.gov.index<another.gov.index<self.dep.index:
-            if self.gov.index<another.dep.index<self.dep.index:
-                return False
-            else: return True
-        elif self.gov.index>another.gov.index>self.dep.index:
-            if self.gov.index>another.dep.index>self.dep.index:
-                return False
-            else: return True
-        elif self.gov.index<another.dep.index<self.dep.index:
-            if self.gov.index<another.gov.index<self.dep.index:
-                return False
-            else: return True
-        elif self.gov.index>another.dep.index>self.dep.index:
-            if self.gov.index>another.gov.index>self.dep.index:
-                return False
-            else: return True
-        return False
+        if self.is_between(self.gov.index,self.dep.index,another.dep.index)==True and self.is_between(self.gov.index,self.dep.index,another.gov.index)==False:
+            return another.dep
+        elif self.is_between(another.gov.index,another.dep.index,self.dep.index)==True and self.is_between(another.gov.index,another.dep.index,self.gov.index)==False:
+            return self.dep
+        else:
+            return None
+
+
+    def is_between(self,i1,i2,target):
+        if (i1<target<i2) or (i2<target<i1):
+            return True
+        else: return False
+
 
     def __str__(self):
         return (u"<Gov:"+unicode(self.gov.index)+u",Dep:"+unicode(self.dep.index)+u",dType:"+self.dType+u">").encode(u"utf-8")
