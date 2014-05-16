@@ -5,13 +5,19 @@ from tree import Token,Tree,Dep
 import codecs
 import traceback
 
+SHIFT=0
+RIGHT=1
+LEFT=2
+SWAP=3
+
+
 class Transition(object):
 
     def __init__(self,move,score,dType=None):
         self.move=move
         self.score=score
         self.dType=dType
-        
+   
 
 class State(object):
 
@@ -20,19 +26,21 @@ class State(object):
         self.stack=[]
         self.queue=self.tree.tokens
         self.score=0.0
+        self.transitions=[]
 
 
     def update(self,trans):
-        if trans.move==0: # SHIFT
+        if trans.move==SHIFT: # SHIFT
             self.shift(trans)
-        elif trans.move==1: # RIGHT ARC
+        elif trans.move==RIGHT: # RIGHT ARC
             self.add_arc(self.stack[-2],self.stack.pop(-1),trans) 
-        elif trans.move==2: # LEFT ARC
+        elif trans.move==LEFT: # LEFT ARC
             self.add_arc(self.stack[-1],self.stack.pop(-2),trans)
-        elif trans.move==3: # SWAP
+        elif trans.move==SWAP: # SWAP
             self.swap(trans)
         else:
             raise ValueError("Incorrect transition")
+        self.transitions.append(trans.move)
         if len(self.queue)==0 and len(self.stack)==1:
             self.tree.ready=True
 
@@ -57,12 +65,12 @@ class State(object):
     def valid_transitions(self):
         moves=set()
         if len(self.queue)>0: # SHIFT
-            moves.add(0)
+            moves.add(SHIFT)
         if len(self.stack)>1: # ARCS
-            moves.add(1)
-            moves.add(2)
+            moves.add(RIGHT)
+            moves.add(LEFT)
         if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index: # SWAP
-            moves.add(3)
+            moves.add(SWAP)
         return moves
 
     def __str__(self):
@@ -137,11 +145,11 @@ class Parser(object):
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    transitions.append(3)
-                    trans=Transition(3,1.0,"dep")
+                    transitions.append(SWAP)
+                    trans=Transition(SWAP,1.0,"dep")
             else: # SHIFT
-                transitions.append(0)
-                trans=Transition(0,1.0,"dep")
+                transitions.append(SHIFT)
+                trans=Transition(SHIFT,1.0,"dep")
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans)
@@ -153,10 +161,10 @@ class Parser(object):
         first,sec=state.stack[-1],state.stack[-2]
         t=gs_tree.has_dep(first,sec)
         if (t is not None) and self.subtree_ready(state,sec,gs_tree):
-            return 2,t
+            return LEFT,t
         t=gs_tree.has_dep(sec,first)
         if (t is not None) and self.subtree_ready(state,first,gs_tree):
-            return 1,t
+            return RIGHT,t
         return None,None      
 
     def subtree_ready(self,state,tok,gs_tree):
