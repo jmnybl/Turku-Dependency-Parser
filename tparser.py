@@ -84,20 +84,16 @@ class Parser(object):
         pass
 
     def read_conll(self,fName):
-        sentences=[]
+        """ Read conll format file and yield one sentence at a time. """
         f=codecs.open(fName,u"rt",u"utf-8")
-        lines=[]
+        sent=[]
         for line in f:
             line=line.strip()
-            if not line and len(lines)>0:
-                sentences.append(lines)
-                lines=[]
+            if not line:
+                yield sent # list of conll lines
+                sent=[]
             else:
-                lines.append(line.split(u"\t"))
-        else:
-            if len(lines)>0:
-                sentences.append(lines)
-        return sentences # list of conll lines
+                sent.append(line.split(u"\t"))
 
     gs_transitions=[]
     def train(self,fName):
@@ -105,8 +101,7 @@ class Parser(object):
         total=0
         failed=0
         non=0
-        sentences=self.read_conll(fName)
-        for sent in sentences:
+        for sent in self.read_conll(fName):
             total+=1
             tokens=u" ".join(t[1] for t in sent)
             #print tokens
