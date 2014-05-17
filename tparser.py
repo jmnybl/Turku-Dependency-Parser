@@ -4,11 +4,16 @@ import sys
 from tree import Token,Tree,Dep
 import codecs
 import traceback
+import Features
+from perceptron import GPerceptron
+
 
 SHIFT=0
 RIGHT=1
 LEFT=2
 SWAP=3
+
+DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparator complm conj cop csubj csubj-cop dep det dobj gobj gsubj iccomp infmod intj mark name neg nommod nsubj num parataxis partmod poss prt punct rcmod voc xcomp xsubj xsubj-cop nsubj-cop nommod-own csubjpass nn cc number quantmod rel preconj".split() # TODO: collect these from data
 
 
 class Transition(object):
@@ -81,7 +86,8 @@ class Parser(object):
 
 
     def __init__(self):
-        pass
+        self.features=Features()
+        self.perceptron=GPerceptron(100)
 
     def read_conll(self,fName):
         """ Read conll format file and yield one sentence at a time. """
@@ -172,15 +178,14 @@ class Parser(object):
         state=State(sent)
         #print >> sys.stdout,"Sent:", sent
         while not state.tree.ready:
-            trans=self.give_next_trans(state)
+            trans=self.give_next_trans_test(state)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans)
         #print state
 
-    def give_next_trans(self,state):
+    def give_next_trans_test(self,state):
         global gs_transitions
-        # TODO: ML
         try:
             #raise ValueError
             move=gs_transitions.pop(0)
@@ -196,6 +201,28 @@ class Parser(object):
             move=0
         trans=Transition(move,1.0,"dep")
         return trans
+
+    def give_next_trans(self,state):
+        scores=dict()
+        for move in state.valid_transitions():
+            if move==RIGHT or move==LEFT:
+                for dType in DEPTYPES:
+                    trans=Transition(move,1.0,dType)
+            else:
+                trans=Transition(move,1.0)
+            score=self.pre_apply(state,trans)
+            scores[(trans.move,trans.dType)]=score
+
+        best_trans=max(scores, key=scores.get)
+        return best_trans,scores[best_trans]
+
+
+    def pre_apply(self,state,trans):
+        temp_state=state.copy()
+        self.apply_trans(temp_state,trans)
+        features=self.features.create_features(temp_state)
+        score=self.perceptron.score(features)
+        return score
 
 
     def apply_trans(self,state,trans):

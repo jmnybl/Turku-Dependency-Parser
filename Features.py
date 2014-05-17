@@ -37,14 +37,24 @@ class Features(object):
         The two following words of s0 in input string (s0f0,s0f1)
         The two leftmost children of s0 (s0ld0, s0ld1)
         """
-        s0,s1=self.get_from_stack(state.stack)
-        # TODO: take final POS, lemma, word form
+        uni_feat=dict()
+        s0,s1=self.get_from_stack(state.stack) # two words of the stack
+        uni_feat[s0.text]=1.0 # word form
+        uni_feat[s1.text]=1.0
+        # TODO: take final POS, lemma
 
         s0f0,s0f1=self.get_followings(s0)
         # TODO: take final POS
 
         s0ld0,s0ld1=self.get_leftchilds(s0,state.tree)
         # TODO: take word form
+
+        return uni_feat
+
+    def create_features(self, state)
+        features=dict()
+        features.update(self.create_unigram_features(state))
+        return features
 
 
     
