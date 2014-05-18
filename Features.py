@@ -51,7 +51,7 @@ class Features(object):
 
         return uni_feat
 
-    def create_features(self, state)
+    def create_features(self, state):
         features=dict()
         features.update(self.create_unigram_features(state))
         return features

@@ -22,6 +22,9 @@ class Transition(object):
         self.move=move
         self.score=score
         self.dType=dType
+
+    def __eq__(self,other):
+        return self.move==other.move and self.dType==other.dType
    
 
 class State(object):
@@ -86,7 +89,7 @@ class Parser(object):
 
 
     def __init__(self):
-        self.features=Features()
+        self.features=Features.Features()
         self.perceptron=GPerceptron(100)
 
     def read_conll(self,fName):
@@ -115,16 +118,15 @@ class Parser(object):
             non_projs=gs_tree.is_nonprojective()
             if len(non_projs)>0:
                 gs_tree.define_projective_order(non_projs)
-                print "Orig:",gs_tree.tokens
-                print "Proj:",gs_tree.projective_order
                 non+=1
             try:
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
                 self.parse_sent(tokens)
             except ValueError:
-                traceback.print_exc()
+                #traceback.print_exc()
                 # TODO: more than one non-projective dependency
                 failed+=1
+                continue
         print u"Failed to parse:",failed
         print u"Total number of trees:",total
         print u"Non-projectives:",non
@@ -156,7 +158,7 @@ class Parser(object):
             self.apply_trans(state,trans)
         #print "GS:",gs_tree.deps
         #print "transitions:",transitions
-        return transitions
+        return state.transitions
             
     def extract_dep(self,state,gs_tree):
         first,sec=state.stack[-1],state.stack[-2]
@@ -173,6 +175,18 @@ class Parser(object):
         elif gs_tree.childs[tok]!=state.tree.childs[tok]: return False
         else:
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
+
+    def train_one_sent(self,gs_transitions,sent):
+        state=State(sent)
+        while not state.tree.ready:
+            trans=give_next_trans(state)
+            if trans.move not in state.valid_transitions():
+                raise ValueError("Invalid transition:",trans.move)
+            self.apply_trans(state,trans)
+            if state.transitions!=gs_transitions[:len(state.transitions)]: # update the perceptron if sequence is incorrect
+                # TODO update the perceptron
+                # We need all gs features here so we need to maintain a list of states or something
+                break
 
     def parse_sent(self,sent):
         state=State(sent)
