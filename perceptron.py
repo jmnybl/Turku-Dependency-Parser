@@ -3,8 +3,37 @@ import numpy
 import os.path
 import json
 import logging
+import multiprocessing
 
 logging.basicConfig(level=logging.INFO)
+
+class PerceptronSharedState(object):
+
+    """This object actually holds the shared memory arrays and variables
+    needed for the multi-process learning. The `GPerceptron` objects 
+    update this state through shared memory."""
+    
+    @classmethod
+    def load(cls,model_name,retrainable=False):
+        """
+        Load the perceptron state from `model_name` (which is a directory holding all model files)
+
+        `retrainable`: should we load also the weight vector and
+                       meta-data necessary for restarting the
+                       training?
+        """
+        if not os.path.exists(model_name):
+            raise ValueError(model_name+": no such model")
+        with open(os.path.join(model_name,"config.json"),"r") as f:
+            d=json.load(f) #dictionary with parameters
+        if os.path.exists(os.path.join(model_name,"w.npy")) and retrainable:
+            w=numpy.load(os.path.join(model_name,"w.npy"))
+        else:
+            w=None
+        w_avg=numpy.load(os.path.join(model_name,"w_avg.npy"))
+        float_array_type=w_avg.dtype
+        gp=cls(w=w,w_avg=w_avg,float_array_type=float_array_type,**d)
+        return gp
 
 class GPerceptron(object):
 
