@@ -4,6 +4,7 @@ import sys
 from tree import Token,Tree,Dep
 import codecs
 import traceback
+from collections import defaultdict
 import Features
 from perceptron import GPerceptron
 
@@ -35,6 +36,7 @@ class State(object):
         self.queue=self.tree.tokens
         self.score=0.0
         self.transitions=[]
+        self.features=defaultdict(lambda:0.0)
 
 
     def update(self,trans):
@@ -90,7 +92,7 @@ class Parser(object):
 
     def __init__(self):
         self.features=Features.Features()
-        self.perceptron=GPerceptron(100)
+        self.perceptron=GPerceptron(10)
 
     def read_conll(self,fName):
         """ Read conll format file and yield one sentence at a time. """
@@ -121,7 +123,7 @@ class Parser(object):
                 non+=1
             try:
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
-                self.parse_sent(tokens)
+                self.train_one_sent(gs_transitions,tokens)
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
@@ -178,15 +180,19 @@ class Parser(object):
 
     def train_one_sent(self,gs_transitions,sent):
         state=State(sent)
+        gs_state=State(sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=give_next_trans(state)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans)
-            if state.transitions!=gs_transitions[:len(state.transitions)]: # update the perceptron if sequence is incorrect
-                # TODO update the perceptron
-                # We need all gs features here so we need to maintain a list of states or something
+            self.apply_trans(state,trans) # apply predicted transition
+            self.apply_trans(gs_state,gs_transitions[len(state.transitions)-1]) # apply gs transition
+            print trans.move,gs_transitions[len(state.transitions)-1].move
+            if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
+                self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
+                print self.perceptron.w
                 break
+                
 
     def parse_sent(self,sent):
         state=State(sent)
@@ -217,6 +223,7 @@ class Parser(object):
         return trans
 
     def give_next_trans(self,state):
+        """ Predict next transition. """
         scores=dict()
         for move in state.valid_transitions():
             if move==RIGHT or move==LEFT:
@@ -232,15 +239,17 @@ class Parser(object):
 
 
     def pre_apply(self,state,trans):
-        temp_state=state.copy()
+        temp_state=state.deepcopy()
         self.apply_trans(temp_state,trans)
-        features=self.features.create_features(temp_state)
-        score=self.perceptron.score(features)
-        return score
+        return temp_state.score
 
 
     def apply_trans(self,state,trans):
-        state.update(trans)
+        state.update(trans) # update stack and queue
+        features=self.features.create_features(state) # create new features
+        for feat in features:
+            state.features[feat]+=features[feat] # merge old and new features
+        state.score+=self.perceptron.score(state.features)
 
     
 

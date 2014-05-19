@@ -39,8 +39,10 @@ class Features(object):
         """
         uni_feat=dict()
         s0,s1=self.get_from_stack(state.stack) # two words of the stack
-        uni_feat[s0.text]=1.0 # word form
-        uni_feat[s1.text]=1.0
+        if s0 is not None:
+            uni_feat[s0.text]=1.0 # word form
+        if s1 is not None:
+            uni_feat[s1.text]=1.0
         # TODO: take final POS, lemma
 
         s0f0,s0f1=self.get_followings(s0)
