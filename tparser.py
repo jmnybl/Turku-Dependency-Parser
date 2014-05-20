@@ -66,17 +66,17 @@ class State(object):
         """ Gov and dep are Token class instances. """
         dependency=Dep(gov,dep,trans.dType)
         self.tree.add_dep(dependency)
-        self.score+=trans.score
+        #self.score+=trans.score
 
 
     def shift(self,trans):
         self.stack.append(self.queue.pop(0))
-        self.score+=trans.score
+        #self.score+=trans.score
 
 
     def swap(self,trans):
         self.queue.insert(0,self.stack.pop(-2))
-        self.score+=trans.score
+        #self.score+=trans.score
 
     def valid_transitions(self):
         moves=set()
@@ -148,7 +148,7 @@ class Parser(object):
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
                 if move is not None:
-                    trans=Transition(move,1.0,"dep")
+                    trans=Transition(move,1.0,dType)
                     transitions.append(trans)
                     if trans.move not in state.valid_transitions():
                         raise ValueError("Invalid transition:",trans.move)
@@ -156,10 +156,10 @@ class Parser(object):
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    trans=Transition(SWAP,1.0,"dep")
+                    trans=Transition(SWAP,1.0,None)
                     transitions.append(trans)
             else: # SHIFT
-                trans=Transition(SHIFT,1.0,"dep")
+                trans=Transition(SHIFT,1.0,None)
                 transitions.append(trans)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
@@ -203,7 +203,7 @@ class Parser(object):
                     self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
                 except:
                     traceback.print_exc()
-                    raise
+                    raise KeyError
                 print self.perceptron.w
                 break
                 

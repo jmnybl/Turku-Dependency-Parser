@@ -40,12 +40,16 @@ class Features(object):
         ## TODO: what kind of prefixes should I use?
         uni_feat=dict()
         s0,s1=self.get_from_stack(state.stack) # stack
-        for token in [s0,s1]:
+        l=[s0,s1]
+        for i in xrange(0,len(l)):
+            token=l[i]
             if token is not None:
-                uni_feat[u"stack="+token.text]=1.0 # word form
-                uni_feat[u"stack="+token.pos]=1.0 # pos
-                uni_feat[u"stack="+token.lemma]=1.0 # lemma
-                uni_feat[u"stack="+token.feat]=1.0 # morphological features (extra feature for Finnish)
+                uni_feat[u"stack"+str(i)+"="+token.text]=1.0 # word form
+                uni_feat[u"stack"+str(i)+"="+token.pos]=1.0 # pos
+                uni_feat[u"stack"+str(i)+"="+token.lemma]=1.0 # lemma
+                uni_feat[u"stack"+str(i)+"="+token.feat]=1.0 # morphological features (extra feature for Finnish)
+        ## depType
+        uni_feat[u"dType="+str(state.transitions[-1].dType)]=1.0
 
         s0f0,s0f1=self.get_followings(s0) # following
         for token in [s0f0,s0f1]:
