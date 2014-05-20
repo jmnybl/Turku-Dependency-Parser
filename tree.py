@@ -106,11 +106,12 @@ class Tree(object):
 
 class Token(object):
 
-    def __init__(self,idx,text,POS=None,feat=None):
+    def __init__(self,idx,text,pos="",feat="",lemma=""):
         self.index=idx
         self.text=text
-        self.POS=POS
+        self.pos=pos
         self.feat=feat
+        self.lemma=lemma
 
     def __str__(self):
         return self.text.encode(u"utf-8")
