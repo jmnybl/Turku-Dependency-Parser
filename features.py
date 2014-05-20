@@ -14,6 +14,15 @@ class Features(object):
         else:
             return None,None
 
+    def get_from_queue(self,queue):
+        """ Return needed tokens from the queue. """
+        if len(queue)>1:
+            return queue[0],queue[1]
+        elif len(queue)>0:
+            return queue[0],None
+        else:
+            return None,None
+
     def get_followings(self,token):
         """ The immediately following words of a token in input string (not the same than queue!)"""
         # TODO: currently state does not have this information
@@ -73,8 +82,11 @@ class Features(object):
         bi_feat=dict()
         s0,s1=self.get_from_stack(state.stack) # stack
         if (s0 is not None) and (s1 is not None):
-            bi_feat[u"stack="+s1.text+s0.pos]=1.0
-            bi_feat[u"stack="+s1.pos+s0.text]=1.0
+            bi_feat[u"bigram-stack="+s1.text+s0.pos]=1.0
+            bi_feat[u"bigram-stack="+s1.pos+s0.text]=1.0
+        
+
+        q0,q1=self.get_from_queue(state.queue) # queue
 
 
     def create_features(self, state):

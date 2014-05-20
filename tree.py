@@ -5,7 +5,7 @@ class Tree(object):
 
     
 
-    def __init__(self,sent,conll=None):
+    def __init__(self,sent,conll=None,syn=False):
         self.tokens=[]
         self.childs=defaultdict(lambda:set())
         self.deps=[]
@@ -13,7 +13,7 @@ class Tree(object):
         self.projective_order=None
         
         if conll is not None:
-            self.from_conll(conll)
+            self.from_conll(conll,syn)
         else:
             toks=sent.split()
             for i in xrange(0,len(toks)):
@@ -22,23 +22,26 @@ class Tree(object):
             self.deps=[]
             self.ready=False
 
-    def from_conll(self,lines):    
+    def from_conll(self,lines,syn):    
         """ Reads conll format and transforms it to a tree instance. """
         for i in xrange(0,len(lines)):
             line=lines[i]
-            token=Token(i,line[1])
+            token=Token(i,line[1],pos=line[4],feat=line[6])
             self.tokens.append(token)
-        for line in lines:
-            gov=int(line[8])
-            if gov==0:
-                self.root=self.tokens[int(line[0])-1]
-                continue
-            gov=self.tokens[gov-1]
-            dep=self.tokens[int(line[0])-1]
-            dType=line[10]
-            dependency=Dep(gov,dep,dType)
-            self.add_dep(dependency)
-        self.ready=True
+        
+        if syn:
+            for line in lines:
+                gov=int(line[8])
+                if gov==0:
+                    self.root=self.tokens[int(line[0])-1]
+                    continue
+                gov=self.tokens[gov-1]
+                dep=self.tokens[int(line[0])-1]
+                dType=line[10]
+                dependency=Dep(gov,dep,dType)
+                self.add_dep(dependency)
+            self.ready=True
+        else: self.ready=False
 
     def add_dep(self,dependency):
         self.deps.append(dependency)

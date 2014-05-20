@@ -36,8 +36,8 @@ class Transition(object):
 
 class State(object):
 
-    def __init__(self,sent):
-        self.tree=Tree(sent)
+    def __init__(self,tokens,sent=None):
+        self.tree=Tree(tokens,conll=sent)
         self.stack=[]
         self.queue=self.tree.tokens
         self.score=0.0
@@ -66,17 +66,14 @@ class State(object):
         """ Gov and dep are Token class instances. """
         dependency=Dep(gov,dep,trans.dType)
         self.tree.add_dep(dependency)
-        #self.score+=trans.score
 
 
     def shift(self,trans):
         self.stack.append(self.queue.pop(0))
-        #self.score+=trans.score
 
 
     def swap(self,trans):
         self.queue.insert(0,self.stack.pop(-2))
-        #self.score+=trans.score
 
     def valid_transitions(self):
         moves=set()
@@ -98,7 +95,7 @@ class Parser(object):
 
     def __init__(self):
         self.features=features.Features()
-        self.perceptron=GPerceptron(10)
+        self.perceptron=GPerceptron(100)
 
     def read_conll(self,fName):
         """ Read conll format file and yield one sentence at a time. """
@@ -122,14 +119,14 @@ class Parser(object):
             total+=1
             tokens=u" ".join(t[1] for t in sent)
             #print tokens
-            gs_tree=Tree(tokens,conll=sent)
+            gs_tree=Tree(tokens,conll=sent,syn=True)
             non_projs=gs_tree.is_nonprojective()
             if len(non_projs)>0:
                 gs_tree.define_projective_order(non_projs)
                 non+=1
             try:
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
-                self.train_one_sent(gs_transitions,tokens)
+                self.train_one_sent(gs_transitions,sent) # sent is a conll sentence
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
@@ -185,8 +182,10 @@ class Parser(object):
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
     def train_one_sent(self,gs_transitions,sent):
-        state=State(sent)
-        gs_state=State(sent) # this not optimal, and we need to rethink this when we implement the beam search
+        """ Sent is a list of conll lines."""
+        tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
+        state=State(tokens,sent=sent)
+        gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=self.give_next_trans(state)
             if trans.move not in state.valid_transitions():
@@ -195,15 +194,8 @@ class Parser(object):
             self.apply_trans(gs_state,gs_transitions[len(state.transitions)-1]) # apply gs transition
             print ">>>",trans.move,gs_transitions[len(state.transitions)-1].move
             if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
-                try:
-                    print state
-                    print state.transitions
-                    print gs_state
-                    print gs_transitions[:len(state.transitions)]
-                    self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
-                except:
-                    traceback.print_exc()
-                    raise KeyError
+                print len(state.transitions)
+                self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
                 print self.perceptron.w
                 break
                 
@@ -243,11 +235,12 @@ class Parser(object):
             if move==RIGHT or move==LEFT:
                 for dType in DEPTYPES:
                     trans=Transition(move,1.0,dType)
+                    score=self.pre_apply(state,trans)
+                    scores[(trans.move,trans.dType)]=score
             else:
                 trans=Transition(move,1.0)
-            score=self.pre_apply(state,trans)
-            scores[(trans.move,trans.dType)]=score
-
+                score=self.pre_apply(state,trans)
+                scores[(trans.move,trans.dType)]=score
         best_trans=max(scores, key=scores.get)
         return Transition(best_trans[0],1.0,best_trans[1])#,scores[best_trans]
 
@@ -262,9 +255,9 @@ class Parser(object):
     def apply_trans(self,state,trans):
         state.update(trans) # update stack and queue
         features=self.features.create_features(state) # create new features
+        state.score+=self.perceptron.score(features) # update score
         for feat in features:
-            state.features[feat]+=features[feat] # merge old and new features
-        state.score+=self.perceptron.score(state.features)
+            state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
     
 
