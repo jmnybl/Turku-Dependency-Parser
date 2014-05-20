@@ -48,6 +48,7 @@ class Features(object):
         """
         ## TODO: what kind of prefixes should I use?
         uni_feat=dict()
+
         s0,s1=self.get_from_stack(state.stack) # stack
         l=[s0,s1]
         for i in xrange(0,len(l)):
@@ -57,6 +58,17 @@ class Features(object):
                 uni_feat[u"stack"+str(i)+"="+token.pos]=1.0 # pos
                 uni_feat[u"stack"+str(i)+"="+token.lemma]=1.0 # lemma
                 uni_feat[u"stack"+str(i)+"="+token.feat]=1.0 # morphological features (extra feature for Finnish)
+
+        q0,q1=self.get_from_queue(state.queue) # queue
+        l=[q0,q1]
+        for i in xrange(0,len(l)):
+            token=l[i]
+            if token is not None:
+                uni_feat[u"queue"+str(i)+"="+token.text]=1.0 # word form
+                uni_feat[u"queue"+str(i)+"="+token.pos]=1.0 # pos
+                uni_feat[u"queue"+str(i)+"="+token.lemma]=1.0 # lemma
+                uni_feat[u"queue"+str(i)+"="+token.feat]=1.0 # morphological features (extra feature for Finnish)
+
         ## depType
         uni_feat[u"dType="+str(state.transitions[-1].dType)]=1.0
 
@@ -69,6 +81,9 @@ class Features(object):
         for token in [s0ld0,s0ld1]:
             if token is not None:
                 uni_feat[u"leftchild="+token.text]=1.0
+
+        
+
 
         return uni_feat
 
@@ -84,15 +99,40 @@ class Features(object):
         if (s0 is not None) and (s1 is not None):
             bi_feat[u"bigram-stack="+s1.text+s0.pos]=1.0
             bi_feat[u"bigram-stack="+s1.pos+s0.text]=1.0
+            bi_feat[u"bigram-stack="+s0.text+s0.pos]=1.0
+            bi_feat[u"bigram-stack="+s0.text+s1.pos]=1.0
+            bi_feat[u"bigram-stack="+s1.text+s0.text]=1.0
+            bi_feat[u"bigram-stack="+s1.lemma+s0.pos]=1.0
+            bi_feat[u"bigram-stack="+s1.pos+s0.lemma]=1.0
+            bi_feat[u"bigram-stack="+s1.pos+s0.pos]=1.0
+            if len(state.transitions)>1:
+                bi_feat[u"bigram-stack="+s0.pos+str(state.transitions[-2].move)]=1.0
         
 
         q0,q1=self.get_from_queue(state.queue) # queue
+        if (q0 is not None) and (q1 is not None):
+            bi_feat[u"bigram-queue="+q1.text+q0.pos]=1.0
+            bi_feat[u"bigram-queue="+q1.pos+q0.text]=1.0
+            bi_feat[u"bigram-queue="+q0.text+q0.pos]=1.0
+            bi_feat[u"bigram-queue="+q0.text+q1.pos]=1.0
+            bi_feat[u"bigram-queue="+q1.text+q0.text]=1.0
+            bi_feat[u"bigram-queue="+q1.lemma+q0.pos]=1.0
+            bi_feat[u"bigram-queue="+q1.pos+q0.lemma]=1.0
+            bi_feat[u"bigram-queue="+q1.pos+q0.pos]=1.0
+            if len(state.transitions)>1:
+                bi_feat[u"bigram-queue="+q0.pos+str(state.transitions[-2].move)]=1.0
+    
+        s0f0,s0f1=self.get_followings(s0) # following
+
+
+        return bi_feat
 
 
     def create_features(self, state):
         """ Main function to create all features. """
         features=dict()
         features.update(self.create_unigram_features(state))
+        features.update(self.create_bigram_features(state))
         return features
 
 

@@ -26,7 +26,7 @@ class Tree(object):
         """ Reads conll format and transforms it to a tree instance. """
         for i in xrange(0,len(lines)):
             line=lines[i]
-            token=Token(i,line[1],pos=line[4],feat=line[6])
+            token=Token(i,line[1],pos=line[4],feat=line[6],lemma=line[2]) # TODO: remove constants :)
             self.tokens.append(token)
         
         if syn:
@@ -53,10 +53,6 @@ class Tree(object):
                 return dependency.dType
         return None
 
-    def token_dim(self,token):
-        if len(self.childs[token])==0: return 0
-        for child in self.childs[token]:
-            return 1+self.token_dim(child)
 
     def is_nonprojective(self):
         """ Return 'non-projective dep' if tree is non-projective, else None"""
