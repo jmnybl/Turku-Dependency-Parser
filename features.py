@@ -21,7 +21,7 @@ class Features(object):
 
     def get_leftchilds(self,token,tree):
         """ Return two leftmost children of a given token. """
-        childs=sorted(tree.childs[token], lambda x:x.index)
+        childs=sorted(tree.childs[token], key=lambda x:x.index)
         if len(childs)>1:
             return childs[0],childs[1]
         elif len(childs)>0:

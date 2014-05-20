@@ -5,9 +5,9 @@ from tree import Token,Tree,Dep
 import codecs
 import traceback
 from collections import defaultdict
-import Features
+import features
 from perceptron import GPerceptron
-
+import copy
 
 SHIFT=0
 RIGHT=1
@@ -26,6 +26,12 @@ class Transition(object):
 
     def __eq__(self,other):
         return self.move==other.move and self.dType==other.dType
+
+    def __str__(self):
+        return str(self.move)+":"+str(self.dType)
+
+    def __repr__(self):
+        return str(self.move)+":"+str(self.dType)
    
 
 class State(object):
@@ -50,7 +56,7 @@ class State(object):
             self.swap(trans)
         else:
             raise ValueError("Incorrect transition")
-        self.transitions.append(trans.move)
+        self.transitions.append(trans)
         if len(self.queue)==0 and len(self.stack)==1:
             self.tree.ready=True
 
@@ -91,7 +97,7 @@ class Parser(object):
 
 
     def __init__(self):
-        self.features=Features.Features()
+        self.features=features.Features()
         self.perceptron=GPerceptron(10)
 
     def read_conll(self,fName):
@@ -142,19 +148,19 @@ class Parser(object):
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
                 if move is not None:
-                    transitions.append(move)
                     trans=Transition(move,1.0,"dep")
+                    transitions.append(trans)
                     if trans.move not in state.valid_transitions():
                         raise ValueError("Invalid transition:",trans.move)
                     self.apply_trans(state,trans)
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    transitions.append(SWAP)
                     trans=Transition(SWAP,1.0,"dep")
+                    transitions.append(trans)
             else: # SHIFT
-                transitions.append(SHIFT)
                 trans=Transition(SHIFT,1.0,"dep")
+                transitions.append(trans)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans)
@@ -182,14 +188,22 @@ class Parser(object):
         state=State(sent)
         gs_state=State(sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
-            trans=give_next_trans(state)
+            trans=self.give_next_trans(state)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
             self.apply_trans(state,trans) # apply predicted transition
             self.apply_trans(gs_state,gs_transitions[len(state.transitions)-1]) # apply gs transition
-            print trans.move,gs_transitions[len(state.transitions)-1].move
+            print ">>>",trans.move,gs_transitions[len(state.transitions)-1].move
             if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
-                self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
+                try:
+                    print state
+                    print state.transitions
+                    print gs_state
+                    print gs_transitions[:len(state.transitions)]
+                    self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
+                except:
+                    traceback.print_exc()
+                    raise
                 print self.perceptron.w
                 break
                 
@@ -235,11 +249,12 @@ class Parser(object):
             scores[(trans.move,trans.dType)]=score
 
         best_trans=max(scores, key=scores.get)
-        return best_trans,scores[best_trans]
+        return Transition(best_trans[0],1.0,best_trans[1])#,scores[best_trans]
 
 
     def pre_apply(self,state,trans):
-        temp_state=state.deepcopy()
+        #temp_state=state.deepcopy()
+        temp_state=copy.deepcopy(state)
         self.apply_trans(temp_state,trans)
         return temp_state.score
 

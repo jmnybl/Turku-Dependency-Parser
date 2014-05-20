@@ -1,4 +1,5 @@
 from __future__ import division
+import math
 import numpy
 import os.path
 import json
@@ -50,11 +51,11 @@ class GPerceptron(object):
     def __init__(self,w_len,w_avg=None,w=None,w_avg_N=0,float_array_type=numpy.float64):
         self.w_len=w_len
         self.float_array_type=float_array_type 
-        if w!=None:
+        if w==None:
             self.w=numpy.zeros(w_len,float_array_type)
         else:
             self.w=w
-        if w_avg!=None:
+        if w_avg==None:
             self.w_avg=numpy.zeros(w_len,float_array_type) #Running sum of self.w for the averaged perceptron
         else:
             self.w_avg=w_avg
@@ -66,9 +67,9 @@ class GPerceptron(object):
         """
         v=hash(feature_name)
         if v<0:
-            return (-feature_name)%self.w_len
+            return (-v)%self.w_len
         else:
-            return feature_name%self.w_len
+            return v%self.w_len
         
     def score(self,features):
         """
@@ -76,7 +77,7 @@ class GPerceptron(object):
         a dict()-like object mapping feature_name:count
         """
         res=0.0
-        for feature_name,weight in features.iter_items():
+        for feature_name,weight in features.iteritems():
             dim=self.feature2dim(feature_name)
             res+=self.w[dim]*weight
         return res
@@ -91,24 +92,22 @@ class GPerceptron(object):
 
         norm2=0.0 #denominator for tau, the P-A update weight
         #loop over features in gold
-        for feature_name,feature_weight in gold_features:
+        for feature_name,feature_weight in gold_features.iteritems():
             norm2+=(feature_weight-system_features.get(feature_name,0.0))**2
         #loop over features in system pred. which are not in gold
-        for feature_name,feature_weight in system_features:
+        for feature_name,feature_weight in system_features.iteritems():
             if feature_name not in gold_features: #must not count these twice
                 norm2+=feature_weight**2
-        
-        tau=math.abs(system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
-
+        tau=abs(system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
         #Do the update
-        for feature_name,feature_weight in gold_features:
-            dim=self.feature2dim[feature_name]
+        for feature_name,feature_weight in gold_features.iteritems():
+            dim=self.feature2dim(feature_name)
             self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
             self.w_avg[dim]+=self.w[dim]
         #loop over features in system pred. which are not in gold
-        for feature_name,feature_weight in system_features:
+        for feature_name,feature_weight in system_features.iteritems():
             if feature_name not in gold_features: #must not count these twice
-                dim=self.feature2dim[feature_name]
+                dim=self.feature2dim(feature_name)
                 self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
                 self.w_avg[dim]+=self.w[dim]
                 
