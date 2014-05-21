@@ -10,9 +10,10 @@ logging.basicConfig(level=logging.INFO)
 
 class PerceptronSharedState(object):
 
-    """This object actually holds the shared memory arrays and variables
-    needed for the multi-process learning. The `GPerceptron` objects 
-    update this state through shared memory."""
+    """This object actually holds the shared memory arrays and
+    variables needed for the multi-process learning. The `GPerceptron`
+    objects, of which you can have any number you like, update this
+    state through shared memory."""
     
     @classmethod
     def load(cls,model_name,retrainable=False):
@@ -22,6 +23,7 @@ class PerceptronSharedState(object):
         `retrainable`: should we load also the weight vector and
                        meta-data necessary for restarting the
                        training?
+
         """
         if not os.path.exists(model_name):
             raise ValueError(model_name+": no such model")
@@ -33,33 +35,55 @@ class PerceptronSharedState(object):
             w=None
         w_avg=numpy.load(os.path.join(model_name,"w_avg.npy"))
         float_array_type=w_avg.dtype
-        gp=cls(w=w,w_avg=w_avg,float_array_type=float_array_type,**d)
-        return gp
+        gp_state=cls(w=w,w_avg=w_avg,float_array_type=float_array_type,**d)
+        return gp_state
 
-class GPerceptron(object):
-
-    @classmethod
-    def load(cls,model_name,retrainable=False):
+    def mp_code_from_type(self,numpyType):
         """
-        Load the perceptron from `model_name` (which is a directory holding all model files)
-
-        `retrainable`: should we load also the weight vector and
-                       meta-data necessary for restarting the
-                       training?
+        Returns the code for multiprocessing array type from numpyType
         """
-        if not os.path.exists(model_name):
-            raise ValueError(model_name+": no such model")
-        with open(os.path.join(model_name,"config.json"),"r") as f:
-            d=json.load(f) #dictionary with parameters
-        w=numpy.load(os.path.join(model_name,"w.npy"))
-        if os.path.exists(os.path.join(model_name,"w.npy")) and retrainable:
-            w=numpy.load(os.path.join(model_name,"w.npy"))
+        if numpyType==numpy.float64:
+            return 'd'
+        elif numpyType==numpy.float32:
+            return 'f'
         else:
-            w=None
-        w_avg=numpy.load(os.path.join(model_name,"w_avg.npy"))
-        float_array_type=w_avg.dtype
-        gp=cls(w=w,w_avg=w_avg,float_array_type=float_array_type,**d)
-        return gp
+            raise NotImplementedError("Float64 and Float32 are the only types supported")
+
+    def __init__(self,w_len=None,w_avg=None,w=None,w_avg_N=0,float_array_type=numpy.float64):
+        """
+        At the minimum, you need to specify either w_avg or w_len+float_array_type
+        """
+
+        if w_avg!=None:
+            self.w_len=w_avg.shape[0]
+            self.float_array_type=self.w_avg.dtype
+            self.w_avg_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_avg)
+        else:
+            if w_len==None:
+                raise ValueError("You need to specify w_len if you don't specify w_avg")
+            self.w_len=w_len
+            self.float_array_type=float_array_type
+            #RawArray() is zeroed in the constructor
+            self.w_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),self.w_len)
+            
+
+        #Whatever happens, I should have self.w_len and self.float_array_type available at this point
+
+        if w!=None:
+            if self.w_len!=w.shape[0]:
+                raise ValueError("Mismatch in length of w and w_avg!")
+            self.w_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w)
+        else:
+            if w_len==None:
+                raise ValueError("You need to specify w_len if you don't specify w_avg")
+            self.w_avg_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_len)
+        w=None
+        w_avg=None #Won't need these anymore
+
+        #Now yet create the w_avg_N, which we want to synchronize access to, though so that the count in the average is correct
+        self.w_avg_N_s=multiprocessing.Value(self.mp_code_from_type(self.float_array_type),0.0) #I'm making this float since we'll use it to divide floats
+        self.w_avg_N_s.value=w_avg_N
+
 
     def save(self,model_name,retrainable=False):
         """
@@ -69,26 +93,34 @@ class GPerceptron(object):
         """
         if not os.path.exists(model_name):
             os.makedirs(model_name)
-        numpy.save(os.path.join(model_name,"w_avg.npy"),self.w_avg)
+        numpy.save(os.path.join(model_name,"w_avg.npy"),numpy.frombuffer(self.w_avg,self.float_array_type))
         d={"w_len":self.w_len}
         if retrainable:
-            numpy.save(os.path.join(model_name,"w.npy"),self.w)
-            d["w_avg_N"]=self.w_avg_N
+            numpy.save(os.path.join(model_name,"w.npy"),numpy.frombuffer(self.w,self.float_array_type))
+            d["w_avg_N"]=self.w_avg_N.value
         with open(os.path.join(model_name,"config.json"),"w") as f:
             json.dump(d,f)
 
-    def __init__(self,w_len,w_avg=None,w=None,w_avg_N=0,float_array_type=numpy.float64):
-        self.w_len=w_len
-        self.float_array_type=float_array_type 
-        if w==None:
-            self.w=numpy.zeros(w_len,float_array_type)
-        else:
-            self.w=w
-        if w_avg==None:
-            self.w_avg=numpy.zeros(w_len,float_array_type) #Running sum of self.w for the averaged perceptron
-        else:
-            self.w_avg=w_avg
-        self.w_avg_N=w_avg_N #How many vectors are summed in w_avg?
+class GPerceptron(object):
+
+    @classmethod
+    def from_shared_state(cls,shared_state):
+        """
+        New GPerceptron built using the shared state. This method is the only way you should be creating the perceptrons.
+        """
+        w=numpy.frombuffer(shared_state.w_s,shared_state.float_array_type)
+        w_avg=numpy.frombuffer(shared_state.w_avg_s,shared_state.float_array_type)
+        w_avg_N=shared_state.w_avg_N_s
+        gp=cls(w=w,w_avg=w_avg,w_avg_N=w_avg_N)
+        return gp
+    
+    def __init__(self,w,w_avg,w_avg_N):
+        """
+        Do not call this directly unless you know what you're doing. Create the instances using from_shared_state()
+        """
+        self.w=w
+        self.w_avg=w_avg
+        self.w_avg_N=w_avg_N
 
     def feature2dim(self,feature_name):
         """
@@ -117,7 +149,8 @@ class GPerceptron(object):
         Updates the weight vector w.r.t. to the
         difference between `features` and `gold_features`
         """
-        self.w_avg_N+=1 #count the update runs, so we can take the average vector at the end
+        with self.w_avg_N.get_lock():
+            self.w_avg_N.value+=1.0 #count the update runs, so we can take the average vector at the end
 
         norm2=0.0 #denominator for tau, the P-A update weight
         #loop over features in gold
