@@ -56,7 +56,7 @@ class PerceptronSharedState(object):
 
         if w_avg!=None:
             self.w_len=w_avg.shape[0]
-            self.float_array_type=self.w_avg.dtype
+            self.float_array_type=w_avg.dtype
             self.w_avg_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_avg)
         else:
             if w_len==None:
@@ -93,11 +93,11 @@ class PerceptronSharedState(object):
         """
         if not os.path.exists(model_name):
             os.makedirs(model_name)
-        numpy.save(os.path.join(model_name,"w_avg.npy"),numpy.frombuffer(self.w_avg,self.float_array_type))
+        numpy.save(os.path.join(model_name,"w_avg.npy"),numpy.frombuffer(self.w_avg_s,self.float_array_type))
         d={"w_len":self.w_len}
         if retrainable:
-            numpy.save(os.path.join(model_name,"w.npy"),numpy.frombuffer(self.w,self.float_array_type))
-            d["w_avg_N"]=self.w_avg_N.value
+            numpy.save(os.path.join(model_name,"w.npy"),numpy.frombuffer(self.w_s,self.float_array_type))
+            d["w_avg_N"]=self.w_avg_N_s.value
         with open(os.path.join(model_name,"config.json"),"w") as f:
             json.dump(d,f)
 

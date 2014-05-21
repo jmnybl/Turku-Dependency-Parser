@@ -3,7 +3,7 @@ import multiprocessing
 import time
 
 #This is created in the main process
-state=PerceptronSharedState(5000000)
+state=PerceptronSharedState.load("xxx2",True)
 
 def one_process(gp):
     #Gets one generalized perceptron to work with
@@ -22,3 +22,4 @@ for p in PS:
     p.join()
 
 print state.w_avg_N_s.value
+state.save("xxx2",True)
