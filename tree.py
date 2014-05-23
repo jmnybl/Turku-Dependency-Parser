@@ -1,14 +1,32 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict,namedtuple
+import codecs
 
 CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL"])
 
 #Column lists for the various formats
 formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10)}
 
-class Tree(object):
 
-    
+
+def read_conll(fName):
+    """ Read conll format file and yield one sentence at a time as a list of lists of columns. """
+    with codecs.open(fName,u"rt",u"utf-8") as f:
+        sent=[]
+        for line in f:
+            line=line.strip()
+            if not line or line.startswith(u"#"): #Do not rely on empty lines in conll files, ignore comments
+                continue 
+            if line.startswith(u"1\t") and sent: #New sentence, and I have an old one to yield
+                yield sent
+                sent=[]
+            sent.append(line.split(u"\t"))
+        else:
+            if sent:
+                yield sent
+
+
+class Tree(object):
 
     def __init__(self,sent,conll=None,syn=False):
         self.tokens=[]

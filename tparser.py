@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from tree import Token,Tree,Dep
+from tree import Token,Tree,Dep, read_conll
 import codecs
 import traceback
 from collections import defaultdict
@@ -97,23 +97,12 @@ class Parser(object):
         self.perceptron_state=PerceptronSharedState(1000000)
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
-    def read_conll(self,fName):
-        """ Read conll format file and yield one sentence at a time. """
-        f=codecs.open(fName,u"rt",u"utf-8")
-        sent=[]
-        for line in f:
-            line=line.strip()
-            if not line:
-                yield sent # list of conll lines
-                sent=[]
-            else:
-                sent.append(line.split(u"\t"))
 
     def train(self,fName):
         total=0
         failed=0
         non=0
-        for sent in self.read_conll(fName):
+        for sent in read_conll(fName):
             total+=1
             tokens=u" ".join(t[1] for t in sent)
             gs_tree=Tree(tokens,conll=sent,syn=True)
