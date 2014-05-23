@@ -6,7 +6,7 @@ import codecs
 import traceback
 from collections import defaultdict
 import features
-from perceptron import GPerceptron
+from perceptron import GPerceptron, PerceptronSharedState
 import copy
 
 SHIFT=0
@@ -94,7 +94,8 @@ class Parser(object):
 
     def __init__(self):
         self.features=features.Features()
-        self.perceptron=GPerceptron(1000000)
+        self.perceptron_state=PerceptronSharedState(1000000)
+        self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
     def read_conll(self,fName):
         """ Read conll format file and yield one sentence at a time. """
