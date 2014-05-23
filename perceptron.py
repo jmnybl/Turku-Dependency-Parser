@@ -121,6 +121,7 @@ class GPerceptron(object):
         self.w=w
         self.w_avg=w_avg
         self.w_avg_N=w_avg_N
+        self.w_len=len(self.w)
 
     def feature2dim(self,feature_name):
         """
