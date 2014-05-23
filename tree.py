@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-from collections import defaultdict
+from collections import defaultdict,namedtuple
+
+CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL"])
+
+#Column lists for the various formats
+formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10)}
 
 class Tree(object):
 
@@ -22,22 +27,23 @@ class Tree(object):
             self.deps=[]
             self.ready=False
 
-    def from_conll(self,lines,syn):    
-        """ Reads conll format and transforms it to a tree instance. """
+    def from_conll(self,lines,syn,conll_format="conll09"):    
+        """ Reads conll format and transforms it to a tree instance. Form is a format."""
+        form=formats[conll_format] #named tuple with the column indices
         for i in xrange(0,len(lines)):
             line=lines[i]
-            token=Token(i,line[1],pos=line[4],feat=line[6],lemma=line[2]) # TODO: remove constants :)
+            token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA]) # TODO: remove constants :)
             self.tokens.append(token)
         
         if syn:
             for line in lines:
-                gov=int(line[8])
+                gov=int(line[form.HEAD])
                 if gov==0:
                     self.root=self.tokens[int(line[0])-1]
                     continue
                 gov=self.tokens[gov-1]
                 dep=self.tokens[int(line[0])-1]
-                dType=line[10]
+                dType=line[form.DEPREL]
                 dependency=Dep(gov,dep,dType)
                 self.add_dep(dependency)
             self.ready=True
