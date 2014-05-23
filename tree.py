@@ -28,7 +28,7 @@ def read_conll(fName):
 
 class Tree(object):
 
-    def __init__(self,sent,conll=None,syn=False):
+    def __init__(self,sent,conll=None,syn=False,conll_format="conll09"):
         self.tokens=[]
         self.childs=defaultdict(lambda:set())
         self.deps=[]
@@ -36,7 +36,7 @@ class Tree(object):
         self.projective_order=None
         
         if conll is not None:
-            self.from_conll(conll,syn)
+            self.from_conll(conll,syn,conll_format=conll_format)
         else:
             toks=sent.split()
             for i in xrange(0,len(toks)):
@@ -46,7 +46,8 @@ class Tree(object):
             self.ready=False
 
     def from_conll(self,lines,syn,conll_format="conll09"):    
-        """ Reads conll format and transforms it to a tree instance. Form is a format."""
+        """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
+            which will be looked up in the formats module-level dictionary"""
         form=formats[conll_format] #named tuple with the column indices
         for i in xrange(0,len(lines)):
             line=lines[i]
