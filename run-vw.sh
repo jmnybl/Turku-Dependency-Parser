@@ -7,7 +7,7 @@ TOTAL=$(ls out/*.vwdata | wc -l)
 LAST=$(( $TOTAL - 1))
 for fName in out/*.vwdata
 do
-    CMD="vw --total $TOTAL --node $COUNTER --unique_id 123 -d $fName --span_server localhost --oaa 94 -b 20 -c --progress 50000 --holdout_off"
+    CMD="vw --total $TOTAL --node $COUNTER --unique_id 123 -q QS -q QQ -q SS -q Qs -q qS --passes 3 -d $fName --span_server localhost --oaa 94 -b 22 -c --progress 50000 --holdout_off"
     if [[ $COUNTER -eq $LAST ]]
     then
 	$CMD -f trained.vw > log/node_$COUNTER 2>&1

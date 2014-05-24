@@ -30,7 +30,7 @@ class VWQuery(object):
         if not os.path.exists(fifo_pipe_name):
             os.system("mkfifo --mode 0666 "+fifo_pipe_name)
         self.port=random.randint(10000,55000)
-        vwCMD="/usr/local/bin/vw -t -i %s --daemon --port %d -r %s --quiet"%(model_file,self.port,fifo_pipe_name)
+        vwCMD="/usr/local/bin/vw -t -i %s -q QS -q QQ -q SS -q Qs -q qS --daemon --port %d -r %s --quiet"%(model_file,self.port,fifo_pipe_name)
         self.vw=subprocess.Popen(vwCMD,shell=True)
         self.raw_pred_read=open(fifo_pipe_name,"rt")              
         time.sleep(1) #wait a sec so VW has the time to start and open the socket
@@ -52,7 +52,7 @@ class VWQuery(object):
             c,w=cls_w.split(":")
             class_weights.append((int(c),float(w)))
         class_weights.sort(reverse=True,key=lambda x: x[1])
-        assert cls==class_weights[0][0]
+        assert cls==class_weights[0][0], (cls, class_weights)
         return class_weights
 
 if __name__=="__main__":

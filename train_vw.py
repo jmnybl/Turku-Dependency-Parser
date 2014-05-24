@@ -20,30 +20,30 @@ def get_cls_num(cls,update=False):
     else:
         raise KeyError(cls)
 
-def token_feats(prefix,token,d):
-    d[u"%s.form_%s"%(prefix,token.text)]=1
-    d[u"%s.pos_%s"%(prefix,token.pos)]=1
-    d[u"%s.lemma_%s"%(prefix,token.lemma)]=1
+def token_feats(ns,prefix,token,d):
+    d[ns.lower()][u"%s.form_%s"%(prefix,token.text)]=1
+    d[ns.upper()][u"%s.pos_%s"%(prefix,token.pos)]=1
+    d[ns.upper()][u"%s.lemma_%s"%(prefix,token.lemma)]=1
     if token.feat!=u"_":
         for f_v in token.feat.split(u"|"):
-            d[u"%s.feat_%s"%(prefix,f_v)]=1
+            d[ns.lower()][u"%s.feat_%s"%(prefix,f_v)]=1
         
 
 def sanitize(f):
     return f.replace(u":",u"__colon__").replace(u"|",u"__bar__")
 
 def get_state_features(s):
-    d={}
+    d={u"S":{},u"s":{},u"Q":{},u"q":{}}
     for idx in range(3):
         if idx<len(s.stack):
-            token_feats(u"S%d"%idx,s.stack[idx],d)
+            token_feats(u"s",u"S%d"%idx,s.stack[idx],d)
         else:
-            d[u"S%d_empty"%idx]=1
-    for idx in range(3):
+            d["S"][u"S%d_empty"%idx]=1
+    for idx in range(4):
         if idx<len(s.queue):
-            token_feats(u"Q%d"%idx,s.queue[idx],d)
+            token_feats(u"q",u"Q%d"%idx,s.queue[idx],d)
         else:
-            d[u"Q%d_empty"%idx]=1
+            d[u"Q"][u"Q%d_empty"%idx]=1
     return d
 
 def one_sent_example(sent,parser):
@@ -62,7 +62,11 @@ def one_sent_example(sent,parser):
         except KeyError:
             continue
         feats=get_state_features(state)
-        print cls, u"|", (u" ".join(sanitize(f) for f in feats)).encode("utf-8")
+        print cls, u"  ", 
+        for namespace, fDict in feats.iteritems():
+            print u"|"+namespace, (u" ".join(sanitize(f) for f in fDict)).encode("utf-8"),u" ",
+        print
+
         state.update(tr)
 
 if __name__=="__main__":
@@ -70,6 +74,8 @@ if __name__=="__main__":
     sent_OK,sent_TOT=0,0
     p=tparser.Parser()
     for sent in tree.read_conll("/dev/stdin"):
+        if sent_TOT==5000000:
+            break
         sent_TOT+=1
         if sent_TOT%1000==0:
             elapsed=time.time()-start
