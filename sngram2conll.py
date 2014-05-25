@@ -8,11 +8,15 @@ import threading
 
 form=u"%(ID)d %(FORM)s %(LEMMA)s _ %(POS)s _ %(FEAT)s _ %(HEAD)s _ %(DEPREL)s _ _ _ _".replace(u" ",u"\t")
 
-def ng2conll(ng,out):
+def ng2conll(ng):
+    ret=u""
     tokens=[]
     for idx,tok in enumerate(ng.split()):
         wform,pos,rel,head=tok.rsplit(u"/",3)
-        print >> out, form%{u"ID":idx+1,u"FORM":wform,u"POS":pos,u"FEAT":u"_",u"HEAD":head,u"DEPREL":rel,u"LEMMA":u"_"}
+        if idx!=0:
+            ret+=u"\n"
+        ret+=form%{u"ID":idx+1,u"FORM":wform,u"POS":pos,u"FEAT":u"_",u"HEAD":head,u"DEPREL":rel,u"LEMMA":u"_"}
+    return ret
 
 def process_one_file(fname,out,lock):
     f=gzip.open(fname,"r")
@@ -22,10 +26,15 @@ def process_one_file(fname,out,lock):
             continue
         head,ng,count,year=line.split(u"\t")
         lock.acquire()
-        print >> out, u"# count:",count
-        ng2conll(ng,out)
-        print >> out
-        out.flush()
+        try:
+            lines=ng2conll(ng)
+        #Print all at once to avoid broken output in case of exception
+            print >> out, u"# count:",count
+            print >> out, lines
+            print >> out
+            out.flush()
+        except:
+            pass
         lock.release()
     f.close()
 
