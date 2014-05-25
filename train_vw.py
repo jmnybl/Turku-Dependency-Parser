@@ -21,9 +21,9 @@ def get_cls_num(cls,update=False):
         raise KeyError(cls)
 
 def token_feats(ns,prefix,token,d):
-    d[ns.lower()][u"%s.form_%s"%(prefix,token.text)]=1
+    d[ns.lower()][u"%s.form_%s"%(prefix,token.text.lower())]=1
     d[ns.upper()][u"%s.pos_%s"%(prefix,token.pos)]=1
-    d[ns.upper()][u"%s.lemma_%s"%(prefix,token.lemma)]=1
+    d[ns.lower()][u"%s.lemma_%s"%(prefix,token.lemma)]=1
     if token.feat!=u"_":
         for f_v in token.feat.split(u"|"):
             d[ns.lower()][u"%s.feat_%s"%(prefix,f_v)]=1
@@ -74,7 +74,7 @@ if __name__=="__main__":
     sent_OK,sent_TOT=0,0
     p=tparser.Parser()
     for sent in tree.read_conll("/dev/stdin"):
-        if sent_TOT==5000000:
+        if sent_TOT==1000000:
             break
         sent_TOT+=1
         if sent_TOT%1000==0:

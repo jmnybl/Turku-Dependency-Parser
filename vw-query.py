@@ -56,10 +56,10 @@ class VWQuery(object):
         return class_weights
 
 if __name__=="__main__":
-    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained.vw")
+    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained.vw.0")
     tot=0
     cr=0
-    with open("out/pbv3.part-00.gz.vwdata","rt") as f:
+    with open("out/pbv3.part-07.gz.vwdata","rt") as f:
         for line in f:
             line=line.strip()
             cls,feat=line.split("|",1)
