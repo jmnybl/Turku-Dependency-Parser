@@ -2,110 +2,112 @@
 # l(t) = lemma of t
 # c(t) = cluster of t
 # m(t) = set of morphological features of t
-# πi (t) = ith candidate part-of-speech tag for t
-# π(t) = finally predicted part-of-speech tag of t
-# δ(t) = predicted dependency label of t
-# Σi = ith token in the stack
+# pi (t) = ith candidate part-of-speech tag for t
+# p(t) = finally predicted part-of-speech tag of t
+# d(t) = predicted dependency label of t
+# Si = ith token in the stack
 # Bi = ith token in the buffer
-# Σ+10 = the word immediately following (in the input string) the word that is currently on top of the stack
+# S+10 = the word immediately following (in the input string) the word that is currently on top of the stack
 # ld(t) = leftmost dependent of t
 # rd(t) = rightmost dependent of t
 # di = ith dependent of t (from left to right)
 # hi = the ith previous transition
 # pi (t) = a prefix of i characters in the word form of token t
 # si (t) = a suffix of i characters in the word form of token t
+# A = universal quantification
+# e = is an element of
 
 # 1-gram features
-π(Σ1 )
-π(Σ0 )
-l(Σ1 )
-l(Σ0 )
-w(Σ1 )
-w(Σ0 )
-π(Σ+10 )
-π(Σ+20 )
-w(ld(Σ0 ))
-w(ld(Σ1 ))
+p(S1 )
+p(S0 )
+l(S1 )
+l(S0 )
+w(S1 )
+w(S0 )
+p(S+10 )
+p(S+20 )
+w(ld(S0 ))
+w(ld(S1 ))
 
 # 2-gram features
-w(Σ1 )π(Σ0 )
-π(Σ1 )w(Σ0 )
-w(Σ0 )π(Σ0 )
-w(Σ1 )π(Σ1 )
-w(Σ1 )w(Σ0 )
-l(Σ1 )π(Σ0 )
-π(Σ1 )l(Σ0 )
-w(Σ+20 )π(Σ+20 )
-π(Σ1 )π(Σ0 )
-w(Σ+10 )π(Σ+10 )
-π(Σ0 )h0
+w(S1 )p(S0 )
+p(S1 )w(S0 )
+w(S0 )p(S0 )
+w(S1 )p(S1 )
+w(S1 )w(S0 )
+l(S1 )p(S0 )
+p(S1 )l(S0 )
+w(S+20 )p(S+20 )
+p(S1 )p(S0 )
+w(S+10 )p(S+10 )
+p(S0 )h0
 
 # 3-gram features
-∀x ∈ {Σ−11 , Σ+11 , Σ-10 , Σ+10 } : π(Σ1 )π(Σ0 )π(x)
-∀x ∈ {Σ-21 , Σ+21 , Σ-20 , Σ+20 } : π(Σ1 )π(Σ0 )π(x)
-∀x ∈ {Σ−31 , Σ+31 , Σ-30 , Σ+30 } : π(Σ1 )π(Σ0 )π(x)
-∀x ∈ {Σ-11 , Σ+11 }, ∀y ∈ {Σ−10 , Σ+10 }, ∀z ∈ {Σ0 , Σ0 } : π(x)π(y)w(z)
-w(Σ+11 )w(Σ+20 )π(Σ0 )
-w(Σ+21 )w(Σ+30 )π(Σ0 )
-w(Σ+21 )w(Σ+10 )π(Σ1 )
-w(Σ+31 )w(Σ+20 )π(Σ1 )
-π(Σ+11 )w(Σ+20 )π(Σ0 )
-π(Σ+21 )w(Σ+30 )π(Σ0 )
-w(Σ+10 )π(Σ+21 )π(Σ0 )
-w(Σ+20 )π(Σ+31 )π(Σ0 )
-w(Σ+11 )w(Σ+21 )π(Σ0 )
-w(Σ+21 )w(Σ+31 )π(Σ0 )
-w(Σ+31 )w(Σ+41 )π(Σ0 )
-w(Σ+10 )w(Σ+20 )π(Σ1 )
-w(Σ+20 )w(Σ+30 )π(Σ1 )
-w(Σ+30 )w(Σ+40 )π(Σ1 )
-w(Σ+21 )w(Σ-11 )π(Σ0 )
-w(Σ+31 )w(Σ−11 )π(Σ0 )
-w(Σ+20 )w(Σ-10 )π(Σ1 )
-w(Σ+30 )w(Σ-10 )π(Σ1 )
-w(Σ-11 )w(Σ-21 )π(Σ0 )
-w(Σ-21 )w(Σ-31 )π(Σ1 )
-w(Σ-10 )w(Σ-20 )π(Σ1 )
-w(Σ-20 )w(Σ-30 )π(Σ1 )
-π(Σ+11 )π(Σ+21 )π(Σ0 )
-π(Σ+21 )π(Σ+31 )π(Σ0 )
-π(Σ+31 )π(Σ+41 )π(Σ0 )
-π(Σ-11 )π(Σ-21 )π(Σ0 )
-π(Σ-21 )π(Σ-31 )π(Σ0 )
-π(Σ+10 )π(Σ+20 )π(Σ1 )
-π(Σ+20 )π(Σ+30 )π(Σ1 )
-π(Σ+30 )π(Σ+40 )π(Σ1 )
-π(Σ-10 )π(Σ-20 )π(Σ1 )
-π(Σ-20 )π(Σ-30 )π(Σ1 )
-δ(rd(Σ1 ))π(Σ1 )π(Σ0 )
-π(Σ0 )π(Σ1 )δ(ld(Σ1 ))
-π(Σ0 )π(Σ1 )δ(rd(Σ1 ))
-w(Σ0 )π(Σ1 )w(rd(Σ1 ))
-w(Σ1 )π(Σ0 )w(rd(Σ1 ))
-l(Σ0 )π(Σ1 )l(rd(Σ1 ))
-l(Σ1 )π(Σ0 )l(rd(Σ1 ))
-π(Σ0 )π(d0 (Σ1 ))w(d1 (Σ1 ))
-π(Σ0 )π(d0 (Σ1 ))π(d1 (Σ1 ))
-π(Σ0 )π(Σ1 )π(ld(Σ2 ))
-π(Σ0 )π(Σ1 )δ(ld(Σ2 ))
-π(Σ0 )π(Σ1 )π(Σ2 )
-w(Σ0 )π(Σ0 )π(rd(Σ0 ))
-π(rd(Σ0 ))δ(rd(Σ0 ))π(Σ0 )
-π(Σ0 )π(d0 (Σ0 ))π(d1 (Σ0 ))
-π(Σ0 )h0 h1
+Ax e {S−11 , S+11 , S-10 , S+10 } : p(S1 )p(S0 )p(x)
+Ax e {S-21 , S+21 , S-20 , S+20 } : p(S1 )p(S0 )p(x)
+Ax e {S−31 , S+31 , S-30 , S+30 } : p(S1 )p(S0 )p(x)
+Ax e {S-11 , S+11 }, Ay e {S−10 , S+10 }, Az e {S0 , S0 } : p(x)p(y)w(z)
+w(S+11 )w(S+20 )p(S0 )
+w(S+21 )w(S+30 )p(S0 )
+w(S+21 )w(S+10 )p(S1 )
+w(S+31 )w(S+20 )p(S1 )
+p(S+11 )w(S+20 )p(S0 )
+p(S+21 )w(S+30 )p(S0 )
+w(S+10 )p(S+21 )p(S0 )
+w(S+20 )p(S+31 )p(S0 )
+w(S+11 )w(S+21 )p(S0 )
+w(S+21 )w(S+31 )p(S0 )
+w(S+31 )w(S+41 )p(S0 )
+w(S+10 )w(S+20 )p(S1 )
+w(S+20 )w(S+30 )p(S1 )
+w(S+30 )w(S+40 )p(S1 )
+w(S+21 )w(S-11 )p(S0 )
+w(S+31 )w(S−11 )p(S0 )
+w(S+20 )w(S-10 )p(S1 )
+w(S+30 )w(S-10 )p(S1 )
+w(S-11 )w(S-21 )p(S0 )
+w(S-21 )w(S-31 )p(S1 )
+w(S-10 )w(S-20 )p(S1 )
+w(S-20 )w(S-30 )p(S1 )
+p(S+11 )p(S+21 )p(S0 )
+p(S+21 )p(S+31 )p(S0 )
+p(S+31 )p(S+41 )p(S0 )
+p(S-11 )p(S-21 )p(S0 )
+p(S-21 )p(S-31 )p(S0 )
+p(S+10 )p(S+20 )p(S1 )
+p(S+20 )p(S+30 )p(S1 )
+p(S+30 )p(S+40 )p(S1 )
+p(S-10 )p(S-20 )p(S1 )
+p(S-20 )p(S-30 )p(S1 )
+d(rd(S1 ))p(S1 )p(S0 )
+p(S0 )p(S1 )d(ld(S1 ))
+p(S0 )p(S1 )d(rd(S1 ))
+w(S0 )p(S1 )w(rd(S1 ))
+w(S1 )p(S0 )w(rd(S1 ))
+l(S0 )p(S1 )l(rd(S1 ))
+l(S1 )p(S0 )l(rd(S1 ))
+p(S0 )p(d0 (S1 ))w(d1 (S1 ))
+p(S0 )p(d0 (S1 ))p(d1 (S1 ))
+p(S0 )p(S1 )p(ld(S2 ))
+p(S0 )p(S1 )d(ld(S2 ))
+p(S0 )p(S1 )p(S2 )
+w(S0 )p(S0 )p(rd(S0 ))
+p(rd(S0 ))d(rd(S0 ))p(S0 )
+p(S0 )p(d0 (S0 ))p(d1 (S0 ))
+p(S0 )h0 h1
 
 # 4-gram features
-∀x ∈ {Σ−11 , Σ+11 }, ∀y ∈ {Σ-10 , Σ+10 } : π(Σ1 )π(Σ0 )π(x)π(y)
-∀x ∈ {Σ-21 , Σ+21 }, ∀y ∈ {Σ-20 , Σ+20 } : π(Σ1 )π(Σ0 )π(x)π(y)
-∀x ∈ {m0 (Σ1 ), ..., mn (Σ1 )}, ∀y ∈ {m0 (Σ1 ), ..., mn (Σ1 )} : π(Σ0 )π(Σ1 ) x y
-w(Σ0 )w(Σ+10 )π(Σ1 )π(Σ0 )
-π(Σ0 )π(d0 (Σ0 ))π(d1 (Σ0 ))π(d2 (Σ0 ))
-π(Σ0 )δ(d0 (Σ0 ))δ(d1 (Σ0 ))δ(d2 (Σ0 ))
-π(Σ0 )π(d0 (Σ1 ))π(d1 (Σ1 ))π(d2 (Σ1 ))
-π(Σ0 )δ(d0 (Σ1 ))δ(d1 (Σ1 ))δ(d2 (Σ1 ))
-π(Σ0 )h0 h1 h2
+Ax e {S−11 , S+11 }, Ay e {S-10 , S+10 } : p(S1 )p(S0 )p(x)p(y)
+Ax e {S-21 , S+21 }, Ay e {S-20 , S+20 } : p(S1 )p(S0 )p(x)p(y)
+Ax e {m0 (S1 ), ..., mn (S1 )}, Ay e {m0 (S1 ), ..., mn (S1 )} : p(S0 )p(S1 ) x y
+w(S0 )w(S+10 )p(S1 )p(S0 )
+p(S0 )p(d0 (S0 ))p(d1 (S0 ))p(d2 (S0 ))
+p(S0 )d(d0 (S0 ))d(d1 (S0 ))d(d2 (S0 ))
+p(S0 )p(d0 (S1 ))p(d1 (S1 ))p(d2 (S1 ))
+p(S0 )d(d0 (S1 ))d(d1 (S1 ))d(d2 (S1 ))
+p(S0 )h0 h1 h2
 
 # 5-gram features
-π(Σ0 )l(Σ0 )δ(d0 (Σ0 ))δ(d1 (Σ0 ))δ(d2 (Σ0 ))
-π(Σ0 )l(Σ0 )δ(d0 (Σ1 ))δ(d1 (Σ1 ))δ(d2 (Σ1 ))
-π(Σ0 )h0 h1 h2 h3
+p(S0 )l(S0 )d(d0 (S0 ))d(d1 (S0 ))d(d2 (S0 ))
+p(S0 )l(S0 )d(d0 (S1 ))d(d1 (S1 ))d(d2 (S1 ))
+p(S0 )h0 h1 h2 h3
