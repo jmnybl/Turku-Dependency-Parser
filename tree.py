@@ -49,12 +49,12 @@ class Tree(object):
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
             which will be looked up in the formats module-level dictionary"""
         form=formats[conll_format] #named tuple with the column indices
-        for i in xrange(0,len(lines)):
+        for i in xrange(0,len(lines)): # create tokens
             line=lines[i]
-            token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA]) # TODO: remove constants :)
+            token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA],dtype=line[form.DEPREL])
             self.tokens.append(token)
         
-        if syn:
+        if syn: # create dependencies
             for line in lines:
                 gov=int(line[form.HEAD])
                 if gov==0:
@@ -71,6 +71,7 @@ class Tree(object):
     def add_dep(self,dependency):
         self.deps.append(dependency)
         self.childs[dependency.gov].add(dependency.dep)
+        dependency.dep.dtype=dependency.dType
 
     def has_dep(self,g,d):
         for dependency in self.deps:
@@ -130,12 +131,13 @@ class Tree(object):
 
 class Token(object):
 
-    def __init__(self,idx,text,pos="",feat="",lemma=""):
+    def __init__(self,idx,text,pos="",feat="",lemma="",dtype=None):
         self.index=idx
         self.text=text
         self.pos=pos
         self.feat=feat
         self.lemma=lemma
+        self.dtype=dtype
 
     def __str__(self):
         return self.text.encode(u"utf-8")

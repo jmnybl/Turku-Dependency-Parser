@@ -38,7 +38,7 @@ class State(object):
     def __init__(self,tokens,sent=None):
         self.tree=Tree(tokens,conll=sent)
         self.stack=[]
-        self.queue=self.tree.tokens
+        self.queue=self.tree.tokens[:]
         self.score=0.0
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
@@ -106,6 +106,7 @@ class Parser(object):
             total+=1
             tokens=u" ".join(t[1] for t in sent)
             gs_tree=Tree(tokens,conll=sent,syn=True)
+            #print u" ".join(t.dtype for t in gs_tree.tokens if t.dtype is not None)
             non_projs=gs_tree.is_nonprojective()
             if len(non_projs)>0:
                 gs_tree.define_projective_order(non_projs)
@@ -163,8 +164,8 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent):
         """ Sent is a list of conll lines."""
         tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-        state=State(tokens,sent=sent)
-        gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
+        state=State(tokens) # create an 'empty' state, we can't use sent here
+        gs_state=State(tokens) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=self.give_next_trans(state)
             if trans.move not in state.valid_transitions():
