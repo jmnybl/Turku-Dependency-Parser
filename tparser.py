@@ -5,7 +5,7 @@ from tree import Token,Tree,Dep, read_conll
 import codecs
 import traceback
 from collections import defaultdict
-import features
+from auto_features import create_all_features
 from perceptron import GPerceptron, PerceptronSharedState
 import copy
 
@@ -93,7 +93,6 @@ class Parser(object):
 
 
     def __init__(self):
-        self.features=features.Features()
         self.perceptron_state=PerceptronSharedState(1000000)
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
@@ -164,8 +163,8 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent):
         """ Sent is a list of conll lines."""
         tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-        state=State(tokens) # create an 'empty' state, we can't use sent here
-        gs_state=State(tokens) # this not optimal, and we need to rethink this when we implement the beam search
+        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax
+        gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=self.give_next_trans(state)
             if trans.move not in state.valid_transitions():
@@ -232,7 +231,7 @@ class Parser(object):
 
     def apply_trans(self,state,trans):
         state.update(trans) # update stack and queue
-        features=self.features.create_features(state) # create new features
+        features=create_all_features(state) # create new features
         state.score+=self.perceptron.score(features) # update score
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)

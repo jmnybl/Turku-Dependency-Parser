@@ -43,10 +43,10 @@ w(S+10 )p(S+10 )
 p(S0 )h0
 
 # 3-gram features
-Ax e {S−11 , S+11 , S-10 , S+10 } : p(S1 )p(S0 )p(x)
+Ax e {S-11 , S+11 , S-10 , S+10 } : p(S1 )p(S0 )p(x)
 Ax e {S-21 , S+21 , S-20 , S+20 } : p(S1 )p(S0 )p(x)
-Ax e {S−31 , S+31 , S-30 , S+30 } : p(S1 )p(S0 )p(x)
-Ax e {S-11 , S+11 }, Ay e {S−10 , S+10 }, Az e {S0 , S0 } : p(x)p(y)w(z)
+Ax e {S-31 , S+31 , S-30 , S+30 } : p(S1 )p(S0 )p(x)
+Ax e {S-11 , S+11 }, Ay e {S-10 , S+10 }, Az e {S0 , S0 } : p(x)p(y)w(z)
 w(S+11 )w(S+20 )p(S0 )
 w(S+21 )w(S+30 )p(S0 )
 w(S+21 )w(S+10 )p(S1 )
@@ -62,7 +62,7 @@ w(S+10 )w(S+20 )p(S1 )
 w(S+20 )w(S+30 )p(S1 )
 w(S+30 )w(S+40 )p(S1 )
 w(S+21 )w(S-11 )p(S0 )
-w(S+31 )w(S−11 )p(S0 )
+w(S+31 )w(S-11 )p(S0 )
 w(S+20 )w(S-10 )p(S1 )
 w(S+30 )w(S-10 )p(S1 )
 w(S-11 )w(S-21 )p(S0 )
@@ -97,7 +97,7 @@ p(S0 )p(d0 (S0 ))p(d1 (S0 ))
 p(S0 )h0 h1
 
 # 4-gram features
-Ax e {S−11 , S+11 }, Ay e {S-10 , S+10 } : p(S1 )p(S0 )p(x)p(y)
+Ax e {S-11 , S+11 }, Ay e {S-10 , S+10 } : p(S1 )p(S0 )p(x)p(y)
 Ax e {S-21 , S+21 }, Ay e {S-20 , S+20 } : p(S1 )p(S0 )p(x)p(y)
 Ax e {m0 (S1 ), ..., mn (S1 )}, Ay e {m0 (S1 ), ..., mn (S1 )} : p(S0 )p(S1 ) x y
 w(S0 )w(S+10 )p(S1 )p(S0 )

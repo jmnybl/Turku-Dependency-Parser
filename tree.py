@@ -51,11 +51,12 @@ class Tree(object):
         form=formats[conll_format] #named tuple with the column indices
         for i in xrange(0,len(lines)): # create tokens
             line=lines[i]
-            token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA],dtype=line[form.DEPREL])
+            token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA])
             self.tokens.append(token)
         
         if syn: # create dependencies
             for line in lines:
+                self.tokens[int(line[form.ID])-1].dtype=line[form.DEPREL] # fill dtype for token
                 gov=int(line[form.HEAD])
                 if gov==0:
                     self.root=self.tokens[int(line[0])-1]

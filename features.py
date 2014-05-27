@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from temp import create_all_features
+
 class Features(object):
 
     def __init__(self):
@@ -130,10 +132,13 @@ class Features(object):
 
     def create_features(self, state):
         """ Main function to create all features. """
-        features=dict()
-        features.update(self.create_unigram_features(state))
-        features.update(self.create_bigram_features(state))
-        return features
+#        features=dict()
+#        features.update(self.create_unigram_features(state))
+#        features.update(self.create_bigram_features(state))
+#        return features
+        feat=create_all_features(state)
+        #print feat
+        return feat
 
 
     
