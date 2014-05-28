@@ -133,16 +133,23 @@ class GPerceptron(object):
         else:
             return v%self.w_len
         
-    def score(self,features):
+    def score(self,features,test_time=False):
         """
         Gives the score for the features, where features is
         a dict()-like object mapping feature_name:count
         """
+        if test_time:
+            w=self.w_avg
+        else:
+            w=self.w
         res=0.0
         for feature_name,weight in features.iteritems():
             dim=self.feature2dim(feature_name)
-            res+=self.w[dim]*weight
-        return res
+            res+=w[dim]*weight
+        if test_time:
+            return res/self.w_avg_N
+        else:
+            return res
 
     
     def update(self,system_features,gold_features,system_score,gold_score):
