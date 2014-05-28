@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from tree import Token,Tree,Dep, read_conll
+from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
 import codecs
 import traceback
 from collections import defaultdict
@@ -236,6 +236,18 @@ class Parser(object):
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
+    def parse(self,fName,outfile):
+        f=codecs.open(outfile,u"wt",u"utf-8")
+        for sent in read_conll(fName):
+            tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
+            state=State(tokens,sent=sent)
+            while not state.tree.ready:
+                pass
+                # TODO: fill here Filip's vw
+            fill_conll(sent,state)
+            write_conll(f,sent)
+        f.close()
+            
     
 
 
@@ -243,5 +255,7 @@ if __name__==u"__main__":
 
     parser=Parser()
 
-    parser.train(u"tdt.conll")
+    #parser.train(u"tdt.conll")
+
+    parser.parse(u"empty.conll",u"parserout.conll")
 
