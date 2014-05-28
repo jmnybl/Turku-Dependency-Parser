@@ -116,7 +116,7 @@ class Parser(object):
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
-                failed+=1       
+                failed+=1      
         print u"Failed to parse:",failed
         print u"Total number of trees:",total
         print u"Non-projectives:",non
@@ -242,8 +242,8 @@ class Parser(object):
             tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
             state=State(tokens,sent=sent)
             while not state.tree.ready:
-                pass
-                # TODO: fill here Filip's vw
+                trans=self.give_next_trans(state)
+                self.apply_trans(state,trans)
             fill_conll(sent,state)
             write_conll(f,sent)
         f.close()
@@ -255,7 +255,7 @@ if __name__==u"__main__":
 
     parser=Parser()
 
-    #parser.train(u"tdt.conll")
+    parser.train(u"tdt.conll")
 
-    parser.parse(u"empty.conll",u"parserout.conll")
+    parser.parse(u"test.conll09",u"parserout.conll")
 

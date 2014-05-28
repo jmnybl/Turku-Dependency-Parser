@@ -29,8 +29,12 @@ def fill_conll(sent,state,conll_format=u"conll09"):
     form=formats[conll_format]
     for i in xrange(0,len(sent)):
         token=state.tree.tokens[i]
-        sent[i][form.HEAD]=state.tree.govs[token].index
-        sent[i][form.DEPREL]=token.dtype
+        if token not in state.tree.govs: # ROOT
+            sent[i][form.HEAD]=u"0"
+            sent[i][form.DEPREL]=u"ROOT"
+        else:
+            sent[i][form.HEAD]=unicode(state.tree.govs[token].index+1)
+            sent[i][form.DEPREL]=token.dtype
 
 def write_conll(f,sent):
     for line in sent:
