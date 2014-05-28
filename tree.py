@@ -25,12 +25,28 @@ def read_conll(fName):
             if sent:
                 yield sent
 
+def fill_conll(sent,state,conll_format=u"conll09"):
+    form=formats[conll_format]
+    for i in xrange(0,len(sent)):
+        token=state.tree.tokens[i]
+        if token not in state.tree.govs: # ROOT
+            sent[i][form.HEAD]=u"0"
+            sent[i][form.DEPREL]=u"ROOT"
+        else:
+            sent[i][form.HEAD]=unicode(state.tree.govs[token].index+1)
+            sent[i][form.DEPREL]=token.dtype
+
+def write_conll(f,sent):
+    for line in sent:
+        f.write(u"\t".join(c for c in line)+u"\n")
+    f.write(u"\n")
 
 class Tree(object):
 
     def __init__(self,sent,conll=None,syn=False,conll_format="conll09"):
         self.tokens=[]
         self.childs=defaultdict(lambda:set())
+        self.govs={}
         self.deps=[]
         self.root=None
         self.projective_order=None
@@ -72,6 +88,7 @@ class Tree(object):
     def add_dep(self,dependency):
         self.deps.append(dependency)
         self.childs[dependency.gov].add(dependency.dep)
+        self.govs[dependency.dep]=dependency.gov
         dependency.dep.dtype=dependency.dType
 
     def has_dep(self,g,d):
@@ -129,6 +146,8 @@ class Tree(object):
         if (self.tokens.index(tok1)<self.tokens.index(tok2)) and (self.projective_order.index(tok1)>self.projective_order.index(tok2)): return True
         elif (self.tokens.index(tok1)>self.tokens.index(tok2)) and (self.projective_order.index(tok1)<self.projective_order.index(tok2)): return True
         else: return False
+
+
 
 class Token(object):
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from tree import Token,Tree,Dep, read_conll
+from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
 import codecs
 import traceback
 from collections import defaultdict
@@ -116,7 +116,7 @@ class Parser(object):
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
-                failed+=1       
+                failed+=1      
         print u"Failed to parse:",failed
         print u"Total number of trees:",total
         print u"Non-projectives:",non
@@ -174,7 +174,7 @@ class Parser(object):
             if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
                 print len(state.transitions)
                 self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
-                print self.perceptron.w[:100]
+                #print self.perceptron.w[:100]
                 break
                 
 
@@ -236,6 +236,18 @@ class Parser(object):
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
+    def parse(self,fName,outfile):
+        f=codecs.open(outfile,u"wt",u"utf-8")
+        for sent in read_conll(fName):
+            tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
+            state=State(tokens,sent=sent)
+            while not state.tree.ready:
+                trans=self.give_next_trans(state)
+                self.apply_trans(state,trans)
+            fill_conll(sent,state)
+            write_conll(f,sent)
+        f.close()
+            
     
 
 
@@ -244,4 +256,6 @@ if __name__==u"__main__":
     parser=Parser()
 
     parser.train(u"tdt.conll")
+
+    parser.parse(u"test.conll09",u"parserout.conll")
 
