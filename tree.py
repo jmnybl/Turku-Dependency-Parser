@@ -144,12 +144,6 @@ class Tree(object):
         else: return False
 
 
-    def output_tree(self,state):
-        """ Print ready tree in conll format. """
-        for token in state.tree.tokens:
-            head=state.tree[token]
-            line=[token.index,token.text,token.lemma,token.pos,token.feat,head,token.dtype] # TODO: use conll_format
-
 
 class Token(object):
 
