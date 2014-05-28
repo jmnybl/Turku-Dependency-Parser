@@ -152,10 +152,11 @@ class GPerceptron(object):
             return res
 
     
-    def update(self,system_features,gold_features,system_score,gold_score):
+    def update(self,system_features,gold_features,system_score,gold_score,progress=1.0):
         """
         Updates the weight vector w.r.t. to the
         difference between `features` and `gold_features`
+        `progress`should be number between 0 and 1 marking how far the training has progressed. 0 means just started and 1 means done. This is used to scale the gradient
         """
         with self.w_avg_N.get_lock():
             self.w_avg_N.value+=1.0 #count the update runs, so we can take the average vector at the end
@@ -168,8 +169,7 @@ class GPerceptron(object):
         for feature_name,feature_weight in system_features.iteritems():
             if feature_name not in gold_features: #must not count these twice
                 norm2+=feature_weight**2
-        tau=(1.0+system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
-        print ">>>>>>", system_score, gold_score
+        tau=(1.0-progress)*(1.0+system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
         if norm2<=0.0: return 
         assert tau>=0.0 and norm2>=0.0
         #print "tau:",tau,"norm2:",norm2
