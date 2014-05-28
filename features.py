@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from temp import create_all_features
+from auto_features import create_all_features
 
 class Features(object):
 
