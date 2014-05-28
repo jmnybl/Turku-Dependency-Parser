@@ -174,7 +174,7 @@ class Parser(object):
             if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
                 print len(state.transitions)
                 self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
-                print self.perceptron.w[:100]
+                #print self.perceptron.w[:100]
                 break
                 
 
