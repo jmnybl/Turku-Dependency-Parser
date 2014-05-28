@@ -93,7 +93,7 @@ class Parser(object):
 
 
     def __init__(self):
-        self.perceptron_state=PerceptronSharedState(1000000)
+        self.perceptron_state=PerceptronSharedState(5000000)
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
 
@@ -254,8 +254,12 @@ class Parser(object):
 if __name__==u"__main__":
 
     parser=Parser()
+    
+    for i in xrange(0,10):
 
-    parser.train(u"tdt.conll")
+        print >> sys.stderr, "iter",i+1
+        parser.train(u"tdt.conll")
+        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
     parser.parse(u"test.conll09",u"parserout.conll")
 
