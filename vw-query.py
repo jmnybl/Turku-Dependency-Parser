@@ -1,8 +1,12 @@
+import tree
+import tparser
+import features
 import subprocess, random, socket
 import time
 import os.path
 import sys
 import select
+import cPickle as pickle
 
 """
   This module allows us to query VW. It is the most horrible hack ever
@@ -25,6 +29,10 @@ import select
 
 THIS=os.path.dirname(os.path.abspath(__file__))
 
+def sanitize(f):
+    return f.replace(u":",u"__colon__").replace(u"|",u"__bar__")
+
+
 class VWQuery(object):
 
     def __init__(self,model_file):
@@ -33,7 +41,7 @@ class VWQuery(object):
             os.system("mkfifo --mode 0666 "+fifo_pipe_name)
         os.system("dd if=%s iflag=nonblock of=/dev/null"%fifo_pipe_name) #Flush the pipe
         self.port=random.randint(10000,55000)
-        vwCMD="/usr/local/bin/vw -t -i %s -q QS -q QQ -q SS -q Qs -q qS --daemon --port %d -r %s --quiet"%(model_file,self.port,fifo_pipe_name)
+        vwCMD="/usr/local/bin/vw -t -i %s --daemon --port %d -r %s --quiet"%(model_file,self.port,fifo_pipe_name)
         self.vw=subprocess.Popen(vwCMD,shell=True)
         self.raw_pred_read=open(fifo_pipe_name,"rt")              
         #while self.raw_pred_read in select.select([self.raw_pred_read],[],[],0.2):
@@ -46,8 +54,20 @@ class VWQuery(object):
                 break
             except socket.error:
                 print >> sys.stderr, "Retrying connection. Model probably not yet loaded"
+        self.build_class2tr_dict()
 
-
+    def build_class2tr_dict(self):
+        self.cls2transition={} #VW class number -> Transition()
+        with open("vw_classes.pkl","rb") as f:
+            class_dict=pickle.load(f)
+            for tr_string, cls_num in class_dict.iteritems():
+                move,depType=tr_string.split(":")
+                move=int(move)
+                if depType=="None":
+                    depType=None
+                assert cls_num not in self.cls2transition
+                trans=tparser.Transition(move,depType)
+                self.cls2transition[cls_num]=trans
 
     def __del__(self):
         self.vw.kill()
@@ -67,12 +87,42 @@ class VWQuery(object):
         assert cls==class_weights[0][0], (cls, class_weights)
         return class_weights
 
+    def det_parse_conll(self):
+        feature_gen=features.Features()
+        for sent in tree.read_conll("/dev/stdin"):
+            #t=tree.Tree(None,conll=sent,syn=False,conll_format="conll09")  ###? do I need this?
+            initial_state=tparser.State(None,sent)
+            finished=self.det_parse(initial_state,feature_gen)
+            print finished.transitions
+
+    def det_parse(self, initial_state, feature_gen):
+        state=initial_state
+        while True:
+            valid_moves=state.valid_transitions() #set(t.move for t in state.valid_transitions())
+            if not valid_moves:
+                #DONE!
+                return state
+
+            feats=feature_gen.create_features(state)
+            feat_line=(u" ".join(sanitize(f)+u":"+unicode(v) for f,v in feats.iteritems())).encode("utf-8")
+            weights=self.query(feat_line)
+#            print weights[:4], feat_line
+            for cls,w in weights:
+                transition=self.cls2transition[cls]
+                if transition.move in valid_moves: #Go!
+                    state.update(transition)
+                    break
+            else: #What? No transition valid?
+                assert False #should never, ever happen. Never.
+                
 if __name__=="__main__":
-    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained-tdt.vw.24")
+    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained-pbank-jennaf.vw")
+    q.det_parse_conll()
+    sys.exit()
     tot=0
     cr=0
     err={}
-    with open("tdt-devel.vwdata","rt") as f:
+    with open("tdt-test.vwdata","rt") as f:
         for line in f:
             line=line.strip()
             cls,feat=line.split("|",1)
