@@ -152,7 +152,7 @@ class GPerceptron(object):
             return res
 
     
-    def update(self,system_features,gold_features,system_score,gold_score,progress=1.0):
+    def update(self,system_features,gold_features,system_score,gold_score,progress=0.0):
         """
         Updates the weight vector w.r.t. to the
         difference between `features` and `gold_features`
