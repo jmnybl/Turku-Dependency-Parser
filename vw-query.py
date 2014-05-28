@@ -7,6 +7,7 @@ import os.path
 import sys
 import select
 import cPickle as pickle
+import codecs
 
 """
   This module allows us to query VW. It is the most horrible hack ever
@@ -88,15 +89,24 @@ class VWQuery(object):
         return class_weights
 
     def det_parse_conll(self):
+        out=codecs.getwriter("utf-8")(sys.stdout)
         feature_gen=features.Features()
         for sent in tree.read_conll("/dev/stdin"):
             #t=tree.Tree(None,conll=sent,syn=False,conll_format="conll09")  ###? do I need this?
             initial_state=tparser.State(None,sent)
             finished=self.det_parse(initial_state,feature_gen)
-            print finished.transitions
+            tree.fill_conll(sent,finished)
+            tree.write_conll(out,sent)
 
-    def det_parse(self, initial_state, feature_gen):
-        state=initial_state
+
+    def det_parse(self, state, feature_gen):
+        shift_tr=tparser.Transition(tparser.SHIFT,None)
+        #Now do shift-shift to start the parsing
+        state.update(shift_tr)
+        if state.valid_transitions():
+            state.update(shift_tr)
+        else:
+            return state
         while True:
             valid_moves=state.valid_transitions() #set(t.move for t in state.valid_transitions())
             if not valid_moves:
@@ -116,7 +126,7 @@ class VWQuery(object):
                 assert False #should never, ever happen. Never.
                 
 if __name__=="__main__":
-    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained-pbank-jennaf.vw")
+    q=VWQuery("/home/ginter/Turku-Dependency-Parser/model/tdt-jennasfeat.vw")
     q.det_parse_conll()
     sys.exit()
     tot=0

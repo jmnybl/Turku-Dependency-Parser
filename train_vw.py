@@ -65,6 +65,7 @@ def get_state_features(s):
     return d
 
 def one_sent_example(sent,parser,feature_gen):
+    shift_t=tparser.Transition(tparser.SHIFT,None)
     if len(sent)<2:
         return
     tokens=u" ".join(t[1] for t in sent)
@@ -74,14 +75,15 @@ def one_sent_example(sent,parser,feature_gen):
         t.define_projective_order(non_projs)
     gs_transitions=parser.extract_transitions(t,tokens)
     state=tparser.State(None,sent)
-    for tr in gs_transitions:
+    for tr_idx,tr in enumerate(gs_transitions):
         try:
             cls=get_cls_num(str(tr),False)
         except KeyError:
             pass
-        feats=feature_gen.create_features(state)
-        print cls, u"  ", 
-        print u"|", (u" ".join(sanitize(f)+u":"+str(v) for f,v in feats.iteritems())).encode("utf-8")
+        if tr_idx>1: #Don't generate features for the first two shifts because those are automatic
+            feats=feature_gen.create_features(state)
+            print cls, u"  ", 
+            print u"|", (u" ".join(sanitize(f)+u":"+str(v) for f,v in feats.iteritems())).encode("utf-8")
         state.update(tr)
 
 if __name__=="__main__":
@@ -90,7 +92,7 @@ if __name__=="__main__":
     sent_OK,sent_TOT=0,0
     p=tparser.Parser()
     for sent in tree.read_conll("/dev/stdin"):
-        if sent_TOT==2000000:
+        if sent_TOT==3000000:
             break
         sent_TOT+=1
         if sent_TOT%1000==0:
