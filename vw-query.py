@@ -98,7 +98,6 @@ class VWQuery(object):
             tree.fill_conll(sent,finished)
             tree.write_conll(out,sent)
 
-
     def det_parse(self, state, feature_gen):
         shift_tr=tparser.Transition(tparser.SHIFT,None)
         #Now do shift-shift to start the parsing
@@ -126,7 +125,7 @@ class VWQuery(object):
                 assert False #should never, ever happen. Never.
                 
 if __name__=="__main__":
-    q=VWQuery("/home/ginter/Turku-Dependency-Parser/model/tdt-jennasfeat.vw")
+    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained-tdt-jennaf.vw")
     q.det_parse_conll()
     sys.exit()
     tot=0

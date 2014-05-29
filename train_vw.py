@@ -92,8 +92,8 @@ if __name__=="__main__":
     sent_OK,sent_TOT=0,0
     p=tparser.Parser()
     for sent in tree.read_conll("/dev/stdin"):
-        if sent_TOT==3000000:
-            break
+#        if sent_TOT==3000000:
+#            break
         sent_TOT+=1
         if sent_TOT%1000==0:
             elapsed=time.time()-start
