@@ -147,7 +147,7 @@ class GPerceptron(object):
             dim=self.feature2dim(feature_name)
             res+=w[dim]*weight
         if test_time:
-            return res/self.w_avg_N
+            return res/self.w_avg_N.value
         else:
             return res
 
@@ -172,6 +172,7 @@ class GPerceptron(object):
         tau=(1.0-progress)*(1.0+system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
         if norm2<=0.0: return 
         assert tau>=0.0 and norm2>=0.0
+        print ">>>",system_score,gold_score
         #print "tau:",tau,"norm2:",norm2
         #print system_features,gold_features
         #Do the update
