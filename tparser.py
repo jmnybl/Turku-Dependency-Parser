@@ -168,10 +168,7 @@ class Parser(object):
         state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
-            trans=self.give_next_trans(state)
-            if trans.move not in state.valid_transitions():
-                raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans) # apply predicted transition
+            state=self.give_next_trans(state)# get and apply predicted transition
             self.apply_trans(gs_state,gs_transitions[len(state.transitions)-1]) # apply gs transition
             if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
                 print len(state.transitions)
@@ -215,26 +212,28 @@ class Parser(object):
             if move==RIGHT or move==LEFT:
                 for dType in DEPTYPES:
                     trans=Transition(move,dType)
-                    score=self.pre_apply(state,trans)
-                    scores.append(( (trans.move,trans.dType), score))
+                    new_state,feats=self.pre_apply(state,trans)
+                    scores.append((new_state,feats))
             else:
                 trans=Transition(move,None)
-                score=self.pre_apply(state,trans)
-                scores.append(((trans.move,trans.dType), score))
-        best_trans=max(scores, key=lambda x: x[1])
-        return Transition(*best_trans[0])
+                new_state,feats=self.pre_apply(state,trans)
+                scores.append((new_state,feats))
+        best_state,feats=max(scores, key=lambda x: x[0].score)
+        for feat in feats:
+            best_state.features[feat]+=feats[feat] # merge old and new features (needed for perceptron update)
+        return best_state
 
 
     def pre_apply(self,state,trans):
         temp_state=copy.deepcopy(state)
-        self.apply_trans(temp_state,trans)
-#        print temp_state.score
-#        print
-#        print
-        return temp_state.score
+        temp_state.update(trans)
+        features=create_all_features(temp_state) # create new features
+        temp_state.score+=self.perceptron.score(features) # update score
+        return temp_state,features
 
 
     def apply_trans(self,state,trans,feats=True):
+        """ Use this to apply gs transition. """
         state.update(trans) # update stack and queue
         if not feats: return # we are just extracting transitions from gold tree, no need for features
         features=create_all_features(state) # create new features
