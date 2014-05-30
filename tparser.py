@@ -88,6 +88,9 @@ class State(object):
     def __str__(self):
         return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep.gov.text+u" "+dep.dep.text+u" "+dep.dType+u")" for dep in self.tree.deps)).encode(u"utf-8")
 
+    def __repr__(self):
+        return u",".join(str(t.move)+u":"+str(t.dType) for t in self.transitions)
+
 
 class Parser(object):
 
@@ -165,15 +168,25 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent):
         """ Sent is a list of conll lines."""
         tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+        states=[State(tokens,sent=sent)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
-        while not state.tree.ready:
-            state=self.give_next_trans(state)# get and apply predicted transition
-            self.apply_trans(gs_state,gs_transitions[len(state.transitions)-1]) # apply gs transition
-            if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
-                print len(state.transitions)
-                self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
-                #print self.perceptron.w[:100]
+        best=states[0] # hmm, we need 'example case' to check whether we are ready or not
+        while not best.tree.ready:
+            states=self.give_next_trans(states)# get and apply predicted transition
+            best=states[0]
+            self.apply_trans(gs_state,gs_transitions[len(best.transitions)-1]) # apply gs transition
+            # now we have to check whether gs is still in the beam
+            found=False
+            for state in states:
+                if state.transitions==gs_transitions[:len(state.transitions)]: # check if transition sequence is correct
+                    found=True
+                    break
+            if not found: # correct not in the beam :(
+                print len(best.transitions)
+#                print states
+#                print gs_state.transitions
+#                print
+                self.perceptron.update(best.features,gs_state.features,best.score,gs_state.score) # update the perceptron
                 break
                 
 
@@ -205,23 +218,30 @@ class Parser(object):
 #        trans=Transition(move,"dep")
 #        return trans
 
-    def give_next_trans(self,state):
+    def give_next_trans(self,states):
         """ Predict next transition. """
+        if len(states)>40:
+            raise ValueError("Beam too big!") # ...for dev time only, to make sure we update the beam correctly
         scores=[]
-        for move in state.valid_transitions():
-            if move==RIGHT or move==LEFT:
-                for dType in DEPTYPES:
-                    trans=Transition(move,dType)
+        for state in states:
+            for move in state.valid_transitions():
+                if move==RIGHT or move==LEFT:
+                    for dType in DEPTYPES:
+                        trans=Transition(move,dType)
+                        new_state,feats=self.pre_apply(state,trans)
+                        scores.append((new_state,feats))
+                else:
+                    trans=Transition(move,None)
                     new_state,feats=self.pre_apply(state,trans)
                     scores.append((new_state,feats))
-            else:
-                trans=Transition(move,None)
-                new_state,feats=self.pre_apply(state,trans)
-                scores.append((new_state,feats))
-        best_state,feats=max(scores, key=lambda x: x[0].score)
-        for feat in feats:
-            best_state.features[feat]+=feats[feat] # merge old and new features (needed for perceptron update)
-        return best_state
+        # now we have a master list of states, sort by scores and pick top 40
+        new_states=sorted(scores, key=lambda x: x[0].score, reverse=True)[:40] # now we have top 40, yet need to merge features
+        beam=[]
+        for state,feats in new_states:
+            for feat in feats:
+                state.features[feat]+=feats[feat] # merge old and new features (needed for perceptron update)
+            beam.append(state)
+        return beam
 
 
     def pre_apply(self,state,trans):
