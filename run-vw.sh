@@ -15,3 +15,4 @@ do
     fi
     COUNTER=$(( $COUNTER + 1 ))
 done
+

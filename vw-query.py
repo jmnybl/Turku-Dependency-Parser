@@ -125,7 +125,7 @@ class VWQuery(object):
                 assert False #should never, ever happen. Never.
                 
 if __name__=="__main__":
-    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained-tdt-jennaf.vw")
+    q=VWQuery("/home/ginter/Turku-Dependency-Parser/trained-pb-sngrams.vw")
     q.det_parse_conll()
     sys.exit()
     tot=0
