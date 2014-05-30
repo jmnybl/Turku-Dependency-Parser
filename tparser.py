@@ -210,30 +210,34 @@ class Parser(object):
 
     def give_next_trans(self,state):
         """ Predict next transition. """
-        scores=dict()
+        scores=[]
         for move in state.valid_transitions():
             if move==RIGHT or move==LEFT:
                 for dType in DEPTYPES:
                     trans=Transition(move,dType)
                     score=self.pre_apply(state,trans)
-                    scores[(trans.move,trans.dType)]=score
+                    scores.append(( (trans.move,trans.dType), score))
             else:
                 trans=Transition(move,None)
                 score=self.pre_apply(state,trans)
-                scores[(trans.move,trans.dType)]=score
-        best_trans=max(scores, key=scores.get)
-        return Transition(best_trans[0],best_trans[1])
+                scores.append(((trans.move,trans.dType), score))
+        best_trans=max(scores, key=lambda x: x[1])
+        return Transition(*best_trans[0])
 
 
     def pre_apply(self,state,trans):
         temp_state=copy.deepcopy(state)
         self.apply_trans(temp_state,trans)
+        # print temp_state.score
+        # print
+        # print
         return temp_state.score
 
 
     def apply_trans(self,state,trans):
         state.update(trans) # update stack and queue
         features=create_all_features(state) # create new features
+        print trans, features
         state.score+=self.perceptron.score(features,test_time=True) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
@@ -256,7 +260,7 @@ class Parser(object):
 if __name__==u"__main__":
 
     #parser=Parser()
-    parser=Parser(u"models/perceptron_model_2")
+    parser=Parser(u"perceptron_model_4")
     
 #    for i in xrange(0,10):
 
