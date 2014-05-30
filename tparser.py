@@ -125,7 +125,7 @@ class Parser(object):
 
 
     def extract_transitions(self,gs_tree,sent):
-        state=State(sent)
+        state=State(sent) # note that I don't use conll, so no lemma or pos
         while not state.tree.ready:
             #print state
             if len(state.stack)>1:
@@ -134,7 +134,7 @@ class Parser(object):
                     trans=Transition(move,dType)
                     if trans.move not in state.valid_transitions():
                         raise ValueError("Invalid transition:",trans.move)
-                    self.apply_trans(state,trans)
+                    self.apply_trans(state,trans,feats=False)
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
@@ -143,7 +143,7 @@ class Parser(object):
                 trans=Transition(SHIFT,None)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans)
+            self.apply_trans(state,trans,feats=False)
         return state.transitions
             
     def extract_dep(self,state,gs_tree):
@@ -165,7 +165,7 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent):
         """ Sent is a list of conll lines."""
         tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax
+        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=self.give_next_trans(state)
@@ -180,33 +180,33 @@ class Parser(object):
                 break
                 
 
-    def parse_sent(self,sent):
-        state=State(sent)
-        #print >> sys.stdout,"Sent:", sent
-        while not state.tree.ready:
-            trans=self.give_next_trans_test(state)
-            if trans.move not in state.valid_transitions():
-                raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans)
-        #print state
+#    def parse_sent(self,sent):
+#        state=State(sent)
+#        #print >> sys.stdout,"Sent:", sent
+#        while not state.tree.ready:
+#            trans=self.give_next_trans_test(state)
+#            if trans.move not in state.valid_transitions():
+#                raise ValueError("Invalid transition:",trans.move)
+#            self.apply_trans(state,trans)
+#        #print state
 
-    def give_next_trans_test(self,state):
-        global gs_transitions
-        try:
-            #raise ValueError
-            move=gs_transitions.pop(0)
-            trans=Transition(move,"dep")
-            return trans
-        except ValueError:
-            pass
-        try:
-            print state
-            s = raw_input('transition: ')
-            move=int(s)
-        except EOFError:
-            move=0
-        trans=Transition(move,"dep")
-        return trans
+#    def give_next_trans_test(self,state):
+#        global gs_transitions
+#        try:
+#            #raise ValueError
+#            move=gs_transitions.pop(0)
+#            trans=Transition(move,"dep")
+#            return trans
+#        except ValueError:
+#            pass
+#        try:
+#            print state
+#            s = raw_input('transition: ')
+#            move=int(s)
+#        except EOFError:
+#            move=0
+#        trans=Transition(move,"dep")
+#        return trans
 
     def give_next_trans(self,state):
         """ Predict next transition. """
@@ -228,17 +228,18 @@ class Parser(object):
     def pre_apply(self,state,trans):
         temp_state=copy.deepcopy(state)
         self.apply_trans(temp_state,trans)
-        # print temp_state.score
-        # print
-        # print
+#        print temp_state.score
+#        print
+#        print
         return temp_state.score
 
 
-    def apply_trans(self,state,trans):
+    def apply_trans(self,state,trans,feats=True):
         state.update(trans) # update stack and queue
+        if not feats: return # we are just extracting transitions from gold tree, no need for features
         features=create_all_features(state) # create new features
-        print trans, features
-        state.score+=self.perceptron.score(features,test_time=True) # update score # TODO define test_time properly
+#        print trans, features
+        state.score+=self.perceptron.score(features) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
@@ -259,14 +260,14 @@ class Parser(object):
 
 if __name__==u"__main__":
 
-    #parser=Parser()
-    parser=Parser(u"perceptron_model_4")
+    parser=Parser()
+    #parser=Parser(u"perceptron_model_4")
     
-#    for i in xrange(0,10):
+    for i in xrange(0,10):
 
-#        print >> sys.stderr, "iter",i+1
-#        parser.train(u"tdt.conll")
-#        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
+        print >> sys.stderr, "iter",i+1
+        parser.train(u"tdt.conll")
+        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
     parser.parse(u"test.conll09",u"parserout.conll")
 
