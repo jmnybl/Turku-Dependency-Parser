@@ -92,8 +92,10 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self):
-        self.perceptron_state=PerceptronSharedState(5000000)
+    def __init__(self,fName=None):
+        if fName is not None:
+            self.perceptron_state=PerceptronSharedState.load(fName,retrainable=True)
+        else: self.perceptron_state=PerceptronSharedState(5000000)
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
 
@@ -232,7 +234,7 @@ class Parser(object):
     def apply_trans(self,state,trans):
         state.update(trans) # update stack and queue
         features=create_all_features(state) # create new features
-        state.score+=self.perceptron.score(features) # update score
+        state.score+=self.perceptron.score(features,test_time=True) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
@@ -253,13 +255,14 @@ class Parser(object):
 
 if __name__==u"__main__":
 
-    parser=Parser()
+    #parser=Parser()
+    parser=Parser(u"models/perceptron_model_2")
     
-    for i in xrange(0,10):
+#    for i in xrange(0,10):
 
-        print >> sys.stderr, "iter",i+1
-        parser.train(u"tdt.conll")
-        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
+#        print >> sys.stderr, "iter",i+1
+#        parser.train(u"tdt.conll")
+#        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
     parser.parse(u"test.conll09",u"parserout.conll")
 
