@@ -9,21 +9,28 @@ formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10)}
 
 
 
-def read_conll(fName):
-    """ Read conll format file and yield one sentence at a time as a list of lists of columns. """
-    with codecs.open(fName,u"rt",u"utf-8") as f:
-        sent=[]
-        for line in f:
-            line=line.strip()
-            if not line or line.startswith(u"#"): #Do not rely on empty lines in conll files, ignore comments
-                continue 
-            if line.startswith(u"1\t") and sent: #New sentence, and I have an old one to yield
-                yield sent
-                sent=[]
-            sent.append(line.split(u"\t"))
-        else:
-            if sent:
-                yield sent
+def read_conll(inp):
+    """ Read conll format file and yield one sentence at a time as a list of lists of columns. If inp is a string it will be interpreted as filename, otherwise as open file for reading in unicode"""
+    if isinstance(inp,basestring):
+        f=codecs.open(fName,u"rt",u"utf-8")
+    else:
+        f=inp
+
+    sent=[]
+    for line in f:
+        line=line.strip()
+        if not line or line.startswith(u"#"): #Do not rely on empty lines in conll files, ignore comments
+            continue 
+        if line.startswith(u"1\t") and sent: #New sentence, and I have an old one to yield
+            yield sent
+            sent=[]
+        sent.append(line.split(u"\t"))
+    else:
+        if sent:
+            yield sent
+
+    if isinstance(inp,basestring):
+        f.close() #Close it if you opened it
 
 def fill_conll(sent,state,conll_format=u"conll09"):
     form=formats[conll_format]
