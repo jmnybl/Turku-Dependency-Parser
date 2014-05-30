@@ -267,14 +267,14 @@ class Parser(object):
 
 if __name__==u"__main__":
 
-    parser=Parser()
-    #parser=Parser(u"perceptron_model_4")
+    #parser=Parser()
+    parser=Parser(u"temp_model")
     
-    for i in xrange(0,10):
+#    for i in xrange(0,10):
 
-        print >> sys.stderr, "iter",i+1
-        parser.train(u"tdt.conll")
-        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
+#        print >> sys.stderr, "iter",i+1
+#        parser.train(u"tdt.conll")
+#        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
     parser.parse(u"test.conll09",u"parserout.conll")
 

@@ -12,7 +12,7 @@ formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10)}
 def read_conll(inp):
     """ Read conll format file and yield one sentence at a time as a list of lists of columns. If inp is a string it will be interpreted as filename, otherwise as open file for reading in unicode"""
     if isinstance(inp,basestring):
-        f=codecs.open(fName,u"rt",u"utf-8")
+        f=codecs.open(inp,u"rt",u"utf-8")
     else:
         f=inp
 
