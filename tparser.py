@@ -92,8 +92,10 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self):
-        self.perceptron_state=PerceptronSharedState(5000000)
+    def __init__(self,fName=None):
+        if fName is not None:
+            self.perceptron_state=PerceptronSharedState.load(fName,retrainable=True)
+        else: self.perceptron_state=PerceptronSharedState(5000000)
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
 
@@ -123,7 +125,7 @@ class Parser(object):
 
 
     def extract_transitions(self,gs_tree,sent):
-        state=State(sent)
+        state=State(sent) # note that I don't use conll, so no lemma or pos
         while not state.tree.ready:
             #print state
             if len(state.stack)>1:
@@ -132,7 +134,7 @@ class Parser(object):
                     trans=Transition(move,dType)
                     if trans.move not in state.valid_transitions():
                         raise ValueError("Invalid transition:",trans.move)
-                    self.apply_trans(state,trans)
+                    self.apply_trans(state,trans,feats=False)
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
@@ -141,7 +143,7 @@ class Parser(object):
                 trans=Transition(SHIFT,None)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans)
+            self.apply_trans(state,trans,feats=False)
         return state.transitions
             
     def extract_dep(self,state,gs_tree):
@@ -163,7 +165,7 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent):
         """ Sent is a list of conll lines."""
         tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax
+        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=self.give_next_trans(state)
@@ -178,61 +180,66 @@ class Parser(object):
                 break
                 
 
-    def parse_sent(self,sent):
-        state=State(sent)
-        #print >> sys.stdout,"Sent:", sent
-        while not state.tree.ready:
-            trans=self.give_next_trans_test(state)
-            if trans.move not in state.valid_transitions():
-                raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans)
-        #print state
+#    def parse_sent(self,sent):
+#        state=State(sent)
+#        #print >> sys.stdout,"Sent:", sent
+#        while not state.tree.ready:
+#            trans=self.give_next_trans_test(state)
+#            if trans.move not in state.valid_transitions():
+#                raise ValueError("Invalid transition:",trans.move)
+#            self.apply_trans(state,trans)
+#        #print state
 
-    def give_next_trans_test(self,state):
-        global gs_transitions
-        try:
-            #raise ValueError
-            move=gs_transitions.pop(0)
-            trans=Transition(move,"dep")
-            return trans
-        except ValueError:
-            pass
-        try:
-            print state
-            s = raw_input('transition: ')
-            move=int(s)
-        except EOFError:
-            move=0
-        trans=Transition(move,"dep")
-        return trans
+#    def give_next_trans_test(self,state):
+#        global gs_transitions
+#        try:
+#            #raise ValueError
+#            move=gs_transitions.pop(0)
+#            trans=Transition(move,"dep")
+#            return trans
+#        except ValueError:
+#            pass
+#        try:
+#            print state
+#            s = raw_input('transition: ')
+#            move=int(s)
+#        except EOFError:
+#            move=0
+#        trans=Transition(move,"dep")
+#        return trans
 
     def give_next_trans(self,state):
         """ Predict next transition. """
-        scores=dict()
+        scores=[]
         for move in state.valid_transitions():
             if move==RIGHT or move==LEFT:
                 for dType in DEPTYPES:
                     trans=Transition(move,dType)
                     score=self.pre_apply(state,trans)
-                    scores[(trans.move,trans.dType)]=score
+                    scores.append(( (trans.move,trans.dType), score))
             else:
                 trans=Transition(move,None)
                 score=self.pre_apply(state,trans)
-                scores[(trans.move,trans.dType)]=score
-        best_trans=max(scores, key=scores.get)
-        return Transition(best_trans[0],best_trans[1])
+                scores.append(((trans.move,trans.dType), score))
+        best_trans=max(scores, key=lambda x: x[1])
+        return Transition(*best_trans[0])
 
 
     def pre_apply(self,state,trans):
         temp_state=copy.deepcopy(state)
         self.apply_trans(temp_state,trans)
+#        print temp_state.score
+#        print
+#        print
         return temp_state.score
 
 
-    def apply_trans(self,state,trans):
+    def apply_trans(self,state,trans,feats=True):
         state.update(trans) # update stack and queue
+        if not feats: return # we are just extracting transitions from gold tree, no need for features
         features=create_all_features(state) # create new features
-        state.score+=self.perceptron.score(features) # update score
+#        print trans, features
+        state.score+=self.perceptron.score(features) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
@@ -254,6 +261,7 @@ class Parser(object):
 if __name__==u"__main__":
 
     parser=Parser()
+    #parser=Parser(u"perceptron_model_4")
     
     for i in xrange(0,10):
 

@@ -1,4 +1,13 @@
 
+def get_transitions(state):
+    """ Return as many as found, max 4 (as a list) """
+    transit=[]
+    for trans in reversed(state.transitions):
+        transit.append(trans)
+        if len(transit)>4:
+            return transit
+    return transit
+
 def get_child(token,idx,state):
     if token is None: return None
     childs=sorted(state.tree.childs[token], key=lambda x:x.index)
@@ -392,4 +401,42 @@ def create_all_features(state):
     v4=get_child(S1,'d2',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) and (v3 is not None) and (v4 is not None) :
         features['p(S0)l(S0)d(d0(S1))d(d1(S1))d(d2(S1))='+v0.pos+v1.lemma+v2.dtype+v3.dtype+v4.dtype]=1.0
+
+    ### manually added features ###
+    if (S0 is not None) and (S1 is not None): # all of these needs S0 and S1, so check these first
+        for i in xrange(1,4):
+            for char in ['+','-']:
+                idx=char+str(i)
+                v0=get_following(S0,idx,state)
+                if v0 is not None:
+                    features['p(S1)p(S0)p(S'+idx+'0)='+S1.pos+S0.pos+v0.pos]=1.0
+                v0=get_following(S1,idx,state)
+                if v0 is not None:
+                    features['p(S1)p(S0)p(S'+idx+'1)='+S1.pos+S0.pos+v0.pos]=1.0
+        for idx_1 in ['-1','+1']:
+            for idx_0 in ['-1','+1']:
+                v0=get_following(S1,idx_1,state)
+                v1=get_following(S0,idx_0,state)
+                if (v0 is not None) and (v1 is not None):
+                    features['p(S'+idx_1+'1)p(S'+idx_0+'0)w(S0)='+v0.pos+v1.pos+S0.text]=1.0
+                    features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
+        for idx_1 in ['-2','+2']:
+            for idx_0 in ['-2','+2']:
+                v0=get_following(S1,idx_1,state)
+                v1=get_following(S0,idx_0,state)
+                if (v0 is not None) and (v1 is not None):
+                    features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
+
+        # morpho TODO: if joint, should take all possible readings
+        features['p(S0)p(S1)m(S1)='+S0.pos+S1.pos+S1.feat]=1.0
+
+    if S0 is not None:
+        transit=get_transitions(state)
+        if transit:
+            for i in xrange(0,len(transit)):
+                name='p(S0)h'+'h'.join(str(j) for j in xrange(0,i+1)) # feature name
+                value=S0.pos+''.join(str(t.move)+str(t.dType) for t in transit[:i+1]) # feature 'value'
+                features[name+'='+value]=1.0
+
+
     return features
