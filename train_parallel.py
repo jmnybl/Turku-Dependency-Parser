@@ -82,13 +82,16 @@ def launch_instances(args):
     sh_state.save(args.output,True)
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser(description='Train')
-    parser.add_argument('-p', '--processes', type=int, default=4, help='How many processes to run? (default %(default)d)')
-    parser.add_argument('--max_sent', type=int, default=0, help='How many sentences to read from the input? 0 for all.  (default %(default)d)')
-    parser.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? (default %(default)d)')
-    parser.add_argument('--dim', type=int, default=5000000, help='Dimensionality of the trained vector. (default %(default)d)')
-    parser.add_argument('-o', '--output', required=True, help='Name of the output model.')
-    parser.add_argument('input', nargs='?', help='Training file name, or nothing for training on stdin')
+    parser = argparse.ArgumentParser(description='Trains the parser in a multi-core setting.')
+    g=parser.add_argument_group("Input/Output")
+    g.add_argument('input', nargs='?', help='Training file name, or nothing for training on stdin')
+    g.add_argument('-o', '--output', required=True, help='Name of the output model.')
+    g=parser.add_argument_group("Training config")
+    g.add_argument('-p', '--processes', type=int, default=4, help='How many training workers to run? (default %(default)d)')
+    g.add_argument('--max_sent', type=int, default=0, help='How many sentences to read from the input? 0 for all.  (default %(default)d)')
+    g=parser.add_argument_group("Training algorithm choices")
+    g.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? If you want more than one, you must give the input as a file. (default %(default)d)')
+    g.add_argument('--dim', type=int, default=5000000, help='Dimensionality of the trained vector. (default %(default)d)')
     args = parser.parse_args()
 
     if args.iterations>1 and args.input==None:
