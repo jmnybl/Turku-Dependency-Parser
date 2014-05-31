@@ -251,17 +251,17 @@ class Parser(object):
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
-    def parse(self,fName,outfile):
-        f=codecs.open(outfile,u"wt",u"utf-8")
-        for sent in read_conll(fName):
+    def parse(self,inp,outp):
+        """outp should be a file open for writing unicode"""
+        for sent in read_conll(inp):
             tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
             state=State(tokens,sent=sent)
             while not state.tree.ready:
                 trans=self.give_next_trans(state)
                 self.apply_trans(state,trans)
             fill_conll(sent,state)
-            write_conll(f,sent)
-        f.close()
+            write_conll(outp,sent)
+
             
     
 
