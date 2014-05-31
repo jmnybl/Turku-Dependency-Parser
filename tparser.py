@@ -92,7 +92,8 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,fName=None,gp=None):
+    def __init__(self,fName=None,gp=None,test_time=False):
+        self.test_time=test_time
         if gp:
             self.perceptron=gp
             return
@@ -246,7 +247,7 @@ class Parser(object):
         if not feats: return # we are just extracting transitions from gold tree, no need for features
         features=create_all_features(state) # create new features
 #        print trans, features
-        state.score+=self.perceptron.score(features) # update score # TODO define test_time properly
+        state.score+=self.perceptron.score(features,self.test_time) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
@@ -268,7 +269,7 @@ class Parser(object):
 if __name__==u"__main__":
 
     #parser=Parser()
-    parser=Parser(u"temp_model")
+    parser=Parser(u"full_model",test_time=True)
     
 #    for i in xrange(0,10):
 
@@ -276,5 +277,5 @@ if __name__==u"__main__":
 #        parser.train(u"tdt.conll")
 #        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
-    parser.parse(u"test.conll09",u"parserout.conll")
+    parser.parse(u"test.conll09",u"parserout_test.conll")
 
