@@ -148,7 +148,7 @@ class GPerceptron(object):
         else:
             return v%self.w_len
         
-    def score(self,features,test_time=True):
+    def score(self,features,test_time=False):
         """
         Gives the score for the features, where features is
         a dict()-like object mapping feature_name:count
