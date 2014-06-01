@@ -92,18 +92,24 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,fName=None):
-        if fName is not None:
+    def __init__(self,fName=None,gp=None,test_time=False):
+        self.test_time=test_time
+        if gp:
+            self.perceptron=gp
+            return
+        elif fName is not None:
             self.perceptron_state=PerceptronSharedState.load(fName,retrainable=True)
-        else: self.perceptron_state=PerceptronSharedState(5000000)
+        else:
+            self.perceptron_state=PerceptronSharedState(5000000)
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
 
-    def train(self,fName):
+    def train(self,inp,progress=0.0,quiet=False):
+        """If inp is string, it will be interpreted as a file, otherwise as open file reading unicode"""
         total=0
         failed=0
         non=0
-        for sent in read_conll(fName):
+        for sent in read_conll(inp):
             total+=1
             tokens=u" ".join(t[1] for t in sent)
             gs_tree=Tree(tokens,conll=sent,syn=True)
@@ -114,14 +120,16 @@ class Parser(object):
                 non+=1
             try:
                 gs_transitions=self.extract_transitions(gs_tree,tokens)
-                self.train_one_sent(gs_transitions,sent) # sent is a conll sentence
+                self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
                 failed+=1      
-        print u"Failed to parse:",failed
-        print u"Total number of trees:",total
-        print u"Non-projectives:",non
+        if not quiet:
+            print u"Failed to parse:",failed
+            print u"Total number of trees:",total
+            print u"Non-projectives:",non
+            print u"Progress:",progress
 
 
     def extract_transitions(self,gs_tree,sent):
@@ -162,7 +170,7 @@ class Parser(object):
         else:
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
-    def train_one_sent(self,gs_transitions,sent):
+    def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
         tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
         state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
@@ -175,7 +183,7 @@ class Parser(object):
             self.apply_trans(gs_state,gs_transitions[len(state.transitions)-1]) # apply gs transition
             if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
                 print len(state.transitions)
-                self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score) # update the perceptron
+                self.perceptron.update(state.features,gs_state.features,state.score,gs_state.score,progress) # update the perceptron
                 #print self.perceptron.w[:100]
                 break
                 
@@ -239,35 +247,35 @@ class Parser(object):
         if not feats: return # we are just extracting transitions from gold tree, no need for features
         features=create_all_features(state) # create new features
 #        print trans, features
-        state.score+=self.perceptron.score(features) # update score # TODO define test_time properly
+        state.score+=self.perceptron.score(features,self.test_time) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
-    def parse(self,fName,outfile):
-        f=codecs.open(outfile,u"wt",u"utf-8")
-        for sent in read_conll(fName):
+    def parse(self,inp,outp):
+        """outp should be a file open for writing unicode"""
+        for sent in read_conll(inp):
             tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
             state=State(tokens,sent=sent)
             while not state.tree.ready:
                 trans=self.give_next_trans(state)
                 self.apply_trans(state,trans)
             fill_conll(sent,state)
-            write_conll(f,sent)
-        f.close()
+            write_conll(outp,sent)
+
             
     
 
 
 if __name__==u"__main__":
 
-    parser=Parser()
-    #parser=Parser(u"perceptron_model_4")
+    #parser=Parser()
+    parser=Parser(u"full_model",test_time=True)
     
-    for i in xrange(0,10):
+#    for i in xrange(0,10):
 
-        print >> sys.stderr, "iter",i+1
-        parser.train(u"tdt.conll")
-        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
+#        print >> sys.stderr, "iter",i+1
+#        parser.train(u"tdt.conll")
+#        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
-    parser.parse(u"test.conll09",u"parserout.conll")
+    parser.parse(u"test.conll09",u"parserout_test.conll")
 
