@@ -427,8 +427,9 @@ def create_all_features(state):
                 if (v0 is not None) and (v1 is not None):
                     features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
 
-        # morpho TODO: if joint, should take all possible readings
-        features['p(S0)p(S1)m(S1)='+S0.pos+S1.pos+S1.feat]=1.0
+        # morpho TODO: feat pairs?
+        for tag in S1.feat.split(u"|"):
+            features['p(S0)p(S1)m(S1)='+S0.pos+S1.pos+tag]=1.0
 
     if S0 is not None:
         transit=get_transitions(state)
