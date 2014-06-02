@@ -428,10 +428,15 @@ def create_all_features(state):
                     features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
 
         # morpho
-        tags=S1.feat.split(u"|")
-        for i in xrange(0,len(tags)):
-            for j in xrange(i,len(tags)):
-                features['p(S0)p(S1)m(S1)='+S0.pos+S1.pos+tags[i]+tags[j]]=1.0
+        tags0=S0.feat.split(u"|")
+        tags1=S1.feat.split(u"|")
+        for i in xrange(0,len(tags0)):
+            features['p(S0)p(S1)m(S0)='+S0.pos+S1.pos+tags0[i]]=1.0
+        for i in xrange(0,len(tags1)):
+            features['p(S0)p(S1)m(S1)='+S0.pos+S1.pos+tags1[i]]=1.0
+        for i in xrange(0,len(tags0)):
+            for j in xrange(0,len(tags1)):
+                features['p(S0)p(S1)m(S0)m(S1)='+S0.pos+S1.pos+tags0[i]+tags1[j]]=1.0
 
     if S0 is not None:
         transit=get_transitions(state)
