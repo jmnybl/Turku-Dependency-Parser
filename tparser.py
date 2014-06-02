@@ -5,7 +5,7 @@ from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
 import codecs
 import traceback
 from collections import defaultdict
-from auto_features import create_all_features
+from features import Features
 from perceptron import GPerceptron, PerceptronSharedState
 import copy
 
@@ -94,6 +94,7 @@ class Parser(object):
 
     def __init__(self,fName=None,gp=None,test_time=False):
         self.test_time=test_time
+        self.features=Features()
         if gp:
             self.perceptron=gp
             return
@@ -245,7 +246,7 @@ class Parser(object):
     def apply_trans(self,state,trans,feats=True):
         state.update(trans) # update stack and queue
         if not feats: return # we are just extracting transitions from gold tree, no need for features
-        features=create_all_features(state) # create new features
+        features=self.features.create_features(state) # create new features
 #        print trans, features
         state.score+=self.perceptron.score(features,self.test_time) # update score # TODO define test_time properly
         for feat in features:

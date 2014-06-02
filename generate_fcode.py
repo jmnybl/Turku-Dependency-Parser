@@ -81,7 +81,7 @@ print
 print follow_func
 print
 
-print u"def create_all_features(state):" # start function
+print u"def create_auto_features(state):" # start function
 print u"    S0,S1,S2=get_from_stack(state.stack)" # these are the basic tokens I need to get everything else, can be None
 print u"    features={}"
 
