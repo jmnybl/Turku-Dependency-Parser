@@ -50,23 +50,32 @@ def write_conll(f,sent):
 
 class Tree(object):
 
-    def __init__(self,sent,conll=None,syn=False,conll_format="conll09"):
+    @classmethod
+    def new_from_conll(cls,conll,syn,conll_format="conll09"):
+        t=cls()
+        t.from_conll(conll,syn,conll_format)
+        return t
+
+    @classmethod
+    def new_from_tree(cls,t):
+        """Selectively copies only those parts that can change during parse"""
+        newT=cls.__new__(cls) #Do not call the __init__() because we will fill the args by hand
+        newT.tokens=t.tokens
+        newT.childs=copy.copy(t.childs) #TODO: Do we need a deep copy for the Dep()?
+        newT.govs=copy.copy(t.govs)
+        newT.deps=copy.copy(deps)
+        newT.root=t.root
+        newT.projective_order=copy.copy(t.projective_order)
+        return newT
+
+    def __init__(self):
+        #If you add any new attributes, make sure you copy them over in new_from_tree()
         self.tokens=[]
         self.childs=defaultdict(lambda:set())
         self.govs={}
         self.deps=[]
         self.root=None
         self.projective_order=None
-        
-        if conll is not None:
-            self.from_conll(conll,syn,conll_format=conll_format)
-        else:
-            toks=sent.split()
-            for i in xrange(0,len(toks)):
-                token=Token(i,toks[i])
-                self.tokens.append(token)
-            self.deps=[]
-            self.ready=False
 
     def from_conll(self,lines,syn,conll_format="conll09"):    
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
@@ -76,6 +85,7 @@ class Tree(object):
             line=lines[i]
             token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA])
             self.tokens.append(token)
+
         
         if syn: # create dependencies
             for line in lines:
@@ -90,7 +100,8 @@ class Tree(object):
                 dependency=Dep(gov,dep,dType)
                 self.add_dep(dependency)
             self.ready=True
-        else: self.ready=False
+        else: 
+            self.ready=False
 
     def add_dep(self,dependency):
         self.deps.append(dependency)

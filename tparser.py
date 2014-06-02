@@ -35,14 +35,28 @@ class Transition(object):
 
 class State(object):
 
-    def __init__(self,tokens,sent=None):
-        self.tree=Tree(tokens,conll=sent)
+    def __init__(self,sent=None,syn=False):
+        if sent!=None:
+            self.tree=Tree.new_from_conll(sent,syn)
+            self.queue=self.tree.tokens[:]
+        else:
+            self.tree=None
+            self.queue=[]
         self.stack=[]
-        self.queue=self.tree.tokens[:]
         self.score=0.0
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
+        self.prev_state=None #The state from which this one was created, if any
 
+    def copy_and_point(self):
+        newS=State()
+        newS.queue=self.queue[:]
+        newS.stack=self.stack[:]
+        newS.score=self.score
+        newS.transitions=self.transitions[:]
+        newS.prev_state=self
+        return newS
+        
 
     def update(self,trans):
         if trans.move==SHIFT: # SHIFT
@@ -111,15 +125,13 @@ class Parser(object):
         non=0
         for sent in read_conll(inp):
             total+=1
-            tokens=u" ".join(t[1] for t in sent)
-            gs_tree=Tree(tokens,conll=sent,syn=True)
-            #print u" ".join(t.dtype for t in gs_tree.tokens if t.dtype is not None)
+            gs_tree=Tree.new_from_conll(conll=sent,syn=True)
             non_projs=gs_tree.is_nonprojective()
             if len(non_projs)>0:
                 gs_tree.define_projective_order(non_projs)
                 non+=1
             try:
-                gs_transitions=self.extract_transitions(gs_tree,tokens)
+                gs_transitions=self.extract_transitions(gs_tree,sent)
                 self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
                 #traceback.print_exc()
@@ -133,7 +145,7 @@ class Parser(object):
 
 
     def extract_transitions(self,gs_tree,sent):
-        state=State(sent) # note that I don't use conll, so no lemma or pos
+        state=State(sent,syn=False)
         while not state.tree.ready:
             #print state
             if len(state.stack)>1:
@@ -172,9 +184,8 @@ class Parser(object):
 
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
-        tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-        state=State(tokens,sent=sent) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
-        gs_state=State(tokens,sent=sent) # this not optimal, and we need to rethink this when we implement the beam search
+        state=State(sent,syn=False) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+        gs_state=State(sent,syn=False) # TODO this not optimal, and we need to rethink this when we implement the beam search
         while not state.tree.ready:
             trans=self.give_next_trans(state)
             if trans.move not in state.valid_transitions():
@@ -254,8 +265,7 @@ class Parser(object):
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
         for sent in read_conll(inp):
-            tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
-            state=State(tokens,sent=sent)
+            state=State(sent,syn=False)
             while not state.tree.ready:
                 trans=self.give_next_trans(state)
                 self.apply_trans(state,trans)
@@ -268,14 +278,15 @@ class Parser(object):
 
 if __name__==u"__main__":
 
-    #parser=Parser()
-    parser=Parser(u"full_model",test_time=True)
+    parser=Parser(u"tdt.i24",test_time=True)
+    parser.parse(u"test.conll09",codecs.open(u"parserout_test.conll","wt","utf-8"))
+
+    exit()
+
+    parser=Parser()
+    for i in xrange(0,10):
+        print >> sys.stderr, "iter",i+1
+        parser.train(u"tdt.conll")
+        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
     
-#    for i in xrange(0,10):
-
-#        print >> sys.stderr, "iter",i+1
-#        parser.train(u"tdt.conll")
-#        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
-
-    parser.parse(u"test.conll09",u"parserout_test.conll")
 
