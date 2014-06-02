@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict,namedtuple
 import codecs
+import copy
 
 CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL"])
 
@@ -63,19 +64,21 @@ class Tree(object):
         newT.tokens=t.tokens
         newT.childs=copy.copy(t.childs) #TODO: Do we need a deep copy for the Dep()?
         newT.govs=copy.copy(t.govs)
-        newT.deps=copy.copy(deps)
+        newT.deps=copy.copy(t.deps)
         newT.root=t.root
         newT.projective_order=copy.copy(t.projective_order)
+        newT.ready=t.ready
         return newT
 
     def __init__(self):
         #If you add any new attributes, make sure you copy them over in new_from_tree()
-        self.tokens=[]
-        self.childs=defaultdict(lambda:set())
-        self.govs={}
-        self.deps=[]
-        self.root=None
-        self.projective_order=None
+        self.tokens=[] #[Token(),...]
+        self.childs=defaultdict(lambda:set()) #{token():set(token())#
+        self.govs={} #{token():govtoken()}     [...,(dtype,gov),....]
+        self.deps=[] #[Dep(),...]
+        self.root=None #?
+        self.projective_order=None 
+        self.ready=False
 
     def from_conll(self,lines,syn,conll_format="conll09"):    
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
