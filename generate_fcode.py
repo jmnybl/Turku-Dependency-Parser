@@ -45,7 +45,7 @@ def get_following(token,idx,state):
 """
 
 token_dictionary={u"S0":u"state.stack(-1)",u"S1":u"state.stack(-2)"}
-ending_dictionary={u"p":u".pos",u"l":u".lemma",u"w":u".text",u"d":u".dtype",u"m":u".feat"}
+exp_dictionary={u"p":u"%s.pos",u"l":u"%s.lemma",u"w":u"%s.text",u"d":u"str(state.tree.dtypes.get(%s))",u"m":u"%s.feat"}
 
 mainregex=re.compile(ur"([a-z]{1,2})\(([A-Za-z0-9-+]+|[a-z0-9]{2}\([S0-9]{2}\))\)",re.U)
 
@@ -101,7 +101,7 @@ for line in f:
         if_string+=" (v"+str(i)+" is not None) and"
     if_string=if_string[:-3]+":"
     print "    "+if_string # if any of tokens is not None
-    string=u"+".join("v"+str(i)+str(ending_dictionary.get(tuples[i][0])) for i in xrange(0,len(tuples)))
+    string=u"+".join(str(exp_dictionary.get(tuples[i][0]))%("v"+str(i)) for i in xrange(0,len(tuples)))
     print ("        features['"+line+"='+"+string+"]=1.0").encode(u"utf-8")
 f.close()
 print "    return features"
