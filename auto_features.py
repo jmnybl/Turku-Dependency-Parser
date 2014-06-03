@@ -277,17 +277,17 @@ def create_auto_features(state):
     v1=S1
     v2=S0
     if (v0 is not None) and (v1 is not None) and (v2 is not None) :
-        features['d(rd(S1))p(S1)p(S0)='+state.tree.dtypes[v0]+v1.pos+v2.pos]=1.0
+        features['d(rd(S1))p(S1)p(S0)='+str(state.tree.dtypes.get(v0))+v1.pos+v2.pos]=1.0
     v0=S0
     v1=S1
     v2=get_child(S1,'ld',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) :
-        features['p(S0)p(S1)d(ld(S1))='+v0.pos+v1.pos+state.tree.dtypes[v2]]=1.0
+        features['p(S0)p(S1)d(ld(S1))='+v0.pos+v1.pos+str(state.tree.dtypes.get(v2))]=1.0
     v0=S0
     v1=S1
     v2=get_child(S1,'rd',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) :
-        features['p(S0)p(S1)d(rd(S1))='+v0.pos+v1.pos+state.tree.dtypes[v2]]=1.0
+        features['p(S0)p(S1)d(rd(S1))='+v0.pos+v1.pos+str(state.tree.dtypes.get(v2))]=1.0
     v0=S0
     v1=S1
     v2=get_child(S1,'rd',state)
@@ -327,7 +327,7 @@ def create_auto_features(state):
     v1=S1
     v2=get_child(S2,'ld',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) :
-        features['p(S0)p(S1)d(ld(S2))='+v0.pos+v1.pos+state.tree.dtypes[v2]]=1.0
+        features['p(S0)p(S1)d(ld(S2))='+v0.pos+v1.pos+str(state.tree.dtypes.get(v2))]=1.0
     v0=S0
     v1=S1
     v2=None
@@ -342,7 +342,7 @@ def create_auto_features(state):
     v1=get_child(S0,'rd',state)
     v2=S0
     if (v0 is not None) and (v1 is not None) and (v2 is not None) :
-        features['p(rd(S0))d(rd(S0))p(S0)='+v0.pos+state.tree.dtypes[v1]+v2.pos]=1.0
+        features['p(rd(S0))d(rd(S0))p(S0)='+v0.pos+str(state.tree.dtypes.get(v1))+v2.pos]=1.0
     v0=S0
     v1=get_child(S0,'d0',state)
     v2=get_child(S0,'d1',state)
@@ -365,7 +365,7 @@ def create_auto_features(state):
     v2=get_child(S0,'d1',state)
     v3=get_child(S0,'d2',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) and (v3 is not None) :
-        features['p(S0)d(d0(S0))d(d1(S0))d(d2(S0))='+v0.pos+state.tree.dtypes[v1]+state.tree.dtypes[v2]+state.tree.dtypes[v3]]=1.0
+        features['p(S0)d(d0(S0))d(d1(S0))d(d2(S0))='+v0.pos+str(state.tree.dtypes.get(v1))+str(state.tree.dtypes.get(v2))+str(state.tree.dtypes.get(v3))]=1.0
     v0=S0
     v1=get_child(S1,'d0',state)
     v2=get_child(S1,'d1',state)
@@ -377,19 +377,19 @@ def create_auto_features(state):
     v2=get_child(S1,'d1',state)
     v3=get_child(S1,'d2',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) and (v3 is not None) :
-        features['p(S0)d(d0(S1))d(d1(S1))d(d2(S1))='+v0.pos+state.tree.dtypes[v1]+state.tree.dtypes[v2]+state.tree.dtypes[v3]]=1.0
+        features['p(S0)d(d0(S1))d(d1(S1))d(d2(S1))='+v0.pos+str(state.tree.dtypes.get(v1))+str(state.tree.dtypes.get(v2))+str(state.tree.dtypes.get(v3))]=1.0
     v0=S0
     v1=S0
     v2=get_child(S0,'d0',state)
     v3=get_child(S0,'d1',state)
     v4=get_child(S0,'d2',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) and (v3 is not None) and (v4 is not None) :
-        features['p(S0)l(S0)d(d0(S0))d(d1(S0))d(d2(S0))='+v0.pos+v1.lemma+state.tree.dtypes[v2]+state.tree.dtypes[v3]+state.tree.dtypes[v4]]=1.0
+        features['p(S0)l(S0)d(d0(S0))d(d1(S0))d(d2(S0))='+v0.pos+v1.lemma+str(state.tree.dtypes.get(v2))+str(state.tree.dtypes.get(v3))+str(state.tree.dtypes.get(v4))]=1.0
     v0=S0
     v1=S0
     v2=get_child(S1,'d0',state)
     v3=get_child(S1,'d1',state)
     v4=get_child(S1,'d2',state)
     if (v0 is not None) and (v1 is not None) and (v2 is not None) and (v3 is not None) and (v4 is not None) :
-        features['p(S0)l(S0)d(d0(S1))d(d1(S1))d(d2(S1))='+v0.pos+v1.lemma+state.tree.dtypes[v2]+state.tree.dtypes[v3]+state.tree.dtypes[v4]]=1.0
+        features['p(S0)l(S0)d(d0(S1))d(d1(S1))d(d2(S1))='+v0.pos+v1.lemma+str(state.tree.dtypes.get(v2))+str(state.tree.dtypes.get(v3))+str(state.tree.dtypes.get(v4))]=1.0
     return features

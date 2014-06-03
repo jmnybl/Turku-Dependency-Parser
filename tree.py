@@ -45,7 +45,7 @@ def fill_conll(sent,state,conll_format=u"conll09"):
         if state.tree.govs[token].index+1==0: # hard-code deprel to be ROOT
             sent[i][form.DEPREL]=u"ROOT"
         else:
-            sent[i][form.DEPREL]=token.dtype
+            sent[i][form.DEPREL]=state.tree.dtypes[token]
 
 def write_conll(f,sent):
     for line in sent:
@@ -65,11 +65,12 @@ class Tree(object):
         """Selectively copies only those parts that can change during parse"""
         newT=cls.__new__(cls) #Do not call the __init__() because we will fill the args by hand
         newT.tokens=t.tokens
-        newT.childs=copy.copy(t.childs) #TODO: Do we need a deep copy for the Dep()?
-        newT.govs=copy.copy(t.govs)
-        newT.deps=copy.copy(t.deps)
+        newT.childs=t.childs.copy()
+        newT.govs=t.govs.copy()
+        newT.deps=t.deps[:]
+        newT.dtypes=t.dtypes.copy()
         newT.root=t.root
-        newT.projective_order=copy.copy(t.projective_order)
+        newT.projective_order=copy.copy(t.projective_order) #TODO: Do we need to copy this?
         newT.ready=t.ready
         return newT
 
@@ -77,12 +78,14 @@ class Tree(object):
         #If you add any new attributes, make sure you copy them over in new_from_tree()
         self.tokens=[] #[Token(),...]
         self.childs=defaultdict(lambda:set()) #{token():set(token())#
-        self.govs={} #{token():govtoken()}     [...,(dtype,gov),....]
+        self.govs={} #{token():govtoken()}
+        self.dtypes={} #{token():dtype}
         self.deps=[] #[Dep(),...]
         self.root=None #?
         self.projective_order=None 
         self.ready=False
 
+    #Called from new_from_conll() classmethod
     def from_conll(self,lines,syn,conll_format="conll09"):    
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
             which will be looked up in the formats module-level dictionary"""
@@ -95,7 +98,7 @@ class Tree(object):
         
         if syn: # create dependencies
             for line in lines:
-                self.tokens[int(line[form.ID])-1].dtype=line[form.DEPREL] # fill dtype for token
+                self.dtypes[self.tokens[int(line[form.ID])-1]]=line[form.DEPREL] # fill dtype for token
                 gov=int(line[form.HEAD])
                 if gov==0:
                     self.root=self.tokens[int(line[0])-1] # TODO: why I store this information?
@@ -113,7 +116,7 @@ class Tree(object):
         self.deps.append(dependency)
         self.childs[dependency.gov].add(dependency.dep)
         self.govs[dependency.dep]=dependency.gov
-        dependency.dep.dtype=dependency.dType
+        self.dtypes[dependency.dep]=dependency.dType
 
     def has_dep(self,g,d):
         for dependency in self.deps:
@@ -177,13 +180,12 @@ class Tree(object):
 
 class Token(object):
 
-    def __init__(self,idx,text,pos="",feat="",lemma="",dtype=None):
+    def __init__(self,idx,text,pos="",feat="",lemma=""):
         self.index=idx
         self.text=text
         self.pos=pos
         self.feat=feat
         self.lemma=lemma
-        self.dtype=dtype
 
     def __str__(self):
         return self.text.encode(u"utf-8")

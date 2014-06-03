@@ -45,8 +45,7 @@ def get_following(token,idx,state):
 """
 
 token_dictionary={u"S0":u"state.stack(-1)",u"S1":u"state.stack(-2)"}
-
-exp_dictionary={u"p":u"%s.pos",u"l":u"%s.lemma",u"w":u"%s.text",u"d":u"state.tree.dtypes[%s]",u"m":u"%s.feat"}
+exp_dictionary={u"p":u"%s.pos",u"l":u"%s.lemma",u"w":u"%s.text",u"d":u"str(state.tree.dtypes.get(%s))",u"m":u"%s.feat"}
 
 mainregex=re.compile(ur"([a-z]{1,2})\(([A-Za-z0-9-+]+|[a-z0-9]{2}\([S0-9]{2}\))\)",re.U)
 
