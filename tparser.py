@@ -187,7 +187,7 @@ class Parser(object):
                 move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
                 assert (move==RIGHT or move==LEFT)
                 trans=Transition(move,u"ROOT")
-                self.apply_trans(state,trans,feats=False)
+                state.update(trans)
                 continue
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
@@ -195,7 +195,7 @@ class Parser(object):
                     trans=Transition(move,dType)
                     if trans.move not in state.valid_transitions():
                         raise ValueError("Invalid transition:",trans.move)
-                    self.apply_trans(state,trans,feats=False)
+                    state.update(trans)
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
@@ -204,7 +204,7 @@ class Parser(object):
                 trans=Transition(SHIFT,None)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
-            self.apply_trans(state,trans,feats=False)
+            state.update(trans)
         return state.transitions
             
     def extract_dep(self,state,gs_tree):
