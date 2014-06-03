@@ -123,6 +123,8 @@ class VWQuery(object):
                 transition=self.cls2transition[cls]
                 if transition.move in valid_moves:
                     # #Does it pass the filter?
+                    state.update(transition)
+                    break
                     if transition.move==tparser.SHIFT or transition.move==tparser.SWAP:
                         #We're good!
                         state.update(transition)
