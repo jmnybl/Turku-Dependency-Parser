@@ -18,18 +18,20 @@ class Model(object):
         return model
 
     @classmethod
-    def collect(cls,model_name,corpus,cutoff=5,conll_format="conll09"):
+    def collect(cls,model_name,corpus,cutoff=2,conll_format="conll09"):
         form=formats[conll_format]
         pairs=defaultdict(lambda:0)
         for sent in read_conll(corpus):
             for token in sent:
-                if int(token[form.HEAD])==0: continue # ROOT
+                gov=int(token[form.HEAD])
+                if gov==0: continue # ROOT
+                gov_pos=sent[gov-1][form.POS]
                 pos,deprel=token[form.POS],token[form.DEPREL]
-                pairs[(pos,deprel)]+=1
+                pairs[(gov_pos,pos,deprel)]+=1
         types={}
-        for (pos,deprel),value in pairs.iteritems():
+        for (gov_pos,pos,deprel),value in pairs.iteritems():
             if value>cutoff:
-                types.setdefault(pos,set()).add(deprel)
+                types.setdefault((gov_pos,pos),set()).add(deprel)
         # now we have collected the dictionary, pickle it and create a model instance
         f=codecs.open(model_name,u"wb")
         cPickle.dump(types,f)
@@ -42,7 +44,7 @@ class Model(object):
     def __init__(self,model):
         if model is None:
             raise ValueError("Create model object by calling load() or collect()")            
-        self.deptypes=model # {key:pos, value:set of possible deptypes} dictionary
+        self.deptypes=model # {key:(gov_pos,dep_pos), value:set of possible deptypes} dictionary
 
 
 
