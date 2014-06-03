@@ -58,7 +58,7 @@ class State(object):
             raise ValueError("Incorrect transition")
         self.transitions.append(trans)
         if len(self.queue)==0 and len(self.stack)==1:
-            assert self.stack[-1].index==-1,"ROOT is not the last token in the stack."
+            assert self.stack[-1].index==-1,("ROOT is not the last token in the stack.", self.stack)
             self.tree.ready=True
 
 
@@ -83,7 +83,7 @@ class State(object):
         if len(self.stack)>1: # ARCS
             if self.stack[-2].index!=-1: # if s2 is not root
                 moves.add(LEFT)
-            if self.stack[-1].index!=-1: # if s1 is not root
+            if self.stack[-1].index!=-1 and (self.stack[-2].index!=-1 or len(self.queue)==0): # Only allow RIGHT from ROOT when queue is empty
                 moves.add(RIGHT)
         if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index: # SWAP
             if len(self.queue)==0 and len(self.stack)==2: return moves # no need for swap, we can use simple LEFT or RIGHT 
