@@ -8,7 +8,7 @@ import StringIO
 import tparser
 import time
 
-def one_process(g_perceptron,q,job_counter):
+def one_process(g_perceptron,q,q_out):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
@@ -18,19 +18,35 @@ def one_process(g_perceptron,q,job_counter):
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
-            return #We're done
+            break #We're done
         job_number,data=next_job
         buffIN=StringIO.StringIO(data) #Make the input look like an open file reading unicode
         buffOUT=StringIO.StringIO()
         parser.parse(buffIN,buffOUT)
-        #Done, now wait for your turn on output
-        while True:
-            if job_counter.value==job_number: #My turn!
-                print buffOUT.getvalue().encode("utf-8")
-                sys.stdout.flush()
-                job_counter.value+=1
-                break
-            time.sleep(0.01) #Wait a 1/100th of second before checking again
+        #Done, push out
+        q_out.put((job_number,buffOUT.getvalue().encode("utf-8")))
+    q_out.put(None) #Signal downstream that we're done
+
+def assemble_results(qout,parsers_alive):
+    cache={} #{jobid:txt}
+    counter=0
+    while True:
+        if parsers_alive>0:
+            next_job=qout.get()
+            if next_job==None:
+                parsers_alive-=1 #Another one done
+            else:
+                job_number,data=next_job
+                assert job_number not in cache
+                cache[job_number]=data
+        #Print everything you can
+        while counter in cache:
+            print cache[counter]
+            del cache[counter]
+            counter+=1
+        if parsers_alive==0 and not cache: #DOne
+            return
+
 
 def feed_queue(q,inp,max_sent=0):
     """iteration_progress -> progress through the total number of iterations, will be passed on to the parser"""
@@ -71,15 +87,17 @@ def launch_instances(args):
 
     sh_state=perceptron.PerceptronSharedState.load(args.model[0],retrainable=True)
     q=multiprocessing.Queue(20)  #Queue to pass pieces of the training data to the processes
-    job_counter=multiprocessing.Value('I')
-    job_counter.value=0
+    q_out=multiprocessing.Queue(20) #Queue to pass parsed data to the process which assembles the parsed output
 
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(gp,q,job_counter))
+        p=multiprocessing.Process(target=one_process, args=(gp,q,q_out))
         p.start()
         procs.append(p)
+    p=multiprocessing.Process(target=assemble_results,args=(q_out,args.processes))
+    p.start()
+    procs.append(p)
 
     #All processes started
     #...feed the queue with data
