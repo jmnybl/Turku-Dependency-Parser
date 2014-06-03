@@ -293,10 +293,10 @@ class Parser(object):
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
         for sent in read_conll(inp):
-            state=State(sent,syn=False)
-            while not state.tree.ready:
-                state=self.give_next_state(state) #This looks wasteful, but it is what the beam will do anyway
-            fill_conll(sent,state)
+            beam=[State(sent,syn=False)]
+            while not self.beam_ready(beam):
+                beam=self.give_next_beam(beam) #This looks wasteful, but it is what the beam will do anyway
+            fill_conll(sent,beam[0])
             write_conll(outp,sent)
 
             
