@@ -96,15 +96,19 @@ class VWQuery(object):
         feature_gen=features.Features()
         for sent in tree.read_conll("/dev/stdin"):
             #t=tree.Tree(None,conll=sent,syn=False,conll_format="conll09")  ###? do I need this?
-            initial_state=tparser.State(None,sent)
+            initial_state=tparser.State(sent,syn=False)
             finished=self.det_parse(initial_state,feature_gen,mod)
             tree.fill_conll(sent,finished)
             tree.write_conll(out,sent)
 
     def det_parse(self, state, feature_gen, model):
         shift_tr=tparser.Transition(tparser.SHIFT,None)
- #Now do shift-shift to start the parsing
+ #Now do shift-shift-shift to start the parsing
         state.update(shift_tr)
+        if state.valid_transitions():
+            state.update(shift_tr)
+        else:
+            return state
         if state.valid_transitions():
             state.update(shift_tr)
         else:
@@ -123,6 +127,7 @@ class VWQuery(object):
                 transition=self.cls2transition[cls]
                 if transition.move in valid_moves:
                     # #Does it pass the filter?
+                    state=tparser.State.copy_and_point(state)
                     state.update(transition)
                     break
                     if transition.move==tparser.SHIFT or transition.move==tparser.SWAP:

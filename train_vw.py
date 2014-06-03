@@ -68,19 +68,18 @@ def one_sent_example(sent,parser,feature_gen):
     shift_t=tparser.Transition(tparser.SHIFT,None)
     if len(sent)<2:
         return
-    tokens=u" ".join(t[1] for t in sent)
-    t=tree.Tree(None,conll=sent,syn=True,conll_format="conll09")
+    t=tree.Tree.new_from_conll(sent,syn=True)
     non_projs=t.is_nonprojective()
     if len(non_projs)>0:
         t.define_projective_order(non_projs)
-    gs_transitions=parser.extract_transitions(t,tokens)
-    state=tparser.State(None,sent)
+    gs_transitions=parser.extract_transitions(t,sent)
+    state=tparser.State(sent,syn=False)
     for tr_idx,tr in enumerate(gs_transitions):
         try:
             cls=get_cls_num(str(tr),False)
         except KeyError:
             pass
-        if tr_idx>1: #Don't generate features for the first two shifts because those are automatic
+        if tr_idx>2: #Don't generate features for the first three shifts because those are automatic
             feats=feature_gen.create_features(state)
             print cls, u"  ", 
             print u"|", (u" ".join(sanitize(f)+u":"+str(v) for f,v in feats.iteritems())).encode("utf-8")
