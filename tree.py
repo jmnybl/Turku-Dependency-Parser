@@ -37,11 +37,14 @@ def fill_conll(sent,state,conll_format=u"conll09"):
     form=formats[conll_format]
     for i in xrange(0,len(sent)):
         token=state.tree.tokens[i]
-        if token not in state.tree.govs: # ROOT
-            sent[i][form.HEAD]=u"0"
+#        if token not in state.tree.govs: # ROOT
+#            sent[i][form.HEAD]=u"0"
+#            sent[i][form.DEPREL]=u"ROOT"
+#        else:
+        sent[i][form.HEAD]=unicode(state.tree.govs[token].index+1)
+        if state.tree.govs[token].index+1==0: # hard-code deprel to be ROOT
             sent[i][form.DEPREL]=u"ROOT"
         else:
-            sent[i][form.HEAD]=unicode(state.tree.govs[token].index+1)
             sent[i][form.DEPREL]=token.dtype
 
 def write_conll(f,sent):
@@ -95,7 +98,7 @@ class Tree(object):
                 self.tokens[int(line[form.ID])-1].dtype=line[form.DEPREL] # fill dtype for token
                 gov=int(line[form.HEAD])
                 if gov==0:
-                    self.root=self.tokens[int(line[0])-1]
+                    self.root=self.tokens[int(line[0])-1] # TODO: why I store this information?
                     continue
                 gov=self.tokens[gov-1]
                 dep=self.tokens[int(line[0])-1]
@@ -164,8 +167,10 @@ class Tree(object):
             
 
     def is_proj(self,tok1,tok2):
-        if (self.tokens.index(tok1)<self.tokens.index(tok2)) and (self.projective_order.index(tok1)>self.projective_order.index(tok2)): return True
-        elif (self.tokens.index(tok1)>self.tokens.index(tok2)) and (self.projective_order.index(tok1)<self.projective_order.index(tok2)): return True
+        if tok1.index==-1 or tok2.index==-1: # artificial root token, not part of the self.projective order
+            return False # TODO: do I ever want to SWAP root?
+        if (tok1.index<tok2.index) and (self.projective_order.index(tok1)>self.projective_order.index(tok2)): return True
+        elif (tok1.index>tok2.index) and (self.projective_order.index(tok1)<self.projective_order.index(tok2)): return True
         else: return False
 
 
