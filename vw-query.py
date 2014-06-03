@@ -8,6 +8,9 @@ import sys
 import select
 import cPickle as pickle
 import codecs
+import model
+
+
 
 """
   This module allows us to query VW. It is the most horrible hack ever
@@ -72,7 +75,7 @@ class VWQuery(object):
 
     def __del__(self):
         self.vw.kill()
-        os.system("ps x | grep vw | grep 'daemon --port %d -r ' | cut -f 1 -d\ | xargs kill"%(self.port))
+        #os.system("ps x | grep vw | grep 'daemon --port %d -r ' | cut -f 1 -d\ | xargs kill"%(self.port))
         self.raw_pred_read.close()
         self.sock.close()
 
@@ -88,19 +91,19 @@ class VWQuery(object):
         assert cls==class_weights[0][0], (cls, class_weights)
         return class_weights
 
-    def det_parse_conll(self):
+    def det_parse_conll(self,mod):
         out=codecs.getwriter("utf-8")(sys.stdout)
         feature_gen=features.Features()
         for sent in tree.read_conll("/dev/stdin"):
             #t=tree.Tree(None,conll=sent,syn=False,conll_format="conll09")  ###? do I need this?
             initial_state=tparser.State(None,sent)
-            finished=self.det_parse(initial_state,feature_gen)
+            finished=self.det_parse(initial_state,feature_gen,mod)
             tree.fill_conll(sent,finished)
             tree.write_conll(out,sent)
 
-    def det_parse(self, state, feature_gen):
+    def det_parse(self, state, feature_gen, model):
         shift_tr=tparser.Transition(tparser.SHIFT,None)
-        #Now do shift-shift to start the parsing
+ #Now do shift-shift to start the parsing
         state.update(shift_tr)
         if state.valid_transitions():
             state.update(shift_tr)
@@ -118,15 +121,27 @@ class VWQuery(object):
 #            print weights[:4], feat_line
             for cls,w in weights:
                 transition=self.cls2transition[cls]
-                if transition.move in valid_moves: #Go!
-                    state.update(transition)
-                    break
+                if transition.move in valid_moves:
+                    # #Does it pass the filter?
+                    if transition.move==tparser.SHIFT or transition.move==tparser.SWAP:
+                        #We're good!
+                        state.update(transition)
+                        break
+                    if transition.move==tparser.RIGHT:
+                        depPOS=state.stack[-1].pos
+                    elif transition.move==tparser.LEFT:
+                        depPOS=state.stack[-2].pos
+                    if transition.dType in model.deptypes[depPOS]:
+                        #We're good!
+                        state.update(transition)
+                        break
             else: #What? No transition valid?
                 assert False #should never, ever happen. Never.
                 
 if __name__=="__main__":
     q=VWQuery(sys.argv[1])
-    q.det_parse_conll()
+    m=model.Model.load("corpus_stats.pkl")
+    q.det_parse_conll(m)
     sys.exit()
     tot=0
     cr=0

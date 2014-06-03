@@ -55,7 +55,7 @@ if __name__==u"__main__":
         model=Model.load(model_name)
     else:
         print >> sys.stderr, "collecting stats from tdt.conll"
-        model=Model.collect(model_name,"tdt.conll")
+        model=Model.collect(model_name,"tdt.conll",2)
     print model.deptypes
     
     
