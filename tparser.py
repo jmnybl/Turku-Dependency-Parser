@@ -83,9 +83,9 @@ class State(object):
         if len(self.stack)>1: # ARCS
             if self.stack[-2].index!=-1: # if s2 is not root
                 moves.add(LEFT)
-            if self.stack[-1].index!=-1 and (self.stack[-2].index!=-1 or len(self.queue)==0): # Only allow RIGHT from ROOT when queue is empty
+            if  self.stack[-2].index!=-1 or len(self.queue)==0: # Only allow RIGHT from ROOT when queue is empty
                 moves.add(RIGHT)
-        if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index: # SWAP
+        if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index and self.stack[-2].index!=-1: # SWAP
             if len(self.queue)==0 and len(self.stack)==2: return moves # no need for swap, we can use simple LEFT or RIGHT 
             moves.add(SWAP)
         return moves
