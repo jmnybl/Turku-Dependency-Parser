@@ -5,7 +5,7 @@ from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
 import codecs
 import traceback
 from collections import defaultdict
-from auto_features import create_all_features
+from features import Features
 from perceptron import GPerceptron, PerceptronSharedState
 import copy
 
@@ -14,7 +14,7 @@ RIGHT=1
 LEFT=2
 SWAP=3
 
-DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparator complm conj cop csubj csubj-cop dep det dobj gobj gsubj iccomp infmod intj mark name neg nommod nsubj num parataxis partmod poss prt punct rcmod voc xcomp xsubj xsubj-cop nsubj-cop nommod-own csubjpass nn cc number quantmod rel preconj".split() # TODO: collect these from data
+DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparator complm conj cop csubj csubj-cop dep det dobj gobj gsubj iccomp infmod intj mark name neg nommod nsubj num parataxis partmod poss prt punct rcmod voc xcomp xsubj xsubj-cop nsubj-cop nommod-own csubjpass nn cc number quantmod rel preconj ROOT".split() # TODO: collect these from data
 
 
 class Transition(object):
@@ -38,7 +38,8 @@ class State(object):
     def __init__(self,tokens,sent=None):
         self.tree=Tree(tokens,conll=sent)
         self.stack=[]
-        self.queue=self.tree.tokens[:]
+        self.queue=[Token(-1,u"ROOT",lemma=u"ROOT",pos=u"ROOT",feat=u"ROOT")]
+        self.queue+=self.tree.tokens[:]
         self.score=0.0
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
@@ -57,6 +58,7 @@ class State(object):
             raise ValueError("Incorrect transition")
         self.transitions.append(trans)
         if len(self.queue)==0 and len(self.stack)==1:
+            assert self.stack[-1].index==-1,("ROOT is not the last token in the stack.", self.stack)
             self.tree.ready=True
 
 
@@ -79,9 +81,12 @@ class State(object):
         if len(self.queue)>0: # SHIFT
             moves.add(SHIFT)
         if len(self.stack)>1: # ARCS
-            moves.add(RIGHT)
-            moves.add(LEFT)
-        if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index: # SWAP
+            if self.stack[-2].index!=-1: # if s2 is not root
+                moves.add(LEFT)
+            if  self.stack[-2].index!=-1 or len(self.queue)==0: # Only allow RIGHT from ROOT when queue is empty
+                moves.add(RIGHT)
+        if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index and self.stack[-2].index!=-1: # SWAP
+            if len(self.queue)==0 and len(self.stack)==2: return moves # no need for swap, we can use simple LEFT or RIGHT 
             moves.add(SWAP)
         return moves
 
@@ -95,7 +100,9 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,fName=None,gp=None):
+    def __init__(self,fName=None,gp=None,test_time=False):
+        self.test_time=test_time
+        self.features=Features()
         if gp:
             self.perceptron=gp
             return
@@ -137,7 +144,12 @@ class Parser(object):
     def extract_transitions(self,gs_tree,sent):
         state=State(sent) # note that I don't use conll, so no lemma or pos
         while not state.tree.ready:
-            #print state
+            if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
+                move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
+                assert (move==RIGHT or move==LEFT)
+                trans=Transition(move,u"ROOT")
+                self.apply_trans(state,trans,feats=False)
+                continue
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
                 if move is not None:
@@ -147,7 +159,7 @@ class Parser(object):
                     self.apply_trans(state,trans,feats=False)
                     continue
             # cannot draw arc
-            if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (gs_tree.tokens.index(state.stack[-2])<gs_tree.tokens.index(state.stack[-1])) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
+            if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
                     trans=Transition(SWAP,None)
             else: # SHIFT
                 trans=Transition(SHIFT,None)
@@ -263,37 +275,39 @@ class Parser(object):
         """ Use this to apply gs transition. """
         state.update(trans) # update stack and queue
         if not feats: return # we are just extracting transitions from gold tree, no need for features
-        features=create_all_features(state) # create new features
+        features=self.features.create_features(state) # create new features
 #        print trans, features
-        state.score+=self.perceptron.score(features) # update score # TODO define test_time properly
+        state.score+=self.perceptron.score(features,self.test_time) # update score # TODO define test_time properly
         for feat in features:
             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
-    def parse(self,fName,outfile):
-        f=codecs.open(outfile,u"wt",u"utf-8")
-        for sent in read_conll(fName):
+    def parse(self,inp,outp):
+        """outp should be a file open for writing unicode"""
+        for sent in read_conll(inp):
             tokens=u" ".join(t[1] for t in sent) # TODO: get rid of this line, this is stupid
             state=State(tokens,sent=sent)
             while not state.tree.ready:
                 trans=self.give_next_trans(state)
                 self.apply_trans(state,trans)
             fill_conll(sent,state)
-            write_conll(f,sent)
-        f.close()
+            write_conll(outp,sent)
+
             
     
 
 
 if __name__==u"__main__":
 
-    #parser=Parser()
-    parser=Parser(u"temp_model")
+    parser=Parser()
+#    parser=Parser(u"full_model",test_time=True)
     
-#    for i in xrange(0,10):
+    for i in xrange(0,10):
 
-#        print >> sys.stderr, "iter",i+1
-#        parser.train(u"tdt.conll")
-#        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
+        print >> sys.stderr, "iter",i+1
+        parser.train(u"tdt.conll")
+        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
 
-    parser.parse(u"test.conll09",u"parserout.conll")
+    outf=codecs.open(u"parserout_test.conll",u"wt",u"utf-8")
+    parser.parse(u"test.conll09",outf)
+    outf.close()
 
