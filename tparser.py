@@ -255,8 +255,12 @@ class Parser(object):
                 print len(gs_state.transitions)
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
                 break
-        else:
-            print "*", len(gs_state.transitions)
+        else: # gold still in beam and beam ready
+            if beam[0].transitions==gs_state.transitions: # no need for update
+                print "**", len(gs_state.transitions)
+            else:
+                self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
+                print "*", len(gs_state.transitions)
 
 
     def enum_transitions(self,state):
