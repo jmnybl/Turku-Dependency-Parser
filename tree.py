@@ -65,12 +65,18 @@ class Tree(object):
         """Selectively copies only those parts that can change during parse"""
         newT=cls.__new__(cls) #Do not call the __init__() because we will fill the args by hand
         newT.tokens=t.tokens
-        newT.childs=t.childs.copy()
+        newT.childs=defaultdict(lambda:set())
+        for tok,s in t.childs.iteritems():
+            if tok in t.ready_nodes:
+                newT.childs[tok]=s # this one is ready, no need to copy
+            else:
+                newT.childs[tok]=s.copy()
+        newT.ready_nodes=t.ready_nodes.copy() # this needs to be copied
         newT.govs=t.govs.copy()
         newT.deps=t.deps[:]
         newT.dtypes=t.dtypes.copy()
         newT.root=t.root
-        newT.projective_order=copy.copy(t.projective_order) #TODO: Do we need to copy this?
+        newT.projective_order=t.projective_order #no need to copy this one
         newT.ready=t.ready
         return newT
 
@@ -78,6 +84,7 @@ class Tree(object):
         #If you add any new attributes, make sure you copy them over in new_from_tree()
         self.tokens=[] #[Token(),...]
         self.childs=defaultdict(lambda:set()) #{token():set(token())#
+        self.ready_nodes=set() # set(token())
         self.govs={} #{token():govtoken()}
         self.dtypes={} #{token():dtype}
         self.deps=[] #[Dep(),...]
@@ -109,6 +116,7 @@ class Tree(object):
                 dependency=Dep(gov,dep,dType)
                 self.add_dep(dependency)
             self.ready=True
+            self.ready_nodes=set(self.tokens) # all nodes are ready
         else: 
             self.ready=False
 
@@ -117,6 +125,7 @@ class Tree(object):
         self.childs[dependency.gov].add(dependency.dep)
         self.govs[dependency.dep]=dependency.gov
         self.dtypes[dependency.dep]=dependency.dType
+        self.ready_nodes.add(dependency.dep)
 
     def has_dep(self,g,d):
         for dependency in self.deps:

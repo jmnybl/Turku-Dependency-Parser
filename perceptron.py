@@ -180,14 +180,15 @@ class GPerceptron(object):
         for feature_name,feature_weight in system_features.iteritems():
             if feature_name not in gold_features: #must not count these twice
                 norm2+=feature_weight**2
-        if norm2==0.0:
-            return
+#        if norm2==0.0:
+#            return
         tau=(1.0-progress)*(1.0+system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
-        if tau<0.0:
-            return
+#        if tau<0.0:
+#            return
         #if norm2<=0.0: return 
-#        assert norm2>=0.0
-#        assert tau>=0.0 
+#        print system_score,gold_score
+        assert norm2>=0.0,"tau:"+str(tau)+" norm2:"+str(norm2)
+        assert tau>=0.0,"tau:"+str(tau)+" norm2:"+str(norm2)
         #print system_features,gold_features
         #Do the update
         for feature_name,feature_weight in gold_features.iteritems():
