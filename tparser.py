@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os.path
 from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
 import codecs
 import traceback
@@ -8,6 +9,7 @@ from collections import defaultdict
 from features import Features
 from perceptron import GPerceptron, PerceptronSharedState
 import copy
+from model import Model
 
 feats=Features()
 
@@ -147,6 +149,10 @@ class Parser(object):
     def __init__(self,fName=None,gp=None,test_time=False):
         self.test_time=test_time
         self.features=Features()
+        if os.path.exists(u"corpus_stats.pkl"):
+            self.model=Model.load(u"corpus_stats.pkl")
+        else:
+            self.model=Model.collect(u"corpus_stats.pkl",u"tdt.conll")
         if gp:
             self.perceptron=gp
             return
@@ -257,8 +263,17 @@ class Parser(object):
         """Enumerates transition objects allowable for the state. TODO: Filtering here?"""
         for move in state.valid_transitions():
             if move==RIGHT or move==LEFT:
-                for dType in DEPTYPES: #FILTERING GOES HERE
+                if move==RIGHT:
+                    gov_pos=state.stack[-2].pos
+                    dep_pos=state.stack[-1].pos
+                else:
+                    gov_pos=state.stack[-1].pos
+                    dep_pos=state.stack[-2].pos
+                allowed=self.model.deptypes.get((gov_pos,dep_pos),set())
+                #for dType in DEPTYPES: #FILTERING GOES HERE
+                for dType in allowed:
                     yield Transition(move,dType)
+                yield Transition(move,u"ROOT") #TODO: what should be done with root?
             else:
                 yield Transition(move,None)
                 
