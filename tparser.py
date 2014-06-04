@@ -239,11 +239,12 @@ class Parser(object):
         gs_state=State(sent,syn=False) # TODO this not optimal, and we need to rethink this when we implement the beam search
         while not (self.beam_ready(beam)):
             beam=self.give_next_beam(beam) #This one already calls update_and_score_state()
-            gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
-            gs_trans=gs_transitions.pop(0)
-            if gs_trans.move not in gs_state.valid_transitions():
-                raise ValueError("Invalid GS Transition")
-            self.update_and_score_state(gs_state,gs_trans)
+            if not gs_state.tree.ready: # update gs if it's not ready
+                gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
+                gs_trans=gs_transitions[len(gs_state.transitions)]
+                if gs_trans.move not in gs_state.valid_transitions():
+                    raise ValueError("Invalid GS Transition")
+                self.update_and_score_state(gs_state,gs_trans)
             if not self.gold_in_beam(gs_state,beam): # check if gold state is still in beam
                 print len(gs_state.transitions)
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
