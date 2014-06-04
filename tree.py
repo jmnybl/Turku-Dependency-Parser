@@ -80,6 +80,16 @@ class Tree(object):
         newT.ready=t.ready
         return newT
 
+    @classmethod
+    def clone(cls,t):
+        """
+        Clones the tree, copying only parts relevant to dependency types
+        """
+        newT=copy.copy(t)
+        newT.deps=t.deps[:]
+        newT.dtypes=t.dtypes.copy()
+        return newT
+
     def __init__(self):
         #If you add any new attributes, make sure you copy them over in new_from_tree()
         self.tokens=[] #[Token(),...]
@@ -120,12 +130,25 @@ class Tree(object):
         else: 
             self.ready=False
 
-    def add_dep(self,dependency):
-        self.deps.append(dependency)
+    def add_dep_shared(self,dependency):
+        """
+        Adds the dependency to the structure of the tree which is shared among its clones
+        """
         self.childs[dependency.gov].add(dependency.dep)
         self.govs[dependency.dep]=dependency.gov
-        self.dtypes[dependency.dep]=dependency.dType
         self.ready_nodes.add(dependency.dep)
+
+    def add_dep_private(self,dependency):
+        """
+        Adds the dependency to the structure of the tree which is unique for each clone
+        """
+        self.deps.append(dependency)
+        self.dtypes[dependency.dep]=dependency.dType
+
+    def add_dep(self,dependency):
+        self.add_dep_shared(dependency)
+        self.add_dep_private(dependency)
+
 
     def has_dep(self,g,d):
         for dependency in self.deps:

@@ -52,12 +52,6 @@ class State(object):
         self.features=defaultdict(lambda:0.0)
         self.prev_state=None #The state from which this one was created, if any
 
-    @classmethod
-    def _copy_and_point(cls,s):
-        newS=copy.deepcopy(s)
-        newS.features={}
-        newS.prev_state=s
-        return newS
 
     @classmethod
     def copy_and_point(cls,s):
@@ -67,8 +61,20 @@ class State(object):
         newS.score=s.score
         newS.transitions=s.transitions[:]
         newS.prev_state=s
-        #newS.tree=copy.deepcopy(s.tree)
-        newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
+        newS.tree=Tree.new_from_tree(s.tree)
+        return newS
+
+    @classmethod
+    def clone_and_apply_dep(cls,s,dep,tr): 
+        """
+        Makes an exact copy of the state, applies dep, and copies purely only
+        what differentiates the new state w.r.t. the dep. Sort of "copy-on-write" of a kind
+        """
+        newS=copy.copy(s)
+        newS.tree=Tree.clone(s.tree) #Copies only deps and dTypes, clones rest
+        newS.tree.add_dep_private(dep) #Only changes parts relevant to dType, leaves rest unmodified
+        newS.transitions=s.transitions[:]
+        newS.transitions.append(tr)
         return newS
         
     def create_feature_dict(self):
@@ -89,36 +95,32 @@ class State(object):
         if self.prev_state:
             self.prev_state._populate_feature_dict(d)
 
-    def update(self,trans):
+    def update_QS(self,trans):
+        #Only update the queue and stack, return Dep() if applicable, None otherwise
         if trans.move==SHIFT: # SHIFT
-            self.shift(trans)
+            self.stack.append(self.queue.pop(0))
+            d=None
         elif trans.move==RIGHT: # RIGHT ARC
-            self.add_arc(self.stack[-2],self.stack.pop(-1),trans) 
+            d=Dep(self.stack[-2],self.stack.pop(-1),trans.dType)
         elif trans.move==LEFT: # LEFT ARC
-            self.add_arc(self.stack[-1],self.stack.pop(-2),trans)
+            d=Dep(self.stack[-1],self.stack.pop(-2),trans.dType)
         elif trans.move==SWAP: # SWAP
-            self.swap(trans)
+            self.queue.insert(0,self.stack.pop(-2))
+            d=None
         else:
             raise ValueError("Incorrect transition")
-        self.transitions.append(trans)
         if len(self.queue)==0 and len(self.stack)==1:
             assert self.stack[-1].index==-1,("ROOT is not the last token in the stack.", self.stack)
             self.tree.ready=True
+        return d
+        
 
+    def update(self,trans):
+        d=self.update_QS(trans)
+        if d!=None:
+            self.tree.add_dep(d)
+        self.transitions.append(trans)
 
-
-    def add_arc(self,gov,dep,trans):
-        """ Gov and dep are Token class instances. """
-        dependency=Dep(gov,dep,trans.dType)
-        self.tree.add_dep(dependency)
-
-
-    def shift(self,trans):
-        self.stack.append(self.queue.pop(0))
-
-
-    def swap(self,trans):
-        self.queue.insert(0,self.stack.pop(-2))
 
     def valid_transitions(self):
         moves=set()
@@ -223,11 +225,14 @@ class Parser(object):
         else:
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
+    def score_state(self,state):
+        state.features=feats.create_features(state)
+        state.score+=self.perceptron.score(state.features,self.test_time)
+
     def update_and_score_state(self,state,trans):
         """Applies the transition, sets the local features, updates the score"""
         state.update(trans)
-        state.features=feats.create_features(state)
-        state.score+=self.perceptron.score(state.features,self.test_time)
+        self.score_state(state)
         
 
     def train_one_sent(self,gs_transitions,sent,progress):
@@ -259,32 +264,35 @@ class Parser(object):
     def give_next_state(self,state):
         """ Predict next state and create it """
         states=[]
+        valid=state.valid_transitions()
+        if RIGHT in valid:
+            RA_prototype=State.copy_and_point(state) #This one we will then clone
+            dep_RA=RA_prototype.update_QS(Transition(RIGHT,None)) #moves the stack/queue, returns Dep() with empty type
+            RA_prototype.tree.add_dep_shared(dep_RA)
+        if LEFT in valid:
+            LA_prototype=State.copy_and_point(state) #This one we will then clone
+            dep_LA=LA_prototype.update_QS(Transition(LEFT,None)) #moves the stack/queue, returns Dep() with empty type
+            LA_prototype.tree.add_dep_shared(dep_LA)
+        #LA_ and RA_ prototypes are now states with LEFT/RIGHT arc applied except for type-dependent parts, these will then be cloned as needed
         for trans in self.enum_transitions(state):
-            newS=State.copy_and_point(state)
-            self.update_and_score_state(newS,trans)
+            if trans.move==LEFT:
+                d=copy.copy(dep_LA)
+                d.dType=trans.dType #Make a new dependency
+                newS=State.clone_and_apply_dep(LA_prototype,d,trans)
+                self.score_state(newS)
+            elif trans.move==RIGHT:
+                d=copy.copy(dep_RA)
+                d.dType=trans.dType #Make a new dependency
+                newS=State.clone_and_apply_dep(RA_prototype,d,trans)
+                self.score_state(newS)
+            else:
+                newS=State.copy_and_point(state)
+                self.update_and_score_state(newS,trans)
             states.append(newS)
         best_state=max(states, key=lambda s: s.score)
         return best_state
 
 
-### Not used anymore, superseded by give_next_state()
-
-#     def pre_apply(self,state,trans):
-#         temp_state=copy.deepcopy(state)
-#         self.apply_trans(temp_state,trans)
-# #        print temp_state.score
-# #        print
-# #        print
-#         return temp_state.score
-
-#     def apply_trans(self,state,trans,feats=True):
-#         state.update(trans) # update stack and queue
-#         if not feats: return # we are just extracting transitions from gold tree, no need for features
-#         features=self.features.create_features(state) # create new features
-# #        print trans, features
-#         state.score+=self.perceptron.score(features,self.test_time) # update score # TODO define test_time properly
-#         for feat in features:
-#             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
