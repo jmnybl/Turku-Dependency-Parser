@@ -70,6 +70,9 @@ def launch_instances(args):
     #...feed the queue with data
     for i in range(args.iterations):
         feed_queue(q,args.input,float(i)/args.iterations,args.max_sent)
+        #Iteration ended, store if you are supposed to, unless it's the last iteration
+        if args.save_per_iter and i<args.iterations-1: 
+            sh_state.save(args.output+(".i%02d"%i),True)
 
     #Signal end of work to all processes (Thanks @radimrehurek for this neat trick!)
     for _ in range(args.processes):
@@ -86,6 +89,7 @@ if __name__=="__main__":
     g=parser.add_argument_group("Input/Output")
     g.add_argument('input', nargs='?', help='Training file name, or nothing for training on stdin')
     g.add_argument('-o', '--output', required=True, help='Name of the output model.')
+    g.add_argument('--no_save_per_iter', required=False, dest='save_per_iter', action="store_false", default=True, help='Do not save the model after every iteration, with a ".iNN". Do it by default.')
     g=parser.add_argument_group("Training config")
     g.add_argument('-p', '--processes', type=int, default=4, help='How many training workers to run? (default %(default)d)')
     g.add_argument('--max_sent', type=int, default=0, help='How many sentences to read from the input? 0 for all.  (default %(default)d)')
