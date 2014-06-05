@@ -174,7 +174,7 @@ class Parser(object):
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
-                failed+=1      
+                failed+=1 
         if not quiet:
             print u"Failed to parse:",failed
             print u"Total number of trees:",total
