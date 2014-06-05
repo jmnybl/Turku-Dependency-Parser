@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from auto_features import create_auto_features, get_from_stack, get_child, get_following
+from auto_features_deptype import create_auto_dep_features
 
 class Features(object):
 
@@ -18,8 +19,8 @@ class Features(object):
         return transit
 
 
-    def manual_features(self,state):
-        features={}
+    def manual_features(self,state,features):
+
         S0,S1,S2=get_from_stack(state.stack)
         
         ### manually added features ###
@@ -34,15 +35,15 @@ class Features(object):
                     if v0 is not None:
                         features['p(S1)p(S0)p(S'+idx+'1)='+S1.pos+S0.pos+v0.pos]=1.0
             for idx_1 in ['-1','+1']:
+                v0=get_following(S1,idx_1,state)
                 for idx_0 in ['-1','+1']:
-                    v0=get_following(S1,idx_1,state)
                     v1=get_following(S0,idx_0,state)
                     if (v0 is not None) and (v1 is not None):
                         features['p(S'+idx_1+'1)p(S'+idx_0+'0)w(S0)='+v0.pos+v1.pos+S0.text]=1.0
                         features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
             for idx_1 in ['-2','+2']:
+                v0=get_following(S1,idx_1,state)
                 for idx_0 in ['-2','+2']:
-                    v0=get_following(S1,idx_1,state)
                     v1=get_following(S0,idx_0,state)
                     if (v0 is not None) and (v1 is not None):
                         features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
@@ -69,11 +70,20 @@ class Features(object):
         return features
 
 
+    def create_general_features(self,state):
+        feat=create_auto_features(state)
+        self.manual_features(state,feat)
+        return feat
+
+    def create_deptype_features(self,state):
+        feat=create_auto_dep_features(state)
+        return feat
+
 
     def create_features(self, state):
         """ Main function to create all features. """
-        feat=create_auto_features(state)
-        feat.update(self.manual_features(state))
+        feat=self.create_general_features(state)
+        feat.update(self.create_deptype_features(state))
         return feat
 
 
