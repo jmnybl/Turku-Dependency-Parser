@@ -6,6 +6,7 @@ import json
 import logging
 import multiprocessing
 import ctypes
+import sys
 
 logging.basicConfig(level=logging.INFO)
 
@@ -61,7 +62,7 @@ class PerceptronSharedState(object):
         """
         At the minimum, you need to specify either w_avg or w_len+float_array_type
         """
-
+        
         if w_avg!=None:
             self.w_len=w_avg.shape[0]
             self.float_array_type=w_avg.dtype
@@ -172,6 +173,7 @@ class GPerceptron(object):
         difference between `features` and `gold_features`
         `progress`should be number between 0 and 1 marking how far the training has progressed. 0 means just started and 1 means done. This is used to scale the gradient
         """
+
         norm2=0.0 #denominator for tau, the P-A update weight
         #loop over features in gold
         for feature_name,feature_weight in gold_features.iteritems():
@@ -180,16 +182,17 @@ class GPerceptron(object):
         for feature_name,feature_weight in system_features.iteritems():
             if feature_name not in gold_features: #must not count these twice
                 norm2+=feature_weight**2
-#        if norm2==0.0:
-#            return
+
+        if norm2==0.0:
+            print >> sys.stderr, "WARNING! WARNING! NORM2==0!"
+            sys.stderr.flush()
+            return
         tau=(1.0-progress)*(1.0+system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
-#        if tau<0.0:
-#            return
-        #if norm2<=0.0: return 
-#        print system_score,gold_score
-        assert norm2>=0.0,"tau:"+str(tau)+" norm2:"+str(norm2)
-        assert tau>=0.0,"tau:"+str(tau)+" norm2:"+str(norm2)
-        #print system_features,gold_features
+        if tau<0.0:
+            print >> sys.stderr, "WARNING! WARNING! TAU<0!"
+            sys.stderr.flush()
+            return
+
         #Do the update
         for feature_name,feature_weight in gold_features.iteritems():
             dim=self.feature2dim(feature_name)
@@ -203,7 +206,6 @@ class GPerceptron(object):
                 self.w[dim]+=tau*(-feature_weight)
                 self.w_avg[dim]+=self.w[dim]
                 self.w_avg_N[dim]+=1
-                
 
 if __name__=="__main__":
     #Little test only, really
