@@ -255,6 +255,11 @@ class Parser(object):
                 print len(gs_state.transitions)
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
                 break
+            if beam[0].score<gs_state.score-1.0: # perceptron updated between, so scores are asynchronous, terminate beam search because we won't update the perceptron...
+                print "Skipping...",beam[0].score,gs_state.score
+                #print >> sys.stderr, "WARNING! Beam search terminated because beam score < gold score."
+                #sys.stderr.flush()
+                break
         else: # gold still in beam and beam ready
             if beam[0].transitions==gs_state.transitions: # no need for update
                 print "**", len(gs_state.transitions)
