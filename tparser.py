@@ -181,7 +181,7 @@ class Parser(object):
             except ValueError:
                 #traceback.print_exc()
                 # TODO: more than one non-projective dependency
-                failed+=1      
+                failed+=1 
         if not quiet:
             print u"Failed to parse:",failed
             print u"Total number of trees:",total
@@ -232,10 +232,17 @@ class Parser(object):
         else:
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
+
     def update_and_score_state(self,state,trans):
         """Applies the transition, sets the local features, updates the score"""
         state.update(trans)
         state.features=feats.create_features(state)
+        state.score+=self.perceptron.score(state.features,self.test_time)
+
+    def update_and_score_partial(self,state,trans):
+        """Applies the transition, sets the local, deptype related features, updates the score calculated from deptype related features."""
+        state.update(trans)
+        state.features=feats.create_deptype_features(state)
         state.score+=self.perceptron.score(state.features,self.test_time)
         
 
@@ -296,9 +303,26 @@ class Parser(object):
             if state.tree.ready: # this one is ready, just move it
                 states.append(state)
                 continue
+            lfeats,lscore=None,None # Holds shared features and score for left transition
+            rfeats,rscore=None,None
             for trans in self.enum_transitions(state):
                 newS=State.copy_and_point(state)
-                self.update_and_score_state(newS,trans)
+                if trans.move==LEFT or trans.move==RIGHT:
+                    self.update_and_score_partial(newS,trans) # this updates the state and creates deptype related features + updates the score calculated from those features.
+                    if trans.move==LEFT:
+                        if lfeats is None: # create these features
+                            lfeats=feats.create_general_features(newS)
+                            lscore=self.perceptron.score(lfeats,self.test_time)
+                        newS.features.update(lfeats)
+                        newS.score+=lscore
+                    else:
+                        if rfeats is None:
+                            rfeats=feats.create_general_features(newS)
+                            rscore=self.perceptron.score(rfeats,self.test_time)
+                        newS.features.update(rfeats)
+                        newS.score+=rscore
+                else:
+                    self.update_and_score_state(newS,trans)
                 states.append(newS)
         new_beam=sorted(states, key=lambda s: s.score, reverse=True)[:40] # now we have top 40
         return new_beam
@@ -313,6 +337,7 @@ class Parser(object):
         for state in beam:
             if state.transitions==gs.transitions: return True
         return False
+
 
 
     def parse(self,inp,outp):
@@ -337,8 +362,9 @@ if __name__==u"__main__":
 
         print >> sys.stderr, "iter",i+1
         parser.train(u"tdt.conll")
+        break
         parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
-
+    sys.exit()
     outf=codecs.open(u"parserout_test.conll",u"wt",u"utf-8")
     parser.parse(u"test.conll09",outf)
     outf.close()
