@@ -223,10 +223,17 @@ class Parser(object):
         else:
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
+
     def update_and_score_state(self,state,trans):
         """Applies the transition, sets the local features, updates the score"""
         state.update(trans)
         state.features=feats.create_features(state)
+        state.score+=self.perceptron.score(state.features,self.test_time)
+
+    def update_and_score_partial(self,state,trans):
+        """Applies the transition, sets the local, deptype related features, updates the score calculated from deptype related features."""
+        state.update(trans)
+        state.features=feats.create_deptype_features(state)
         state.score+=self.perceptron.score(state.features,self.test_time)
         
 
@@ -259,32 +266,31 @@ class Parser(object):
     def give_next_state(self,state):
         """ Predict next state and create it """
         states=[]
+        lfeats,lscore=None,None # Holds shared features and score for left transition
+        rfeats,rscore=None,None
         for trans in self.enum_transitions(state):
             newS=State.copy_and_point(state)
-            self.update_and_score_state(newS,trans)
+            if trans.move==LEFT or trans.move==RIGHT:
+                self.update_and_score_partial(newS,trans) # this updates the state and creates deptype related features + updates the score calculated from those features.
+                if trans.move==LEFT:
+                    if lfeats is None: # create these features
+                        lfeats=feats.create_general_features(newS)
+                        lscore=self.perceptron.score(lfeats,self.test_time)
+                    newS.features.update(lfeats)
+                    newS.score+=lscore
+                else:
+                    if rfeats is None:
+                        rfeats=feats.create_general_features(newS)
+                        rscore=self.perceptron.score(rfeats,self.test_time)
+                    newS.features.update(rfeats)
+                    newS.score+=rscore
+            else:
+                self.update_and_score_state(newS,trans)
             states.append(newS)
         best_state=max(states, key=lambda s: s.score)
         return best_state
 
 
-### Not used anymore, superseded by give_next_state()
-
-#     def pre_apply(self,state,trans):
-#         temp_state=copy.deepcopy(state)
-#         self.apply_trans(temp_state,trans)
-# #        print temp_state.score
-# #        print
-# #        print
-#         return temp_state.score
-
-#     def apply_trans(self,state,trans,feats=True):
-#         state.update(trans) # update stack and queue
-#         if not feats: return # we are just extracting transitions from gold tree, no need for features
-#         features=self.features.create_features(state) # create new features
-# #        print trans, features
-#         state.score+=self.perceptron.score(features,self.test_time) # update score # TODO define test_time properly
-#         for feat in features:
-#             state.features[feat]+=features[feat] # merge old and new features (needed for perceptron update)
 
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
@@ -308,8 +314,9 @@ if __name__==u"__main__":
 
         print >> sys.stderr, "iter",i+1
         parser.train(u"tdt.conll")
+        break
         parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
-
+    sys.exit()
     outf=codecs.open(u"parserout_test.conll",u"wt",u"utf-8")
     parser.parse(u"test.conll09",outf)
     outf.close()

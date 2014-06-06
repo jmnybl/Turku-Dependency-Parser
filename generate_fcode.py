@@ -84,7 +84,7 @@ def encode_token(token):
 if __name__==u"__main__":
 
     # now we need two separate file, one for general features and one for deptype related features
-    gen=codecs.open(u"xxx.py",u"wt",u"utf-8")
+    gen=codecs.open(u"auto_features.py",u"wt",u"utf-8")
     dep=codecs.open(u"auto_features_deptype.py",u"wt",u"utf-8")
 
 
