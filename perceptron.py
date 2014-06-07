@@ -37,14 +37,14 @@ class PerceptronSharedState(object):
         else:
             w=None
 
-        if os.path.exists(os.path.join(model_name,"w_avg_N.npy")): #TODO: non-retrainable models should pre-divide w_avg
-            w_avg_N=numpy.load(os.path.join(model_name,"w_avg_N.npy"))
-        else:
-            w_avg_N=None
+        # if os.path.exists(os.path.join(model_name,"w_avg_U.npy")): #TODO: non-retrainable models should pre-divide w_avg
+        #     w_avg_U=numpy.load(os.path.join(model_name,"w_avg_U.npy"))
+        # else:
+        #     w_avg_U=None
 
         w_avg=numpy.load(os.path.join(model_name,"w_avg.npy"))
         float_array_type=w_avg.dtype
-        gp_state=cls(w=w,w_avg=w_avg,w_avg_N=w_avg_N,float_array_type=float_array_type,**d)
+        gp_state=cls(w=w,w_avg=w_avg,float_array_type=float_array_type,**d)
         return gp_state
 
     def mp_code_from_type(self,numpyType):
@@ -58,7 +58,7 @@ class PerceptronSharedState(object):
         else:
             raise NotImplementedError("Float64 and Float32 are the only types supported")
 
-    def __init__(self,w_len=None,w_avg=None,w=None,w_avg_N=None,float_array_type=numpy.float64):
+    def __init__(self,w_len=None,w_avg=None,w=None,update_counter=0,float_array_type=numpy.float64):
         """
         At the minimum, you need to specify either w_avg or w_len+float_array_type
         """
@@ -68,12 +68,12 @@ class PerceptronSharedState(object):
             self.float_array_type=w_avg.dtype
             self.w_avg_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_avg)
         else:
-            if w_len==None:
+            if w_len is None:
                 raise ValueError("You need to specify w_len if you don't specify w_avg")
             self.w_len=w_len
             self.float_array_type=float_array_type
             #RawArray() is zeroed in the constructor
-            self.w_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),self.w_len)
+            self.w_avg_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),self.w_len)
             
 
         #Whatever happens, I should have self.w_len and self.float_array_type available at this point
@@ -83,23 +83,34 @@ class PerceptronSharedState(object):
                 raise ValueError("Mismatch in length of w and w_avg!")
             self.w_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w)
         else:
-            if w_len==None:
+            if w_len is None:
                 raise ValueError("You need to specify w_len if you don't specify w_avg")
-            self.w_avg_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_len)
+            self.w_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_len)
 
-        if w_avg_N!=None:
-            if self.w_len!=w_avg_N.shape[0]:
-                raise ValueError("Mismatch in length of w_avg_N and w_avg!")
-            self.w_avg_N_s=multiprocessing.RawArray(ctypes.c_uint32,w_avg_N)
-        else:
-            if w_len==None:
-                raise ValueError("You need to specify w_len if you don't specify w_avg")
-            self.w_avg_N_s=multiprocessing.RawArray(ctypes.c_uint32,w_len)
+        # if w_avg_U!=None:
+        #     if self.w_len!=w_avg_U.shape[0]:
+        #         raise ValueError("Mismatch in length of w_avg_U and w_avg!")
+        #     self.w_avg_U_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_avg_U)
+        # else:
+        #     if w_len is None:
+        #         raise ValueError("You need to specify w_len if you don't specify w_avg")
+        #     self.w_avg_U_s=multiprocessing.RawArray(self.mp_code_from_type(self.float_array_type),w_len)
 
+        self.update_counter=multiprocessing.Value('L') #A global update counter
+        self.update_counter.value=update_counter
 
         w=None
         w_avg=None #Won't need these anymore
         w_avg_N=None
+
+    # def complete_avg_w(self):
+    #     ### Call this when training is done
+    #     U=self.update_counter.value
+    #     for i in range(len(self.w_avg_s)):
+    #         self.w_avg_s[i]/=U
+    #         #self.w_avg_s[i]+=self.w_s[i]*(U-self.w_avg_U_s[i])
+    #         #self.w_avg_s[i]/=U
+    #         #self.w_avg_U_s[i]=U
 
     def save(self,model_name,retrainable=False):
         """
@@ -110,8 +121,8 @@ class PerceptronSharedState(object):
         if not os.path.exists(model_name):
             os.makedirs(model_name)
         numpy.save(os.path.join(model_name,"w_avg.npy"),numpy.frombuffer(self.w_avg_s,self.float_array_type))
-        numpy.save(os.path.join(model_name,"w_avg_N.npy"),numpy.frombuffer(self.w_avg_N_s,numpy.uint32))
-        d={"w_len":self.w_len}
+        #numpy.save(os.path.join(model_name,"w_avg_U.npy"),numpy.frombuffer(self.w_avg_U_s,self.float_array_type))
+        d={"w_len":self.w_len,"update_counter":self.update_counter.value}
         if retrainable:
             numpy.save(os.path.join(model_name,"w.npy"),numpy.frombuffer(self.w_s,self.float_array_type))
         with open(os.path.join(model_name,"config.json"),"w") as f:
@@ -126,18 +137,21 @@ class GPerceptron(object):
         """
         w=numpy.frombuffer(shared_state.w_s,shared_state.float_array_type)
         w_avg=numpy.frombuffer(shared_state.w_avg_s,shared_state.float_array_type)
-        w_avg_N=numpy.frombuffer(shared_state.w_avg_N_s,numpy.uint32)
-        gp=cls(w=w,w_avg=w_avg,w_avg_N=w_avg_N)
+        #w_avg_U=numpy.frombuffer(shared_state.w_avg_U_s,shared_state.float_array_type)
+        update_counter=shared_state.update_counter
+        gp=cls(w=w,w_avg=w_avg,update_counter=update_counter)
         return gp
     
-    def __init__(self,w,w_avg,w_avg_N):
+    def __init__(self,w,w_avg,update_counter):
         """
         Do not call this directly unless you know what you're doing. Create the instances using from_shared_state()
         """
         self.w=w
         self.w_avg=w_avg
-        self.w_avg_N=w_avg_N
+        #self.w_avg_U=w_avg_U
         self.w_len=len(self.w)
+        self.update_counter=update_counter
+        #self.update_counter_lock=update_counter_lock
 
     def feature2dim(self,feature_name):
         """
@@ -149,63 +163,96 @@ class GPerceptron(object):
         else:
             return v%self.w_len
         
-    def score(self,features,test_time=False):
+    def score(self,features,test_time=False, prefix=u""):
         """
         Gives the score for the features, where features is
         a dict()-like object mapping feature_name:count
         """
         res=0.0
         if test_time:
-            for feature_name,weight in features.iteritems():
-                dim=self.feature2dim(feature_name)
-                div=self.w_avg_N[dim]
-                if div>0:
-                    res+=self.w_avg[dim]*weight/div
+            w=self.w_avg
         else:
-            for feature_name,weight in features.iteritems():
-                dim=self.feature2dim(feature_name)
-                res+=self.w[dim]*weight
+            w=self.w
+        for feature_name,weight in features.iteritems():
+            dim=self.feature2dim(prefix+feature_name)
+            res+=w[dim]*weight
+        if test_time:
+            res/=self.update_counter.value
         return res
     
-    def update(self,system_features,gold_features,system_score,gold_score,progress=0.0):
+    def update(self,system_features,gold_features,system_score,gold_score,progress=0.0,system_prefix=u"",gold_prefix=u""):
         """
         Updates the weight vector w.r.t. to the
         difference between `features` and `gold_features`
         `progress`should be number between 0 and 1 marking how far the training has progressed. 0 means just started and 1 means done. This is used to scale the gradient
         """
 
+        loss=1.0-(gold_score-system_score)
+        if loss<0:
+            return
         norm2=0.0 #denominator for tau, the P-A update weight
         #loop over features in gold
-        for feature_name,feature_weight in gold_features.iteritems():
-            norm2+=(feature_weight-system_features.get(feature_name,0.0))**2
-        #loop over features in system pred. which are not in gold
-        for feature_name,feature_weight in system_features.iteritems():
-            if feature_name not in gold_features: #must not count these twice
+        if system_prefix==gold_prefix:
+            #Default to normal dictionary lookup
+            for feature_name,feature_weight in gold_features.iteritems():
+                norm2+=(feature_weight-system_features.get(feature_name,0.0))**2
+            #loop over features in system pred. which are not in gold
+            for feature_name,feature_weight in system_features.iteritems():
+                if feature_name not in gold_features: #must not count these twice
+                    norm2+=feature_weight**2
+        else:
+            #When the prefixes are different, all features are by definition different
+            for feature_name,feature_weight in gold_features.iteritems():
+                norm2+=feature_weight**2
+            for feature_name,feature_weight in system_features.iteritems():
                 norm2+=feature_weight**2
 
         if norm2==0.0:
             print >> sys.stderr, "WARNING! WARNING! NORM2==0!"
             sys.stderr.flush()
             return
-        tau=(1.0-progress)*(1.0+system_score-gold_score)/norm2 ### P-A update weight TODO:Check the loss f()!
+        tau=(1.0-progress)*loss/norm2 ### P-A update weight TODO:Check the loss f()!
         if tau<0.0:
             print >> sys.stderr, "WARNING! WARNING! TAU<0!"
             sys.stderr.flush()
             return
 
-        #Do the update
-        for feature_name,feature_weight in gold_features.iteritems():
-            dim=self.feature2dim(feature_name)
-            self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
-            self.w_avg[dim]+=self.w[dim]
-            self.w_avg_N[dim]+=1
-        #loop over features in system pred. which are not in gold
-        for feature_name,feature_weight in system_features.iteritems():
-            if feature_name not in gold_features: #must not count these twice
-                dim=self.feature2dim(feature_name)
+        if system_prefix==gold_prefix:
+            #Default to normal dictionary lookup as before
+
+            #Do the update
+            for feature_name,feature_weight in gold_features.iteritems():
+                dim=self.feature2dim(gold_prefix+feature_name) #note: system_prefix==gold_prefix
+                #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
+                #self.w_avg_U[dim]=U
+                self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
+            #loop over features in system pred. which are not in gold
+            for feature_name,feature_weight in system_features.iteritems():
+                if feature_name not in gold_features: #must not count these twice
+                    dim=self.feature2dim(system_prefix+feature_name)
+                    #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
+                    #self.w_avg_U[dim]=U
+                    self.w[dim]+=tau*(-feature_weight)
+        else:
+            #When the prefixes are different, all features are by definition different
+            for feature_name,feature_weight in gold_features.iteritems():
+                dim=self.feature2dim(gold_prefix+feature_name)
+                #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
+                #self.w_avg_U[dim]=U
+                self.w[dim]+=tau*feature_weight
+            for feature_name,feature_weight in system_features.iteritems():
+                dim=self.feature2dim(system_prefix+feature_name)
+                #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
+                #self.w_avg_U[dim]=U
                 self.w[dim]+=tau*(-feature_weight)
-                self.w_avg[dim]+=self.w[dim]
-                self.w_avg_N[dim]+=1
+
+        #Update the average vector
+        with self.update_counter.get_lock():
+            self.w_avg+=self.w
+            self.update_counter.value+=1
+
+
+
 
 if __name__=="__main__":
     #Little test only, really

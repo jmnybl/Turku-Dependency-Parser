@@ -239,19 +239,31 @@ class Parser(object):
 
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
-        state=State(sent,syn=False) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
-        gs_state=State(sent,syn=False) # TODO this not optimal, and we need to rethink this when we implement the beam search
-        while not state.tree.ready:
-            state=self.give_next_state(state) #This one already calls update_and_score_state()
-            gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
-            gs_trans=gs_transitions[len(state.transitions)-1]
-            self.update_and_score_state(gs_state,gs_trans)
-            if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
-                print len(state.transitions)
-                self.perceptron.update(state.create_feature_dict(),gs_state.create_feature_dict(),state.score,gs_state.score,progress) # update the perceptron
-                break
-        else:
-            print "*", len(state.transitions)
+        try:
+            state=State(sent,syn=False) # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+            gs_state=State(sent,syn=False) # TODO this not optimal, and we need to rethink this when we implement the beam search
+            while not state.tree.ready:
+                state,state2nd=self.give_next_state(state) #This one already calls update_and_score_state()
+                gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
+                gs_trans=gs_transitions[len(state.transitions)-1]
+                self.update_and_score_state(gs_state,gs_trans)
+                if state.transitions!=gs_transitions[:len(state.transitions)]: # check if transition sequence is incorrect
+                    prog=float(len(state.transitions))/len(gs_transitions)
+                    print "%.01f%%     %d/%d  "%(prog*100.0,len(state.transitions),len(gs_transitions))
+                    sys.stdout.flush()
+                    self.perceptron.update(state.create_feature_dict(),gs_state.create_feature_dict(),state.score,gs_state.score,progress) # update the perceptron
+                    break
+                elif state2nd is not None and state.score-state2nd.score<1.0: #Prediction OK, but no margin
+                    print "+%d"%(len(state.transitions)),
+#                    print "+", len(state.transitions)
+                    #Update and continue training...
+                    self.perceptron.update(state2nd.create_feature_dict(),state.create_feature_dict(),state2nd.score,state.score,progress) # update the perceptron
+            else:
+                #Check the margin and update if <1
+                print "...:)", len(state.transitions)
+                sys.stdout.flush()
+        except:
+            raise
 
 
     def enum_transitions(self,state):
@@ -288,7 +300,12 @@ class Parser(object):
                 self.update_and_score_state(newS,trans)
             states.append(newS)
         best_state=max(states, key=lambda s: s.score)
-        return best_state
+        states.remove(best_state)
+        if states:
+            second_best_state=max(states, key=lambda s: s.score) #Needed to check the margin
+        else:
+            second_best_state=None
+        return best_state, second_best_state
 
 
 
@@ -297,7 +314,7 @@ class Parser(object):
         for sent in read_conll(inp):
             state=State(sent,syn=False)
             while not state.tree.ready:
-                state=self.give_next_state(state) #This looks wasteful, but it is what the beam will do anyway
+                state, state2nd=self.give_next_state(state) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,state)
             write_conll(outp,sent)
 
