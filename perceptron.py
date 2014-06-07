@@ -180,7 +180,7 @@ class GPerceptron(object):
             res/=self.update_counter.value
         return res
     
-    def update(self,system_features,gold_features,system_score,gold_score,progress=0.0,system_prefix=u"",gold_prefix=u""):
+    def update(self,system_features,gold_features,system_score,gold_score,progress=0.0):
         """
         Updates the weight vector w.r.t. to the
         difference between `features` and `gold_features`
@@ -192,19 +192,12 @@ class GPerceptron(object):
             return
         norm2=0.0 #denominator for tau, the P-A update weight
         #loop over features in gold
-        if system_prefix==gold_prefix:
-            #Default to normal dictionary lookup
-            for feature_name,feature_weight in gold_features.iteritems():
-                norm2+=(feature_weight-system_features.get(feature_name,0.0))**2
-            #loop over features in system pred. which are not in gold
-            for feature_name,feature_weight in system_features.iteritems():
-                if feature_name not in gold_features: #must not count these twice
-                    norm2+=feature_weight**2
-        else:
-            #When the prefixes are different, all features are by definition different
-            for feature_name,feature_weight in gold_features.iteritems():
-                norm2+=feature_weight**2
-            for feature_name,feature_weight in system_features.iteritems():
+        #Default to normal dictionary lookup
+        for feature_name,feature_weight in gold_features.iteritems():
+            norm2+=(feature_weight-system_features.get(feature_name,0.0))**2
+        #loop over features in system pred. which are not in gold
+        for feature_name,feature_weight in system_features.iteritems():
+            if feature_name not in gold_features: #must not count these twice
                 norm2+=feature_weight**2
 
         if norm2==0.0:
@@ -217,31 +210,19 @@ class GPerceptron(object):
             sys.stderr.flush()
             return
 
-        if system_prefix==gold_prefix:
-            #Default to normal dictionary lookup as before
 
-            #Do the update
-            for feature_name,feature_weight in gold_features.iteritems():
-                dim=self.feature2dim(gold_prefix+feature_name) #note: system_prefix==gold_prefix
-                #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
-                #self.w_avg_U[dim]=U
-                self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
-            #loop over features in system pred. which are not in gold
-            for feature_name,feature_weight in system_features.iteritems():
-                if feature_name not in gold_features: #must not count these twice
-                    dim=self.feature2dim(system_prefix+feature_name)
-                    #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
-                    #self.w_avg_U[dim]=U
-                    self.w[dim]+=tau*(-feature_weight)
-        else:
-            #When the prefixes are different, all features are by definition different
-            for feature_name,feature_weight in gold_features.iteritems():
-                dim=self.feature2dim(gold_prefix+feature_name)
-                #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
-                #self.w_avg_U[dim]=U
-                self.w[dim]+=tau*feature_weight
-            for feature_name,feature_weight in system_features.iteritems():
-                dim=self.feature2dim(system_prefix+feature_name)
+        #Default to normal dictionary lookup as before
+
+        #Do the update
+        for feature_name,feature_weight in gold_features.iteritems():
+            dim=self.feature2dim(feature_name) #note: system_prefix==gold_prefix
+            #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
+            #self.w_avg_U[dim]=U
+            self.w[dim]+=tau*(feature_weight-system_features.get(feature_name,0.0))
+        #loop over features in system pred. which are not in gold
+        for feature_name,feature_weight in system_features.iteritems():
+            if feature_name not in gold_features: #must not count these twice
+                dim=self.feature2dim(feature_name)
                 #self.w_avg[dim]+=self.w[dim]*(U-self.w_avg_U[dim])
                 #self.w_avg_U[dim]=U
                 self.w[dim]+=tau*(-feature_weight)
