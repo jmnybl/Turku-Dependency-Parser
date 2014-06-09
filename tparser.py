@@ -289,6 +289,8 @@ class Parser(object):
                 #Check the margin and update if <1
                 print "...:)", len(best_state.transitions)
                 sys.stdout.flush()
+            #Done with the example
+            self.perceptron.add_to_average()
         except:
             raise
 
