@@ -227,11 +227,10 @@ class GPerceptron(object):
                 #self.w_avg_U[dim]=U
                 self.w[dim]+=tau*(-feature_weight)
 
-        #Update the average vector
+    def add_to_average(self):
+        self.w_avg+=self.w #TODO DANGER! DANGER! NOT SYNCHRONIZED
         with self.update_counter.get_lock():
-            self.w_avg+=self.w
             self.update_counter.value+=1
-
 
 
 
