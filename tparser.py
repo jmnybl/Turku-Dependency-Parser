@@ -367,7 +367,7 @@ class Parser(object):
         for sent in read_conll(inp):
             beam=[State(sent,syn=False)]
             while not self.beam_ready(beam):
-                beam=self.give_next_beam(beam) #This looks wasteful, but it is what the beam will do anyway
+                beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,beam[0])
             write_conll(outp,sent)
 
