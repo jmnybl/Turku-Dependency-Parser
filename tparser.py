@@ -250,7 +250,7 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
         beam=[State(sent,syn=False)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
-        gs_state=State(sent,syn=False) # TODO this not optimal, and we need to rethink this when we implement the beam search
+        gs_state=State(sent,syn=False)
         while not self.beam_ready(beam):
             beam=self.give_next_state(beam) #This one already calls update_and_score_state()
             if not gs_state.tree.ready: # update gs if it's not ready
@@ -264,10 +264,10 @@ class Parser(object):
                 gs_state.features=feats.create_features(gs_state)
                 
             best_state=beam[0]
-            if len(beam)>1:
-                state2nd=beam[1]
-            else:
-                state2nd=None
+#            if len(beam)>1:
+#                state2nd=beam[1]
+#            else:
+#                state2nd=None
 
             if not self.gold_in_beam(gs_state,beam): # check if gold state is still in beam
                 prog=float(len(best_state.transitions))/len(gs_transitions)
@@ -282,11 +282,11 @@ class Parser(object):
         else: # gold still in beam and beam ready
             if beam[0].transitions==gs_state.transitions: # no need for update
                 print "**", len(gs_state.transitions)
-                #Done with the example
-                self.perceptron.add_to_average()
             else:
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
                 print "*", len(gs_state.transitions)
+        #Done with the example, update the average vector
+        self.perceptron.add_to_average()
 
 
     def enum_transitions(self,state):
