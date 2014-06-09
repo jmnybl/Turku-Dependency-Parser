@@ -79,17 +79,18 @@ class State(object):
         along the path of states
         """
         d={}
-        self._populate_feature_dict(d)
+        self._populate_feature_dict(d,prefix=None) #TODO: What exactly we should do with the very last state, it doesn't have any transition prefix...
         return d
 
-    def _populate_feature_dict(self,d):
+    def _populate_feature_dict(self,d,prefix):
         """
         Recursively populates `d`
         """
-        for f,w in self.features.iteritems():
-            d[f]=d.get(f,0.0)+w
+        if prefix!=None: #Will not extract information from the final state, but that probably makes no difference at all
+            for f,w in self.features.iteritems():
+                d[prefix+f]=d.get(f,0.0)+w
         if self.prev_state:
-            self.prev_state._populate_feature_dict(d)
+            self.prev_state._populate_feature_dict(d,str(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
     def update(self,trans):
         if trans.move==SHIFT: # SHIFT
@@ -233,41 +234,58 @@ class Parser(object):
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
 
-    def update_and_score_state(self,state,trans):
-        """Applies the transition, sets the local features, updates the score"""
-        state.update(trans)
-        state.features=feats.create_features(state)
-        state.score+=self.perceptron.score(state.features,self.test_time)
+#    def update_and_score_state(self,state,trans):
+#        """Applies the transition, sets the local features, updates the score"""
+#        state.update(trans)
+#        state.features=feats.create_features(state)
+#        state.score+=self.perceptron.score(state.features,self.test_time)
 
-    def update_and_score_partial(self,state,trans):
-        """Applies the transition, sets the local, deptype related features, updates the score calculated from deptype related features."""
-        state.update(trans)
-        state.features=feats.create_deptype_features(state)
-        state.score+=self.perceptron.score(state.features,self.test_time)
+#    def update_and_score_partial(self,state,trans):
+#        """Applies the transition, sets the local, deptype related features, updates the score calculated from deptype related features."""
+#        state.update(trans)
+#        state.features=feats.create_deptype_features(state)
+#        state.score+=self.perceptron.score(state.features,self.test_time)
         
 
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
         beam=[State(sent,syn=False)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(sent,syn=False) # TODO this not optimal, and we need to rethink this when we implement the beam search
-        while not (self.beam_ready(beam)):
-            beam=self.give_next_beam(beam) #This one already calls update_and_score_state()
+        while not self.beam_ready(beam):
+            beam=self.give_next_state(beam) #This one already calls update_and_score_state()
             if not gs_state.tree.ready: # update gs if it's not ready
-                gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
                 gs_trans=gs_transitions[len(gs_state.transitions)]
                 if gs_trans.move not in gs_state.valid_transitions():
                     raise ValueError("Invalid GS Transition")
-                self.update_and_score_state(gs_state,gs_trans)
+                s=self.perceptron.score(gs_state.features,False,prefix=str(gs_trans))
+                gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
+                gs_state.score+=s
+                gs_state.update(gs_trans)
+                gs_state.features=feats.create_features(gs_state)
+                
+            best_state=beam[0]
+            if len(beam)>1:
+                state2nd=beam[1]
+            else:
+                state2nd=None
+
             if not self.gold_in_beam(gs_state,beam): # check if gold state is still in beam
-                print len(gs_state.transitions)
-                self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
+                prog=float(len(best_state.transitions))/len(gs_transitions)
+                print "%.01f%%     %d/%d  "%(prog*100.0,len(best_state.transitions),len(gs_transitions))
+                sys.stdout.flush()
+                self.perceptron.update(best_state.create_feature_dict(),gs_state.create_feature_dict(),best_state.score,gs_state.score,progress) # update the perceptron
                 break
+#            elif state2nd is not None and best_state.score-state2nd.score<1.0: #Prediction OK, but no margin
+#                print "+", len(best_state.transitions)
+#                #Update and continue training...
+#                self.perceptron.update(state2nd.create_feature_dict(),best_state.create_feature_dict(),state2nd.score,best_state.score,progress)
         else: # gold still in beam and beam ready
             if beam[0].transitions==gs_state.transitions: # no need for update
                 print "**", len(gs_state.transitions)
             else:
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
                 print "*", len(gs_state.transitions)
+
 
 
     def enum_transitions(self,state):
@@ -289,39 +307,6 @@ class Parser(object):
                 yield Transition(move,None)
                 
 
-    def give_next_beam(self,beam):
-        """ Predict and create next beam """
-        if len(beam)>40:
-            raise ValueError("Beam too big!") # ...for dev time only, to make sure we update the beam correctly
-        states=[]
-        for state in beam:
-            if state.tree.ready: # this one is ready, just move it
-                states.append(state)
-                continue
-            lfeats,lscore=None,None # Holds shared features and score for left transition
-            rfeats,rscore=None,None
-            for trans in self.enum_transitions(state):
-                newS=State.copy_and_point(state)
-                if trans.move==LEFT or trans.move==RIGHT:
-                    self.update_and_score_partial(newS,trans) # this updates the state and creates deptype related features + updates the score calculated from those features.
-                    if trans.move==LEFT:
-                        if lfeats is None: # create these features
-                            lfeats=feats.create_general_features(newS)
-                            lscore=self.perceptron.score(lfeats,self.test_time)
-                        newS.features.update(lfeats)
-                        newS.score+=lscore
-                    else:
-                        if rfeats is None:
-                            rfeats=feats.create_general_features(newS)
-                            rscore=self.perceptron.score(rfeats,self.test_time)
-                        newS.features.update(rfeats)
-                        newS.score+=rscore
-                else:
-                    self.update_and_score_state(newS,trans)
-                states.append(newS)
-        new_beam=sorted(states, key=lambda s: s.score, reverse=True)[:40] # now we have top 40
-        return new_beam
-
 
     def beam_ready(self,beam):
         for state in beam:
@@ -332,6 +317,48 @@ class Parser(object):
         for state in beam:
             if state.transitions==gs.transitions: return True
         return False
+
+
+
+    def give_next_state(self,beam):
+        """ Predict next state and creates it. Also returns the next best state, needed for the margin update """
+        #We want to
+        # 1) go over the allowed transitions and score each state with that operation's prefix
+        # 2) apply the next transition
+
+        if len(beam)>40:
+            raise ValueError("Beam too big!") # ...for dev time only, to make sure we update the beam correctly
+
+        #Rank the state w.r.t. every possible transition, use str(trans) as the prefix to differentiate features
+        scores=[] #Holds (score,transition,state) tuples
+        for state in beam:
+            for trans in self.enum_transitions(state):
+                s=self.perceptron.score(state.features,self.test_time,prefix=str(trans))
+                scores.append((state.score+s,trans,state))
+        #Okay, now we have the possible continuations ranked
+        selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:40] # now we have top 40
+
+        new_beam=[]
+        lfeats,lscore=None,None # Holds shared features and score for left transition
+        rfeats,rscore=None,None
+        for score,transition,state in selected_transitions:
+            #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
+            newS=State.copy_and_point(state)
+            newS.update(transition)
+            newS.score=score # Do not use '+'
+            newS.features=feats.create_deptype_features(newS) #These are different for every of these states
+            if trans.move==LEFT:
+                if lfeats is None: # create these features
+                    lfeats=feats.create_general_features(newS)
+                newS.features.update(lfeats)
+            elif trans.move==RIGHT:
+                if rfeats is None:
+                    rfeats=feats.create_general_features(newS)
+                newS.features.update(rfeats)
+            else:
+                newS.features.update(feats.create_general_features(newS))
+            new_beam.append(newS)
+        return new_beam #List of selected states, ordered by their score in this move
 
 
 

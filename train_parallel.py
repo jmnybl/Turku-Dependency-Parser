@@ -57,7 +57,7 @@ def launch_instances(args):
     #      ...will overwrite by default anyway
 
     sh_state=perceptron.PerceptronSharedState(w_len=args.dim)
-    q=multiprocessing.Queue(20)  #Queue to pass pieces of the training data to the processes
+    q=multiprocessing.Queue(30)  #Queue to pass pieces of the training data to the processes
 
     procs=[] #List of running processes
     for _ in range(args.processes):
