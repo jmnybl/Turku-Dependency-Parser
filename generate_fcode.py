@@ -44,8 +44,20 @@ def get_following(token,idx,state):
     return state.tree.tokens[index]
 """
 
-#token_dictionary={u"S0":u"state.stack(-1)",u"S1":u"state.stack(-2)"}
-exp_dictionary={u"p":u"%s.pos",u"l":u"%s.lemma",u"w":u"%s.text",u"d":u"str(state.tree.dtypes.get(%s))",u"m":u"%s.feat"}
+queue_func="""
+def get_from_queue(queue):
+    if len(queue)>1:
+        return queue[0],queue[1]
+    elif len(queue)>0:
+        return queue[0],None
+    else:
+        return None,None
+
+"""
+
+
+# TODO: pi is suppose to be ith candidate pos, now it simply refers to final pos
+exp_dictionary={u"p":u"%s.pos",u"l":u"%s.lemma",u"w":u"%s.text",u"d":u"str(state.tree.dtypes.get(%s))",u"m":u"%s.feat",u"pi":u"%s.pos"}
 
 mainregex=re.compile(ur"([a-z]{1,2})\(([A-Za-z0-9-+]+|[a-z0-9]{2}\([S0-9]{2}\))\)",re.U)
 
@@ -56,8 +68,9 @@ def process_one_feature(feature):
     parts=mainregex.findall(feature) # returns list of (ftype,token) tuples
     return parts
 
+const=[u"S0",u"S1",u"S2",u"B0",u"B1"]
 def give_token(token):
-    if token==u"S0" or token==u"S1":
+    if token in const:
         return token
     if u"+" in token or u"-" in token: # tokens from input string
         base_tok=token[0]+token[-1] # first and last char encode the base token
@@ -98,11 +111,14 @@ if __name__==u"__main__":
     print >> dep
     print >> gen, follow_func
     print >> gen
+    print >> gen, queue_func
+    print >> gen
 
     print >> gen, u"def create_auto_features(state):" # start function
     print >> dep, u"def create_auto_dep_features(state):"
     print >> gen, u"    S0,S1,S2=get_from_stack(state.stack)" # these are the basic tokens I need to get everything else, can be None
     print >> dep, u"    S0,S1,S2=get_from_stack(state.stack)"
+    print >> gen, u"    B0,B1=get_from_queue(state.queue)"
     print >> gen, u"    features={}"
     print >> dep, u"    features={}"
 
@@ -121,7 +137,7 @@ if __name__==u"__main__":
             print >> sys.stderr, "Skipping", line # features we are not able to process
             continue
         for end,token in tuples:
-            if token==u"S0" or token==u"S1" or token==u"S2": continue # we already have these, do not take twice
+            if token in const: continue # we already have these, do not take twice
             tokens.add(token)
         ind_features.append(tuples)
     f.close()    

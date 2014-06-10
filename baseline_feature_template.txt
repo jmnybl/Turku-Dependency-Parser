@@ -12,7 +12,7 @@
 # rd(t) = rightmost dependent of t
 # di = ith dependent of t (from left to right)
 # hi = the ith previous transition
-# pi (t) = a prefix of i characters in the word form of token t
+# ri (t) = a prefix of i characters in the word form of token t
 # si (t) = a suffix of i characters in the word form of token t
 # A = universal quantification
 # e = is an element of
@@ -111,3 +111,28 @@ p(S0 )h0 h1 h2
 p(S0 )l(S0 )d(d0 (S0 ))d(d1 (S0 ))d(d2 (S0 ))
 p(S0 )l(S0 )d(d0 (S1 ))d(d1 (S1 ))d(d2 (S1 ))
 p(S0 )h0 h1 h2 h3
+
+### TABLE 2 ###
+
+# simulating table 2 features without joint system
+
+# Features involving word prefixes and suffixes (why not to use morpho instead?)
+# morpho features are included in manual features...
+
+# some extra queue based features
+w(B1 )p(B0 )
+p(B1 )w(B0 )
+w(B0 )p(B0 )
+w(B1 )p(B1 )
+w(B1 )w(B0 )
+l(B1 )p(B0 )
+p(B1 )l(B0 )
+
+
+# Features involving tag score differences and ranks (these we don't have)
+#pi (B0 )[s(p1 (B0 ))−s(pi (B0 ))]
+#pi (B0 )pi (S0 )[s(p1 (B0 ))−s(pi (B0 ))] i
+#pi (B0 )[s(p1 (B0 ))−s(pi (B0 ))]p(S0 )
+#w(B0 )[s(p1 (B0 ))−s(pi (B0 ))]p(S0 )
+
+

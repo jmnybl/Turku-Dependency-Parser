@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from auto_features import create_auto_features, get_from_stack, get_child, get_following
+from auto_features import create_auto_features, get_from_stack, get_child, get_following, get_from_queue
 from auto_features_deptype import create_auto_dep_features
 
 class Features(object):
@@ -14,6 +14,7 @@ class Features(object):
     def manual_features(self,state,features):
 
         S0,S1,S2=get_from_stack(state.stack)
+        B0,B1=get_from_queue(state.queue)
         
         ### manually added features ###
         if (S0 is not None) and (S1 is not None): # all of these needs S0 and S1, so check these first
@@ -40,7 +41,7 @@ class Features(object):
                     if (v0 is not None) and (v1 is not None):
                         features['p(S1)p(S0)p(S'+idx_1+'1)p(S'+idx_0+'0)='+S1.pos+S0.pos+v0.pos+v1.pos]=1.0
 
-            # morpho
+            # morpho stack
             tags0=S0.feat.split(u"|")
             tags1=S1.feat.split(u"|")
             for i in xrange(0,len(tags0)):
@@ -50,6 +51,22 @@ class Features(object):
             for i in xrange(0,len(tags0)):
                 for j in xrange(0,len(tags1)):
                     features['p(S0)p(S1)m(S0)m(S1)='+S0.pos+S1.pos+tags0[i]+tags1[j]]=1.0
+
+            # morpho queue  
+            if (B0 is not None) and (B1 is not None):
+                tags0=B0.feat.split(u"|")
+                tags1=B1.feat.split(u"|")
+                for i in xrange(0,len(tags0)):
+                    features['p(S0)p(S1)m(B0)='+S0.pos+S1.pos+tags0[i]]=1.0
+                for i in xrange(0,len(tags1)):
+                    features['p(S0)p(S1)m(B1)='+S0.pos+S1.pos+tags1[i]]=1.0
+                for i in xrange(0,len(tags0)):
+                    for j in xrange(0,len(tags1)):
+                        features['p(S0)p(S1)m(B0)m(B1)='+S0.pos+S1.pos+tags0[i]+tags1[j]]=1.0
+            elif (B0 is not None):
+                tags0=B0.feat.split(u"|")
+                for i in xrange(0,len(tags0)):
+                    features['p(S0)p(S1)m(B0)='+S0.pos+S1.pos+tags0[i]]=1.0
 
 
         return features

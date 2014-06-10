@@ -40,8 +40,20 @@ def get_following(token,idx,state):
     return state.tree.tokens[index]
 
 
+
+def get_from_queue(queue):
+    if len(queue)>1:
+        return queue[0],queue[1]
+    elif len(queue)>0:
+        return queue[0],None
+    else:
+        return None,None
+
+
+
 def create_auto_features(state):
     S0,S1,S2=get_from_stack(state.stack)
+    B0,B1=get_from_queue(state.queue)
     features={}
     d1_S0_=get_child(S0,'d1',state)
     rd_S0_=get_child(S0,'rd',state)
@@ -198,4 +210,18 @@ def create_auto_features(state):
         features['p(S0)p(d0(S0))p(d1(S0))p(d2(S0))='+S0.pos+d0_S0_.pos+d1_S0_.pos+d2_S0_.pos]=1.0
     if (S0 is not None) and (d0_S1_ is not None) and (d1_S1_ is not None) and (d2_S1_ is not None) :
         features['p(S0)p(d0(S1))p(d1(S1))p(d2(S1))='+S0.pos+d0_S1_.pos+d1_S1_.pos+d2_S1_.pos]=1.0
+    if (B1 is not None) and (B0 is not None) :
+        features['w(B1)p(B0)='+B1.text+B0.pos]=1.0
+    if (B1 is not None) and (B0 is not None) :
+        features['p(B1)w(B0)='+B1.pos+B0.text]=1.0
+    if (B0 is not None) and (B0 is not None) :
+        features['w(B0)p(B0)='+B0.text+B0.pos]=1.0
+    if (B1 is not None) and (B1 is not None) :
+        features['w(B1)p(B1)='+B1.text+B1.pos]=1.0
+    if (B1 is not None) and (B0 is not None) :
+        features['w(B1)w(B0)='+B1.text+B0.text]=1.0
+    if (B1 is not None) and (B0 is not None) :
+        features['l(B1)p(B0)='+B1.lemma+B0.pos]=1.0
+    if (B1 is not None) and (B0 is not None) :
+        features['p(B1)l(B0)='+B1.pos+B0.lemma]=1.0
     return features
