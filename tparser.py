@@ -147,9 +147,10 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,fName=None,gp=None,test_time=False):
+    def __init__(self,fName=None,gp=None,beam_size=40,test_time=False):
         self.test_time=test_time
         self.features=Features()
+        self.beam_size=beam_size
         if os.path.exists(u"corpus_stats.pkl"):
             self.model=Model.load(u"corpus_stats.pkl")
         else:
@@ -327,7 +328,7 @@ class Parser(object):
         # 1) go over the allowed transitions and score each state with that operation's prefix
         # 2) apply the next transition
 
-        if len(beam)>40:
+        if len(beam)>self.beam_size:
             raise ValueError("Beam too big!") # ...for dev time only, to make sure we update the beam correctly
 
         #Rank the state w.r.t. every possible transition, use str(trans) as the prefix to differentiate features
@@ -337,7 +338,7 @@ class Parser(object):
                 s=self.perceptron.score(state.features,self.test_time,prefix=str(trans))
                 scores.append((state.score+s,trans,state))
         #Okay, now we have the possible continuations ranked
-        selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:40] # now we have top 40
+        selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
 
         new_beam=[]
         lfeats,lscore=None,None # Holds shared features and score for left transition

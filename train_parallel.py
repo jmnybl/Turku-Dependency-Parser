@@ -6,13 +6,15 @@ import codecs
 import sys
 import StringIO
 import tparser
+import json
 
-def one_process(g_perceptron,q):
+def one_process(g_perceptron,q,beam_size):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
+    beam_size - size of the beam to be passed to the parser instance
     """
-    parser=tparser.Parser(gp=g_perceptron)
+    parser=tparser.Parser(gp=g_perceptron,beam_size=beam_size)
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
@@ -62,7 +64,7 @@ def launch_instances(args):
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(gp,q))
+        p=multiprocessing.Process(target=one_process, args=(gp,q,args.beam_size))
         p.start()
         procs.append(p)
 
@@ -73,6 +75,9 @@ def launch_instances(args):
         #Iteration ended, store if you are supposed to, unless it's the last iteration
         if args.save_per_iter and i<args.iterations-1: 
             sh_state.save(args.output+(".i%02d"%i),True)
+            d={"beam_size":args.beam_size}
+            with open(os.path.join(args.output+(".i%02d"%i),"parser_config.json"),"w") as f: # save also parser configuration, currently only beam size
+                json.dump(d,f)
 
     #Signal end of work to all processes (Thanks @radimrehurek for this neat trick!)
     for _ in range(args.processes):
@@ -83,6 +88,9 @@ def launch_instances(args):
     
     #...and we should be done
     sh_state.save(args.output,True)
+    d={"beam_size":args.beam_size}
+    with open(os.path.join(args.output,"parser_config.json"),"w") as f: # save the parser configuration
+        json.dump(d,f)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Trains the parser in a multi-core setting.')
@@ -96,6 +104,7 @@ if __name__=="__main__":
     g=parser.add_argument_group("Training algorithm choices")
     g.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? If you want more than one, you must give the input as a file. (default %(default)d)')
     g.add_argument('--dim', type=int, default=5000000, help='Dimensionality of the trained vector. (default %(default)d)')
+    g.add_argument('--beam_size', type=int, default=40, help='Size of the beam. (default %(default)d)')
     args = parser.parse_args()
 
     if args.iterations>1 and args.input==None:

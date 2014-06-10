@@ -7,18 +7,20 @@ import sys
 import StringIO
 import tparser
 import time
+import json
 
-def one_process(g_perceptron,q,q_out,no_avg):
+def one_process(g_perceptron,q,q_out,parser_config,no_avg):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
     job_counter - synchronizes the jobs for printing
+    parser_config - holds information about the beam size used during training
     no_avg - do not use averaged weight vector (so, test_time=False)
     """
     if no_avg:
-        parser=tparser.Parser(gp=g_perceptron,test_time=False)
+        parser=tparser.Parser(gp=g_perceptron,beam_size=parser_config["beam_size"],test_time=False)
     else:
-        parser=tparser.Parser(gp=g_perceptron,test_time=True)
+        parser=tparser.Parser(gp=g_perceptron,beam_size=parser_config["beam_size"],test_time=True)
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
@@ -90,13 +92,20 @@ def launch_instances(args):
     #      ...will overwrite by default anyway
 
     sh_state=perceptron.PerceptronSharedState.load(args.model[0],retrainable=True)
+    
+    # now load parser configuration to get correct beam size
+    if not os.path.exists(args.model[0]):
+        raise ValueError(args.model[0]+": no such model")
+    with open(os.path.join(args.model[0],"parser_config.json"),"r") as f:
+        d=json.load(f) #dictionary with parameters
+
     q=multiprocessing.Queue(20)  #Queue to pass pieces of the training data to the processes
     q_out=multiprocessing.Queue(20) #Queue to pass parsed data to the process which assembles the parsed output
 
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(gp,q,q_out,args.no_avg))
+        p=multiprocessing.Process(target=one_process, args=(gp,q,q_out,d,args.no_avg))
         p.start()
         procs.append(p)
     p=multiprocessing.Process(target=assemble_results,args=(q_out,args.processes))
