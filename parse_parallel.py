@@ -8,13 +8,17 @@ import StringIO
 import tparser
 import time
 
-def one_process(g_perceptron,q,q_out):
+def one_process(g_perceptron,q,q_out,no_avg):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
     job_counter - synchronizes the jobs for printing
+    no_avg - do not use averaged weight vector (so, test_time=False)
     """
-    parser=tparser.Parser(gp=g_perceptron,test_time=True)
+    if no_avg:
+        parser=tparser.Parser(gp=g_perceptron,test_time=False)
+    else:
+        parser=tparser.Parser(gp=g_perceptron,test_time=True)
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
@@ -92,7 +96,7 @@ def launch_instances(args):
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(gp,q,q_out))
+        p=multiprocessing.Process(target=one_process, args=(gp,q,q_out,args.no_avg))
         p.start()
         procs.append(p)
     p=multiprocessing.Process(target=assemble_results,args=(q_out,args.processes))
@@ -119,5 +123,6 @@ if __name__=="__main__":
     parser.add_argument('input', nargs='?', help='Training file name, or nothing for training on stdin')
     parser.add_argument('-p', '--processes', type=int, default=4, help='How many parsing workers to run? (default %(default)d)')
     parser.add_argument('--max_sent', type=int, default=0, help='How many sentences to parse from the input? 0 for all.  (default %(default)d)')
+    parser.add_argument('--no_avg', default=False, action="store_true",  help='Do not use the averaged perceptron but the original weight vector (default %(default)s)')
     args = parser.parse_args()
     launch_instances(args)
