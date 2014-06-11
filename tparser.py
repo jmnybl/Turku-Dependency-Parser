@@ -33,6 +33,9 @@ class Transition(object):
     def __str__(self):
         return str(self.move)+":"+str(self.dType)
 
+    def __unicode__(self):
+        return unicode(self.move)+u":"+unicode(self.dType)
+
     def __repr__(self):
         return str(self.move)+":"+str(self.dType)
    
@@ -92,7 +95,7 @@ class State(object):
             for f,w in self.features.iteritems():
                 d[prefix+f]=d.get(f,0.0)+w
         if self.prev_state:
-            self.prev_state._populate_feature_dict(d,str(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
+            self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
     def update(self,trans):
         if trans.move==SHIFT: # SHIFT
@@ -247,7 +250,7 @@ class Parser(object):
                 gs_trans=gs_transitions[len(gs_state.transitions)]
                 if gs_trans.move not in gs_state.valid_transitions():
                     raise ValueError("Invalid GS Transition")
-                s=self.perceptron.score(gs_state.features,False,prefix=str(gs_trans))
+                s=self.perceptron.score(gs_state.features,False,prefix=unicode(gs_trans))
                 gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
                 gs_state.score+=s
                 gs_state.update(gs_trans)
@@ -327,7 +330,7 @@ class Parser(object):
         scores=[] #Holds (score,transition,state) tuples
         for state in beam:
             for trans in self.enum_transitions(state):
-                s=self.perceptron.score(state.features,self.test_time,prefix=str(trans))
+                s=self.perceptron.score(state.features,self.test_time,prefix=unicode(trans))
                 scores.append((state.score+s,trans,state))
         #Okay, now we have the possible continuations ranked
         selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states

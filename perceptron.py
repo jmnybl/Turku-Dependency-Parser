@@ -10,6 +10,19 @@ import sys
 
 logging.basicConfig(level=logging.INFO)
 
+### Loads cython functions, or the fallback if fails
+try:
+    import pyximport
+    import traceback
+    pyximport.install()#setup_args={"include_dirs": get_include()})
+    from perceptron_opt import _score_f, _feature2dim
+    print >> sys.stderr, "Using cython"
+except:
+    traceback.print_exc()
+    print >> sys.stderr, "Falling back on pure python implementation"
+    from perceptron_fbk import _score_f, _feature2dim
+
+
 class PerceptronSharedState(object):
 
     """This object actually holds the shared memory arrays and
@@ -128,6 +141,8 @@ class PerceptronSharedState(object):
         with open(os.path.join(model_name,"config.json"),"w") as f:
             json.dump(d,f)
 
+
+
 class GPerceptron(object):
 
     @classmethod
@@ -154,31 +169,10 @@ class GPerceptron(object):
         #self.update_counter_lock=update_counter_lock
 
     def feature2dim(self,feature_name):
-        """
-        Translates `feature_name` (string) to the corresponding weight vector dimension (int)
-        """
-        v=hash(feature_name)
-        if v<0:
-            return (-v)%self.w_len
-        else:
-            return v%self.w_len
+        return _feature2dim(self,feature_name)
         
     def score(self,features,test_time=False, prefix=u""):
-        """
-        Gives the score for the features, where features is
-        a dict()-like object mapping feature_name:count
-        """
-        res=0.0
-        if test_time:
-            w=self.w_avg
-        else:
-            w=self.w
-        for feature_name,weight in features.iteritems():
-            dim=self.feature2dim(prefix+feature_name)
-            res+=w[dim]*weight
-        if test_time:
-            res/=self.update_counter.value
-        return res
+        return _score_f(self,features,test_time, prefix)
     
     def update(self,system_features,gold_features,system_score,gold_score,wrong_trans,progress=0.0):
         """
