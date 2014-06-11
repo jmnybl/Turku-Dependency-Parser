@@ -180,14 +180,14 @@ class GPerceptron(object):
             res/=self.update_counter.value
         return res
     
-    def update(self,system_features,gold_features,system_score,gold_score,progress=0.0):
+    def update(self,system_features,gold_features,system_score,gold_score,wrong_trans,progress=0.0):
         """
         Updates the weight vector w.r.t. to the
         difference between `features` and `gold_features`
         `progress`should be number between 0 and 1 marking how far the training has progressed. 0 means just started and 1 means done. This is used to scale the gradient
         """
 
-        loss=2.0-(gold_score-system_score)
+        loss=(1.0+wrong_trans)-(gold_score-system_score)
         if loss<0:
             return
         norm2=0.0 #denominator for tau, the P-A update weight

@@ -53,6 +53,7 @@ class State(object):
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
         self.prev_state=None #The state from which this one was created, if any
+        self.wrong_transitions=0 # number of wrong transitions, if 0 then same as gold
 
     @classmethod
     def _copy_and_point(cls,s):
@@ -67,8 +68,9 @@ class State(object):
         newS.queue=s.queue[:]
         newS.stack=s.stack[:]
         newS.score=s.score
-        newS.transitions=s.transitions[:]
+        newS.transitions=s.transitions[:] # TODO: we don't need the whole sequence anymore, just last 4 for feature generation
         newS.prev_state=s
+        newS.wrong_transitions=s.wrong_transitions
         #newS.tree=copy.deepcopy(s.tree)
         newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
         return newS
@@ -234,18 +236,6 @@ class Parser(object):
         else:
             for child in gs_tree.childs[tok]: return self.subtree_ready(state,child,gs_tree)
 
-
-#    def update_and_score_state(self,state,trans):
-#        """Applies the transition, sets the local features, updates the score"""
-#        state.update(trans)
-#        state.features=feats.create_features(state)
-#        state.score+=self.perceptron.score(state.features,self.test_time)
-
-#    def update_and_score_partial(self,state,trans):
-#        """Applies the transition, sets the local, deptype related features, updates the score calculated from deptype related features."""
-#        state.update(trans)
-#        state.features=feats.create_deptype_features(state)
-#        state.score+=self.perceptron.score(state.features,self.test_time)
         
 
     def train_one_sent(self,gs_transitions,sent,progress):
@@ -253,7 +243,6 @@ class Parser(object):
         beam=[State(sent,syn=False)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(sent,syn=False)
         while not self.beam_ready(beam):
-            beam=self.give_next_state(beam) #This one already calls update_and_score_state()
             if not gs_state.tree.ready: # update gs if it's not ready
                 gs_trans=gs_transitions[len(gs_state.transitions)]
                 if gs_trans.move not in gs_state.valid_transitions():
@@ -263,6 +252,9 @@ class Parser(object):
                 gs_state.score+=s
                 gs_state.update(gs_trans)
                 gs_state.features=feats.create_features(gs_state)
+            else:
+                gs_trans=None
+            beam=self.give_next_state(beam,gs_trans) # update beam         
                 
             best_state=beam[0]
 #            if len(beam)>1:
@@ -270,21 +262,21 @@ class Parser(object):
 #            else:
 #                state2nd=None
 
-            if not self.gold_in_beam(gs_state,beam): # check if gold state is still in beam
+            if not self.gold_in_beam(beam): # check if gold state is still in beam
                 prog=float(len(best_state.transitions))/len(gs_transitions)
                 print "%.01f%%     %d/%d  "%(prog*100.0,len(best_state.transitions),len(gs_transitions))
                 sys.stdout.flush()
-                self.perceptron.update(best_state.create_feature_dict(),gs_state.create_feature_dict(),best_state.score,gs_state.score,progress) # update the perceptron
+                self.perceptron.update(best_state.create_feature_dict(),gs_state.create_feature_dict(),best_state.score,gs_state.score,best_state.wrong_transitions,progress) # update the perceptron
                 break
 #            elif state2nd is not None and best_state.score-state2nd.score<1.0: #Prediction OK, but no margin
 #                print "+", len(best_state.transitions)
 #                #Update and continue training...
 #                self.perceptron.update(state2nd.create_feature_dict(),best_state.create_feature_dict(),state2nd.score,best_state.score,progress)
         else: # gold still in beam and beam ready
-            if beam[0].transitions==gs_state.transitions: # no need for update
+            if beam[0].wrong_transitions==0: # no need for update
                 print "**", len(gs_state.transitions)
             else:
-                self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,progress) # update the perceptron
+                self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,beam[0].wrong_transitions,progress) # update the perceptron
                 print "*", len(gs_state.transitions)
         #Done with the example, update the average vector
         self.perceptron.add_to_average()
@@ -315,14 +307,14 @@ class Parser(object):
             if not state.tree.ready: return False
         return True
 
-    def gold_in_beam(self,gs,beam):
+    def gold_in_beam(self,beam):
         for state in beam:
-            if state.transitions==gs.transitions: return True
+            if state.wrong_transitions==0: return True
         return False
 
 
 
-    def give_next_state(self,beam):
+    def give_next_state(self,beam,gs_trans=None):
         """ Predict next state and creates it. Also returns the next best state, needed for the margin update """
         #We want to
         # 1) go over the allowed transitions and score each state with that operation's prefix
@@ -348,6 +340,8 @@ class Parser(object):
             newS=State.copy_and_point(state)
             newS.update(transition)
             newS.score=score # Do not use '+'
+            if (gs_trans is None) or (not transition==gs_trans):
+                newS.wrong_transitions+=1 # TODO: is this fair?
             newS.features=feats.create_deptype_features(newS) #These are different for every of these states
             if trans.move==LEFT:
                 if lfeats is None: # create these features
