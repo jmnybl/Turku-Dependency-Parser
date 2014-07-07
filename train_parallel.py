@@ -7,6 +7,8 @@ import sys
 import StringIO
 import tparser
 import json
+import time
+import threading
 
 def one_process(g_perceptron,q,beam_size):
     """
@@ -24,7 +26,8 @@ def one_process(g_perceptron,q,beam_size):
         parser.train(inp=buff,progress=progress)
 
 def feed_queue(q,inp,iteration_progress=0.0,max_sent=0):
-    """iteration_progress -> progress through the total number of iterations, will be passed on to the parser"""
+    """iteration_progress -> progress through the total number of iterations, will be passed on to the parser.
+    """
     if inp==None: #Do stdin
         data=codecs.getreader("utf-8")(sys.stdin)
     else:
@@ -36,7 +39,7 @@ def feed_queue(q,inp,iteration_progress=0.0,max_sent=0):
     for line in data:
         if line.startswith(u"1\t"):
             counter+=1
-            if counter%20==0: #Split the queue into batches of 20 sentences to train on
+            if counter%40==0: #Split the queue into batches of 40 sentences to train on
                 q.put((iteration_progress,u"".join(current)))
                 current=[]
             if max_sent!=0 and counter>=max_sent:
@@ -53,7 +56,7 @@ def launch_instances(args):
     """
     main() to launch everything
     """
-    
+
     #1) Create the Shared State for perceptron
     # TODO: maybe I could have a flag with which I'd check the model exists and load instead?
     #      ...will overwrite by default anyway
@@ -68,16 +71,21 @@ def launch_instances(args):
         p.start()
         procs.append(p)
 
+    #Regular save
+    done=threading.Event()
+    iteration_number_as_list=[0] #Just a handy-dandy way to communicate the number into the reg. save thread without global variable
+    if args.save_every_min>0: #We'll be running regular save
+        p=threading.Thread(target=regular_save,args=(sh_state,args,iteration_number_as_list,done))
+        p.start()
+
     #All processes started
     #...feed the queue with data
-    for i in range(args.iterations):
-        feed_queue(q,args.input,float(i)/args.iterations,args.max_sent)
+    for iteration_number in range(args.iterations):
+        iteration_number_as_list[0]=iteration_number
+        feed_queue(q,args.input,float(iteration_number)/args.iterations,args.max_sent)
         #Iteration ended, store if you are supposed to, unless it's the last iteration
-        if args.save_per_iter and i<args.iterations-1: 
-            sh_state.save(args.output+(".i%02d"%i),True)
-            d={"beam_size":args.beam_size}
-            with open(os.path.join(args.output+(".i%02d"%i),"parser_config.json"),"w") as f: # save also parser configuration, currently only beam size
-                json.dump(d,f)
+        if args.save_per_iter and iteration_number<args.iterations-1: 
+            save_model(args,iteration_number)
 
     #Signal end of work to all processes (Thanks @radimrehurek for this neat trick!)
     for _ in range(args.processes):
@@ -86,11 +94,40 @@ def launch_instances(args):
     for p in procs:
         p.join() #Wait for the processes to quit
     
+    done.set() #tells the regular save process to finish
+
     #...and we should be done
-    sh_state.save(args.output,True)
+    save_model(args,None)
+
+def save_model(sh_state,args,iteration_number=None):
+    """
+    Save the model. If iteration_number is an integer, save it numbered
+    """
+    if iteration_number!=None:
+        oName=args.output+(".i%02d"%iteration_number)
+    else:
+        oName=args.output
+    sh_state.save(oName,True)
     d={"beam_size":args.beam_size}
-    with open(os.path.join(args.output,"parser_config.json"),"w") as f: # save the parser configuration
+    with open(os.path.join(oName,"parser_config.json"),"w") as f: # save also parser configuration, currently only beam size
         json.dump(d,f)
+
+def regular_save(sh_state,args,iteration_number_aslist,done):
+    """Save at regular intervals, watch for the done Event, and exit if it is set"""
+    counter=0 #counts seconds since started
+    next_save=args.save_every_min*60 #counter value for the next save
+    while True:
+        time.sleep(1)
+        if done.is_set():
+            return
+        if counter>next_save:
+            print >> sys.stderr, "NEXT SAVE"
+            sys.stderr.flush()
+            save_model(sh_state,args,iteration_number_aslist[0])
+            next_save+=args.save_every_min*60
+        counter+=1
+        
+    
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Trains the parser in a multi-core setting.')
@@ -98,6 +135,7 @@ if __name__=="__main__":
     g.add_argument('input', nargs='?', help='Training file name, or nothing for training on stdin')
     g.add_argument('-o', '--output', required=True, help='Name of the output model.')
     g.add_argument('--no_save_per_iter', required=False, dest='save_per_iter', action="store_false", default=True, help='Do not save the model after every iteration, with a ".iNN". Do it by default.')
+    g.add_argument('--save_every_min', required=False, dest='save_every_min', action="store", default=0, type=int, help='Save the model every N minutes, overwriting the previous one. Default %(default)s - off.')
     g=parser.add_argument_group("Training config")
     g.add_argument('-p', '--processes', type=int, default=4, help='How many training workers to run? (default %(default)d)')
     g.add_argument('--max_sent', type=int, default=0, help='How many sentences to read from the input? 0 for all.  (default %(default)d)')
