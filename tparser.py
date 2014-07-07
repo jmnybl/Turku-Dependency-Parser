@@ -23,21 +23,23 @@ DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparat
 
 class Transition(object):
 
-    def __init__(self,move,dType=None):
+    def __init__(self,move,dType=None,pos_tag=None,feats=None):
         self.move=move
         self.dType=dType
+        self.pos_tag=pos_tag
+        self.feats=feats
 
     def __eq__(self,other):
-        return self.move==other.move and self.dType==other.dType
+        return self.move==other.move and self.dType==other.dType and self.pos_tag==other.pos_tag and self.feats==other.feats
 
     def __str__(self):
-        return str(self.move)+":"+str(self.dType)
+        return str(self.move)+":"+str(self.dType)+":"+str(self.pos_tag)+":"+str(self.feats)
 
     def __unicode__(self):
-        return unicode(self.move)+u":"+unicode(self.dType)
+        return unicode(self.__str__())
 
     def __repr__(self):
-        return str(self.move)+":"+str(self.dType)
+        return self.__str__()
    
 
 class State(object):
@@ -166,7 +168,7 @@ class Parser(object):
         elif fName is not None:
             self.perceptron_state=PerceptronSharedState.load(fName,retrainable=True)
         else:
-            self.perceptron_state=PerceptronSharedState(5000000)
+            self.perceptron_state=PerceptronSharedState(5000000) #TODO: pass args to this place
         self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
 
@@ -202,22 +204,22 @@ class Parser(object):
             if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
                 move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
                 assert (move==RIGHT or move==LEFT)
-                trans=Transition(move,u"ROOT")
+                trans=Transition(move,u"ROOT",None,None)
                 state.update(trans)
                 continue
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
                 if move is not None:
-                    trans=Transition(move,dType)
+                    trans=Transition(move,dType,None,None)
                     if trans.move not in state.valid_transitions():
                         raise ValueError("Invalid transition:",trans.move)
                     state.update(trans)
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    trans=Transition(SWAP,None)
+                    trans=Transition(SWAP,None,None,None)
             else: # SHIFT
-                trans=Transition(SHIFT,None)
+                trans=Transition(SHIFT,None,None,None)
             if trans.move not in state.valid_transitions():
                 raise ValueError("Invalid transition:",trans.move)
             state.update(trans)
@@ -298,10 +300,10 @@ class Parser(object):
                 allowed=self.model.deptypes.get((gov_pos,dep_pos),set())
                 #for dType in DEPTYPES: #FILTERING GOES HERE
                 for dType in allowed:
-                    yield Transition(move,dType)
-                yield Transition(move,u"ROOT") #TODO: what should be done with root?
+                    yield Transition(move,dType,None,None)
+                yield Transition(move,u"ROOT",None,None) #TODO: what should be done with root?
             else:
-                yield Transition(move,None)
+                yield Transition(move,None,None,None)
                 
 
 
