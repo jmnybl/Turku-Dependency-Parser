@@ -1,0 +1,3 @@
+[submodule "fin_dep_parser"]
+	path = fin_dep_parser
+	url = git@github.com:TurkuNLP/Finnish-dep-parser.git
