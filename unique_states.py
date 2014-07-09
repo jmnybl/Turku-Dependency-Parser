@@ -24,6 +24,8 @@ def emit_states(args):
 
     failed=0
     for counter,sent in enumerate(tree.read_conll(inp)):
+        if len(sent)<2:
+            continue
         if counter%1000==0:
             logging.info("Processed %d total with %d failed."%(counter,failed))
         gs_tree=tree.Tree.new_from_conll(conll=sent,syn=True)
