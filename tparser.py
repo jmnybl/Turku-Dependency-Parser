@@ -18,6 +18,8 @@ RIGHT=1
 LEFT=2
 SWAP=3
 
+move_names=[u"SHIFT",u"RIGHT",u"LEFT",u"SWAP"]
+
 DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparator complm conj cop csubj csubj-cop dep det dobj gobj gsubj iccomp infmod intj mark name neg nommod nsubj num parataxis partmod poss prt punct rcmod voc xcomp xsubj xsubj-cop nsubj-cop nommod-own csubjpass nn cc number quantmod rel preconj ROOT".split() # TODO: collect these from data
 
 
@@ -33,7 +35,7 @@ class Transition(object):
         return self.move==other.move and self.dType==other.dType and self.pos_tag==other.pos_tag and self.feats==other.feats
 
     def __str__(self):
-        return str(self.move)+":"+str(self.dType)+":"+str(self.pos_tag)+":"+str(self.feats)
+        return str(move_names[self.move])+":"+str(self.dType)+":"+str(self.pos_tag)+":"+str(self.feats)
 
     def __unicode__(self):
         return unicode(self.__str__())
