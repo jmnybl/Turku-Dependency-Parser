@@ -8,12 +8,14 @@ import tree, tparser
 
 out=codecs.getwriter("utf-8")(sys.stdout)
 
-def print_state(state,args):
+def print_state(state,transition,args):
+    print >> out,  transition,
+    print >> out,  u"\t",
     print >> out,  u"%d/%d"%(len(state.stack[-2:]),len(state.queue[:3])),
     print >> out,  u"\t",
-    print >> out,  u"\t".join(t.text for t in state.stack[-2:]),
+    print >> out,  u"\t".join(t.text+u"/"+t.lemma+u"/"+t.pos+u"/"+t.feat for t in state.stack[-2:]),
     print >> out,  u"\t",
-    print >> out,  u"\t".join(t.text for t in state.queue[:3])
+    print >> out,  u"\t".join(t.text+u"/"+t.lemma+u"/"+t.pos+u"/"+t.feat for t in state.queue[:3])
 
 def emit_states(args):
     parser=tparser.Parser()
@@ -40,7 +42,7 @@ def emit_states(args):
         gs_state=tparser.State(sent,syn=False)
         while not gs_state.tree.ready:
             gs_trans=gs_transitions[len(gs_state.transitions)]
-            print_state(gs_state,args)
+            print_state(gs_state,gs_trans,args)
             gs_state.update(gs_trans)
 
 if __name__=="__main__":
