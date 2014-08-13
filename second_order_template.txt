@@ -1,0 +1,56 @@
+
+#2nd-order features
+
+p(p)p(d)p(z) o(d, p, z)
+p(p)p(z) o(d, p, z)
+p(d)p(z) o(d, p, z)
+p(p)p(d)p(z) d(y) o(d, p, z)
+p(p)p(z) d(y) o(d, p, z)
+p(d) d(y) o(d, p, z)
+p(p) d(y) o(d, p, z)
+p(z) d(y) o(d, p, z)
+d(y) o(d, p, z)
+w(p)w(z) o(d, p, z)
+w(d)w(z) o(d, p, z)
+w(z)p(p) o(d, p, z)
+w(z)p(d) o(d, p, z)
+w(p)p(z) o(d, p, z)
+w(d)p(z) o(d, p, z)
+l(p)l(z) o(d, p, z)
+l(d)l(z) o(d, p, z)
+l(z)p(p) o(d, p, z)
+l(z)p(d) o(d, p, z)
+l(p)p(z) o(d, p, z)
+l(d)p(z) o(d, p, z)
+p(z)p(z +1 )p(d) o(d, p, z)
+p(z)p(z -1 )p(d) o(d, p, z)
+p(z)p(d)p(d+1 ) o(d, p, z)
+p(z)p(d)p(d-1 ) o(d, p, z)
+p(z)p(z +1 )p(d-1 )p(d) o(d, p, z)
+p(z -1 )p(z)p(d-1 )p(d) o(d, p, z)
+p(z)p(z +1 )p(d)p(d+1 ) o(d, p, z)
+p(z -1 )p(z)p(d)p(d+1 ) o(d, p, z)
+p(z)p(z +1 )p(p) o(d, p, z)
+p(z)p(z -1 )p(p) o(d, p, z)
+p(z)p(p)p(p+1 ) o(d, p, z)
+p(z)p(p)p(p-1 ) o(d, p, z)
+p(z)p(z +1 )p(p-1 )p(p) o(d, p, z)
+p(z -1 )p(z)p(p-1 )p(p) o(d, p, z)
+p(z)p(z +1 )p(p)p(p+1 ) o(d, p, z)
+p(z -1 )p(z)p(p)p(p+1 ) o(d, p, z)
+
+## clusters again...
+#c(p)p(z) o(d, p, z)
+#l(d)c(z) o(d, p, z)
+#c(p)l(d)c(z) o(d, p, z)
+#c(p)l(d)w(z) o(d, p, z)
+#c(p)c(z)w(d) o(d, p, z)
+#l(d)c(z)w(p) o(d, p, z)
+#c(p)l(d)p(z) o(d, p, z)
+#c(p)c(z)p(d) o(d, p, z)
+#l(d)c(z)p(p) o(d, p, z)
+
+#∀k ∈ m(d), ∀i ∈ m(z) : p(p)p(z)k i
+#∀k ∈ m(p), ∀i ∈ m(z) : p(d)p(z)k i
+
+

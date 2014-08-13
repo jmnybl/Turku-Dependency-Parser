@@ -1,0 +1,30 @@
+
+#3rd-order features
+
+p(p)p(d)p(z)p(y) o(d, p, y, z)
+#p(p) d(y) d(z) o(d, p, y, z)
+#p(d) d(y) d(z) o(d, p, y, z)
+#p(z) d(y) d(z) o(d, p, y, z)
+#p(y) d(y) d(z) o(d, p, y, z)
+#w(p) d(y) d(z) o(d, p, y, z)
+#w(d) d(y) d(z) o(d, p, y, z)
+#w(z) d(y) d(z) o(d, p, y, z)
+#(yF ) d(y) label(z) o(d, p, y, z)
+w(p)p(d)p(z)p(y) o(d, p, y, z)
+w(d)p(p)p(z)p(y) o(d, p, y, z)
+w(z)p(d)p(p)p(y) o(d, p, y, z)
+#(yF )p(d)p(z)p(p) o(d, p, y, z)
+l(z)p(d)p(p)p(y) o(d, p, y, z)
+#(yL)p(d)p(z)p(p) o(d, p, y, z)
+p(p)p(z)p(y) o(d, p, y, z)
+p(d)p(z)p(y) o(d, p, y, z)
+p(z)p(y) o(d, p, y, z)
+p(z) o(d, p, y, z)
+p(y) o(d, p, y, z)
+p(p)p(d)p(z)p(y)p(y -1 ) o(d, p, y, z)
+p(p)p(d)p(z)p(y)p(z -1 ) o(d, p, y, z)
+p(p)p(d)p(z)p(y)p(y +1 ) o(d, p, y, z)
+p(p)p(d)p(z)p(y)p(z +1 ) o(d, p, y, z)
+#∀k ∈ m(p), ∀i ∈ m(x) : p(p)p(x) k i
+#∀k ∈ m(d), ∀i ∈ m(x) : p(d)p(x) k i
+
