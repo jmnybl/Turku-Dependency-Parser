@@ -336,8 +336,8 @@ class Parser(object):
         selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
 
         new_beam=[]
-        lfeats,lscore=None,None # Holds shared features and score for left transition
-        rfeats,rscore=None,None
+        lfeats,lscore,lfactors=None,None,None # Holds shared features, score and new factors for left transition
+        rfeats,rscore,rfactors=None,None,None
         for score,transition,state in selected_transitions:
             #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
             newS=State.copy_and_point(state)
@@ -345,17 +345,20 @@ class Parser(object):
             newS.score=score # Do not use '+'
             if (gs_trans is None) or (not transition==gs_trans):
                 newS.wrong_transitions+=1 # TODO: is this fair?
-            newS.features=feats.create_deptype_features(newS) #These are different for every of these states
+            # we need to create general features first because it updates graph factors
             if trans.move==LEFT:
                 if lfeats is None: # create these features
-                    lfeats=feats.create_general_features(newS)
-                newS.features.update(lfeats)
+                    lfeats,lfactors=feats.create_general_features(newS)
+                newS.features=lfeats
+                newS.features.update(feats.create_deptype_features(newS,lfactors))
             elif trans.move==RIGHT:
                 if rfeats is None:
-                    rfeats=feats.create_general_features(newS)
-                newS.features.update(rfeats)
+                    rfeats,rfactors=feats.create_general_features(newS)
+                newS.features=rfeats
+                newS.features.update(feats.create_deptype_features(newS,rfactors))
             else:
-                newS.features.update(feats.create_general_features(newS))
+                newS.features,factors=feats.create_general_features(newS)
+                newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
         return new_beam #List of selected states, ordered by their score in this move
 

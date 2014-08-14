@@ -248,7 +248,9 @@ def create_third_order(p,d,y,z,role1,role2,order,state):
     features['w(p)p(d)p(z)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+p.text+d.pos+z.pos+y.pos+"_"+str(order)]=1.0
     features['w(d)p(p)p(z)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+d.text+p.pos+z.pos+y.pos+"_"+str(order)]=1.0
     features['w(z)p(d)p(p)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+z.text+d.pos+p.pos+y.pos+"_"+str(order)]=1.0
+    features['w(y)p(d)p(z)p(p)o(d,p,y,z)_'+role1+'_'+role2+'='+y.text+d.pos+z.pos+p.pos+"_"+str(order)]=1.0
     features['l(z)p(d)p(p)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+z.lemma+d.pos+p.pos+y.pos+"_"+str(order)]=1.0
+    features['l(y)p(d)p(z)p(p)o(d,p,y,z)_'+role1+'_'+role2+'='+y.lemma+d.pos+z.pos+p.pos+"_"+str(order)]=1.0
     features['p(p)p(z)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+p.pos+z.pos+y.pos+"_"+str(order)]=1.0
     features['p(d)p(z)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+d.pos+z.pos+y.pos+"_"+str(order)]=1.0
     features['p(z)p(y)o(d,p,y,z)_'+role1+'_'+role2+'='+z.pos+y.pos+"_"+str(order)]=1.0

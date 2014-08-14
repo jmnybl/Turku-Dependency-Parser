@@ -75,7 +75,7 @@ class Features(object):
 
         return features
 
-    def manual_dep_features(self,state,features):
+    def manual_dep_features(self,state,features,factors):
         """ Add here features involving dependency type. """
         # transition history
         if len(state.stack)>0:
@@ -87,7 +87,34 @@ class Features(object):
                 name='p(S0)h'+'h'.join(str(j) for j in xrange(0,i+1)) # feature name
                 value=state.stack[-1].pos+''.join(str(t.move)+str(t.dType) for t in transit[:i+1]) # feature 'value'
                 features[name+'='+value]=1.0
-        return features
+        # graph-based features
+        if len(state.tree.deps)>0:
+            
+            g=state.tree.deps[-1].gov
+            d=state.tree.deps[-1].dep
+            for factor in factors:
+                if len(factor)==3: # second order
+                    dtype=unicode(state.tree.dtypes.get(factor[0]))
+                    features[u"p(p)p(d)p(z)d(z)_"+factor[1]+u"="+g.pos+d.pos+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"p(p)p(z)d(z)_"+factor[1]+u"="+g.pos+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"p(d)d(z)_"+factor[1]+u"="+d.pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"p(p)d(z)_"+factor[1]+u"="+g.pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"p(z)d(z)_"+factor[1]+u"="+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"d(z)_"+factor[1]+u"="+dtype+u"_"+unicode(factor[2])]=1.0
+                elif len(factor)==5: # third order
+                    dtype1=unicode(state.tree.dtypes.get(factor[0]))
+                    dtype2=unicode(state.tree.dtypes.get(factor[2]))
+                    features[u"p(p)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+g.pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"p(d)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+d.pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"p(z)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[2].pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"p(y)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[0].pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"w(p)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+g.text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"w(d)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+d.text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"w(z)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[2].text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"w(y)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[0].text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                else:
+                    assert False # should never happen...
+
 
     def factor_location(self,p,d,x=None,z=None):
         """ Map the ordering of tokens to unique integer. """
@@ -125,7 +152,6 @@ class Features(object):
             elif order==1 or order==6 or order==7 or order==0:
                 factors.append([dep,u"cho",order])
             else:
-                print order
                 assert False # should never happen...
         if len(deps)>1: ## ch1 and ch2
             ch1=deps[0]
@@ -140,7 +166,6 @@ class Features(object):
             elif order==0 or order==7 or order==1 or order==6:
                 factors.append([dep,u"cmo",order])
             else:
-                print order
                 assert False # should never happen...
         if len(deps)>1: # cm1, cm2
             cm1=deps[0]
@@ -162,8 +187,8 @@ class Features(object):
     def create_general_features(self,state):
         feat=create_auto_features(state)
         self.manual_features(state,feat)
+        # now graph-based features...
         if state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT:
-            # we have new graph features to generate
             factors=self.new_factors(state)
             g=state.tree.deps[-1].gov
             d=state.tree.deps[-1].dep
@@ -171,23 +196,57 @@ class Features(object):
             for factor in factors:
                 if len(factor)==3: # second order
                     fact_feats.update(create_second_order(g,d,factor[0],factor[1],factor[2],state))
-                if len(factor)==5: # third order
-                    fact_feats.update(create_third_order(g,d,factor[0],factor[2],factor[1],factor[3],factor[4],state))
-            
-            feat.update(fact_feats) ## mix with normal features
-            ## TODO: deptype features + manual features...
-        return feat
+                    ## morpho
+                    tags0=g.feat.split(u"|")
+                    tags1=d.feat.split(u"|")
+                    tags2=factor[0].feat.split(u"|")
+                    for i in xrange(0,len(tags0)):
+                        for j in xrange(0,len(tags2)):
+                            fact_feats['p(p)p(z)m(p)m(z)='+g.pos+factor[0].pos+tags0[i]+tags2[j]+u"_"+factor[1]]=1.0
+                    for i in xrange(0,len(tags1)):
+                        for j in xrange(0,len(tags2)):
+                            fact_feats['p(d)p(z)m(d)m(z)='+d.pos+factor[0].pos+tags1[i]+tags2[j]+u"_"+factor[1]]=1.0
 
-    def create_deptype_features(self,state):
+                elif len(factor)==5: # third order
+                    fact_feats.update(create_third_order(g,d,factor[0],factor[2],factor[1],factor[3],factor[4],state))
+                else:
+                    assert False # should never happen...
+                
+            ## manual first order features
+            # for all x between g and d, p(g)p(d)p(x)
+            if self.factor_location(g,d)==0:
+                tokens=state.tree.tokens[g.index+1:d.index]
+            else:
+                tokens=state.tree.tokens[d.index+1:g.index]
+            for x in tokens:
+                fact_feats[u"p(g)p(d)p(x)="+g.pos+d.pos+x.pos]=1.0
+            # morpho g,d
+            tags0=g.feat.split(u"|")
+            tags1=d.feat.split(u"|")
+            for i in xrange(0,len(tags0)):
+                fact_feats['p(p)p(d)m(p)='+g.pos+d.pos+tags0[i]+u"_"+unicode(self.factor_location(g,d))]=1.0
+            for i in xrange(0,len(tags1)):
+                fact_feats['p(p)p(d)m(d)='+g.pos+d.pos+tags1[i]+u"_"+unicode(self.factor_location(g,d))]=1.0
+            for i in xrange(0,len(tags0)):
+                for j in xrange(0,len(tags1)):
+                    fact_feats['p(p)p(d)m(p)m(d)='+g.pos+d.pos+tags0[i]+tags1[j]+u"_"+unicode(self.factor_location(g,d))]=1.0
+
+            feat.update(fact_feats) ## mix with normal features
+        else:
+            factors=[]
+
+        return feat, factors
+
+    def create_deptype_features(self,state,factors):
         feat=create_auto_dep_features(state)
-        self.manual_dep_features(state,feat)
+        self.manual_dep_features(state,feat,factors)
         return feat
 
 
     def create_features(self, state):
-        """ Main function to create all features. """
-        feat=self.create_general_features(state)
-        feat.update(self.create_deptype_features(state))
+        """ Main function to create all features. GS state uses this one. """
+        feat,factors=self.create_general_features(state)
+        feat.update(self.create_deptype_features(state,factors))
         return feat
 
 
