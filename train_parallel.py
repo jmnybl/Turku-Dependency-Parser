@@ -85,7 +85,7 @@ def launch_instances(args):
         feed_queue(q,args.input,float(iteration_number)/args.iterations,args.max_sent)
         #Iteration ended, store if you are supposed to, unless it's the last iteration
         if args.save_per_iter and iteration_number<args.iterations-1: 
-            save_model(args,iteration_number)
+            save_model(sh_state,args,iteration_number)
 
     #Signal end of work to all processes (Thanks @radimrehurek for this neat trick!)
     for _ in range(args.processes):
@@ -97,7 +97,7 @@ def launch_instances(args):
     done.set() #tells the regular save process to finish
 
     #...and we should be done
-    save_model(args,None)
+    save_model(sh_state,args,None)
 
 def save_model(sh_state,args,iteration_number=None):
     """
