@@ -14,7 +14,7 @@ class Features(object):
     def manual_features(self,state,features):
 
         S0,S1,S2=get_from_stack(state.stack)
-        B0,B1=get_from_queue(state.queue)
+        B0,B1,B2,B3,B4=get_from_queue(state.queue)
         
         ### manually added features ###
         if (S0 is not None) and (S1 is not None): # all of these needs S0 and S1, so check these first

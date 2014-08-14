@@ -46,12 +46,10 @@ def get_following(token,idx,state):
 
 queue_func="""
 def get_from_queue(queue):
-    if len(queue)>1:
-        return queue[0],queue[1]
-    elif len(queue)>0:
-        return queue[0],None
-    else:
-        return None,None
+    r=[None,None,None,None,None]
+    for i,qi in enumerate(queue[:5]):
+         r[i]=qi
+    return tuple(r)
 
 """
 
@@ -68,7 +66,7 @@ def process_one_feature(feature):
     parts=mainregex.findall(feature) # returns list of (ftype,token) tuples
     return parts
 
-const=[u"S0",u"S1",u"S2",u"B0",u"B1"]
+const=[u"S0",u"S1",u"S2",u"S3",u"B0",u"B1",u"B2",u"B3",u"B4"]
 def give_token(token):
     if token in const:
         return token
@@ -118,7 +116,7 @@ if __name__==u"__main__":
     print >> dep, u"def create_auto_dep_features(state):"
     print >> gen, u"    S0,S1,S2=get_from_stack(state.stack)" # these are the basic tokens I need to get everything else, can be None
     print >> dep, u"    S0,S1,S2=get_from_stack(state.stack)"
-    print >> gen, u"    B0,B1=get_from_queue(state.queue)"
+    print >> gen, u"    B0,B1,B2,B3,B4=get_from_queue(state.queue)"
     print >> gen, u"    features={}"
     print >> dep, u"    features={}"
 

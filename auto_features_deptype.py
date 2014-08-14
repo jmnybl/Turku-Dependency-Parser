@@ -37,21 +37,120 @@ def create_auto_dep_features(state):
     ld_S2_=get_child(S2,'ld',state)
     ld_S0_=get_child(S0,'ld',state)
     d0_S1_=get_child(S1,'d0',state)
+    rd_S2_=get_child(S2,'rd',state)
     d0_S0_=get_child(S0,'d0',state)
     d2_S1_=get_child(S1,'d2',state)
     d1_S1_=get_child(S1,'d1',state)
     ld_S1_=get_child(S1,'ld',state)
     rd_S1_=get_child(S1,'rd',state)
+    if (ld_S0_ is not None) and (S0 is not None) and (S0 is not None) :
+        features['d(ld(S0))p(S0)p(S0)='+str(state.tree.dtypes.get(ld_S0_))+S0.pos+S0.pos]=1.0
+    if (ld_S0_ is not None) and (S0 is not None) and (S1 is not None) :
+        features['d(ld(S0))p(S0)p(S1)='+str(state.tree.dtypes.get(ld_S0_))+S0.pos+S1.pos]=1.0
+    if (ld_S0_ is not None) and (S0 is not None) and (S2 is not None) :
+        features['d(ld(S0))p(S0)p(S2)='+str(state.tree.dtypes.get(ld_S0_))+S0.pos+S2.pos]=1.0
+    if (ld_S0_ is not None) and (S1 is not None) and (S0 is not None) :
+        features['d(ld(S0))p(S1)p(S0)='+str(state.tree.dtypes.get(ld_S0_))+S1.pos+S0.pos]=1.0
+    if (ld_S0_ is not None) and (S1 is not None) and (S1 is not None) :
+        features['d(ld(S0))p(S1)p(S1)='+str(state.tree.dtypes.get(ld_S0_))+S1.pos+S1.pos]=1.0
+    if (ld_S0_ is not None) and (S1 is not None) and (S2 is not None) :
+        features['d(ld(S0))p(S1)p(S2)='+str(state.tree.dtypes.get(ld_S0_))+S1.pos+S2.pos]=1.0
+    if (ld_S0_ is not None) and (S2 is not None) and (S0 is not None) :
+        features['d(ld(S0))p(S2)p(S0)='+str(state.tree.dtypes.get(ld_S0_))+S2.pos+S0.pos]=1.0
+    if (ld_S0_ is not None) and (S2 is not None) and (S1 is not None) :
+        features['d(ld(S0))p(S2)p(S1)='+str(state.tree.dtypes.get(ld_S0_))+S2.pos+S1.pos]=1.0
+    if (ld_S0_ is not None) and (S2 is not None) and (S2 is not None) :
+        features['d(ld(S0))p(S2)p(S2)='+str(state.tree.dtypes.get(ld_S0_))+S2.pos+S2.pos]=1.0
+    if (ld_S1_ is not None) and (S0 is not None) and (S0 is not None) :
+        features['d(ld(S1))p(S0)p(S0)='+str(state.tree.dtypes.get(ld_S1_))+S0.pos+S0.pos]=1.0
+    if (ld_S1_ is not None) and (S0 is not None) and (S1 is not None) :
+        features['d(ld(S1))p(S0)p(S1)='+str(state.tree.dtypes.get(ld_S1_))+S0.pos+S1.pos]=1.0
+    if (ld_S1_ is not None) and (S0 is not None) and (S2 is not None) :
+        features['d(ld(S1))p(S0)p(S2)='+str(state.tree.dtypes.get(ld_S1_))+S0.pos+S2.pos]=1.0
+    if (ld_S1_ is not None) and (S1 is not None) and (S0 is not None) :
+        features['d(ld(S1))p(S1)p(S0)='+str(state.tree.dtypes.get(ld_S1_))+S1.pos+S0.pos]=1.0
+    if (ld_S1_ is not None) and (S1 is not None) and (S1 is not None) :
+        features['d(ld(S1))p(S1)p(S1)='+str(state.tree.dtypes.get(ld_S1_))+S1.pos+S1.pos]=1.0
+    if (ld_S1_ is not None) and (S1 is not None) and (S2 is not None) :
+        features['d(ld(S1))p(S1)p(S2)='+str(state.tree.dtypes.get(ld_S1_))+S1.pos+S2.pos]=1.0
+    if (ld_S1_ is not None) and (S2 is not None) and (S0 is not None) :
+        features['d(ld(S1))p(S2)p(S0)='+str(state.tree.dtypes.get(ld_S1_))+S2.pos+S0.pos]=1.0
+    if (ld_S1_ is not None) and (S2 is not None) and (S1 is not None) :
+        features['d(ld(S1))p(S2)p(S1)='+str(state.tree.dtypes.get(ld_S1_))+S2.pos+S1.pos]=1.0
+    if (ld_S1_ is not None) and (S2 is not None) and (S2 is not None) :
+        features['d(ld(S1))p(S2)p(S2)='+str(state.tree.dtypes.get(ld_S1_))+S2.pos+S2.pos]=1.0
+    if (ld_S2_ is not None) and (S0 is not None) and (S0 is not None) :
+        features['d(ld(S2))p(S0)p(S0)='+str(state.tree.dtypes.get(ld_S2_))+S0.pos+S0.pos]=1.0
+    if (ld_S2_ is not None) and (S0 is not None) and (S1 is not None) :
+        features['d(ld(S2))p(S0)p(S1)='+str(state.tree.dtypes.get(ld_S2_))+S0.pos+S1.pos]=1.0
+    if (ld_S2_ is not None) and (S0 is not None) and (S2 is not None) :
+        features['d(ld(S2))p(S0)p(S2)='+str(state.tree.dtypes.get(ld_S2_))+S0.pos+S2.pos]=1.0
+    if (ld_S2_ is not None) and (S1 is not None) and (S0 is not None) :
+        features['d(ld(S2))p(S1)p(S0)='+str(state.tree.dtypes.get(ld_S2_))+S1.pos+S0.pos]=1.0
+    if (ld_S2_ is not None) and (S1 is not None) and (S1 is not None) :
+        features['d(ld(S2))p(S1)p(S1)='+str(state.tree.dtypes.get(ld_S2_))+S1.pos+S1.pos]=1.0
+    if (ld_S2_ is not None) and (S1 is not None) and (S2 is not None) :
+        features['d(ld(S2))p(S1)p(S2)='+str(state.tree.dtypes.get(ld_S2_))+S1.pos+S2.pos]=1.0
+    if (ld_S2_ is not None) and (S2 is not None) and (S0 is not None) :
+        features['d(ld(S2))p(S2)p(S0)='+str(state.tree.dtypes.get(ld_S2_))+S2.pos+S0.pos]=1.0
+    if (ld_S2_ is not None) and (S2 is not None) and (S1 is not None) :
+        features['d(ld(S2))p(S2)p(S1)='+str(state.tree.dtypes.get(ld_S2_))+S2.pos+S1.pos]=1.0
+    if (ld_S2_ is not None) and (S2 is not None) and (S2 is not None) :
+        features['d(ld(S2))p(S2)p(S2)='+str(state.tree.dtypes.get(ld_S2_))+S2.pos+S2.pos]=1.0
+    if (rd_S0_ is not None) and (S0 is not None) and (S0 is not None) :
+        features['d(rd(S0))p(S0)p(S0)='+str(state.tree.dtypes.get(rd_S0_))+S0.pos+S0.pos]=1.0
+    if (rd_S0_ is not None) and (S0 is not None) and (S1 is not None) :
+        features['d(rd(S0))p(S0)p(S1)='+str(state.tree.dtypes.get(rd_S0_))+S0.pos+S1.pos]=1.0
+    if (rd_S0_ is not None) and (S0 is not None) and (S2 is not None) :
+        features['d(rd(S0))p(S0)p(S2)='+str(state.tree.dtypes.get(rd_S0_))+S0.pos+S2.pos]=1.0
+    if (rd_S0_ is not None) and (S1 is not None) and (S0 is not None) :
+        features['d(rd(S0))p(S1)p(S0)='+str(state.tree.dtypes.get(rd_S0_))+S1.pos+S0.pos]=1.0
+    if (rd_S0_ is not None) and (S1 is not None) and (S1 is not None) :
+        features['d(rd(S0))p(S1)p(S1)='+str(state.tree.dtypes.get(rd_S0_))+S1.pos+S1.pos]=1.0
+    if (rd_S0_ is not None) and (S1 is not None) and (S2 is not None) :
+        features['d(rd(S0))p(S1)p(S2)='+str(state.tree.dtypes.get(rd_S0_))+S1.pos+S2.pos]=1.0
+    if (rd_S0_ is not None) and (S2 is not None) and (S0 is not None) :
+        features['d(rd(S0))p(S2)p(S0)='+str(state.tree.dtypes.get(rd_S0_))+S2.pos+S0.pos]=1.0
+    if (rd_S0_ is not None) and (S2 is not None) and (S1 is not None) :
+        features['d(rd(S0))p(S2)p(S1)='+str(state.tree.dtypes.get(rd_S0_))+S2.pos+S1.pos]=1.0
+    if (rd_S0_ is not None) and (S2 is not None) and (S2 is not None) :
+        features['d(rd(S0))p(S2)p(S2)='+str(state.tree.dtypes.get(rd_S0_))+S2.pos+S2.pos]=1.0
+    if (rd_S1_ is not None) and (S0 is not None) and (S0 is not None) :
+        features['d(rd(S1))p(S0)p(S0)='+str(state.tree.dtypes.get(rd_S1_))+S0.pos+S0.pos]=1.0
+    if (rd_S1_ is not None) and (S0 is not None) and (S1 is not None) :
+        features['d(rd(S1))p(S0)p(S1)='+str(state.tree.dtypes.get(rd_S1_))+S0.pos+S1.pos]=1.0
+    if (rd_S1_ is not None) and (S0 is not None) and (S2 is not None) :
+        features['d(rd(S1))p(S0)p(S2)='+str(state.tree.dtypes.get(rd_S1_))+S0.pos+S2.pos]=1.0
     if (rd_S1_ is not None) and (S1 is not None) and (S0 is not None) :
         features['d(rd(S1))p(S1)p(S0)='+str(state.tree.dtypes.get(rd_S1_))+S1.pos+S0.pos]=1.0
-    if (S0 is not None) and (S1 is not None) and (ld_S1_ is not None) :
-        features['p(S0)p(S1)d(ld(S1))='+S0.pos+S1.pos+str(state.tree.dtypes.get(ld_S1_))]=1.0
-    if (S0 is not None) and (S1 is not None) and (rd_S1_ is not None) :
-        features['p(S0)p(S1)d(rd(S1))='+S0.pos+S1.pos+str(state.tree.dtypes.get(rd_S1_))]=1.0
-    if (S0 is not None) and (S1 is not None) and (ld_S2_ is not None) :
-        features['p(S0)p(S1)d(ld(S2))='+S0.pos+S1.pos+str(state.tree.dtypes.get(ld_S2_))]=1.0
-    if (rd_S0_ is not None) and (rd_S0_ is not None) and (S0 is not None) :
-        features['p(rd(S0))d(rd(S0))p(S0)='+rd_S0_.pos+str(state.tree.dtypes.get(rd_S0_))+S0.pos]=1.0
+    if (rd_S1_ is not None) and (S1 is not None) and (S1 is not None) :
+        features['d(rd(S1))p(S1)p(S1)='+str(state.tree.dtypes.get(rd_S1_))+S1.pos+S1.pos]=1.0
+    if (rd_S1_ is not None) and (S1 is not None) and (S2 is not None) :
+        features['d(rd(S1))p(S1)p(S2)='+str(state.tree.dtypes.get(rd_S1_))+S1.pos+S2.pos]=1.0
+    if (rd_S1_ is not None) and (S2 is not None) and (S0 is not None) :
+        features['d(rd(S1))p(S2)p(S0)='+str(state.tree.dtypes.get(rd_S1_))+S2.pos+S0.pos]=1.0
+    if (rd_S1_ is not None) and (S2 is not None) and (S1 is not None) :
+        features['d(rd(S1))p(S2)p(S1)='+str(state.tree.dtypes.get(rd_S1_))+S2.pos+S1.pos]=1.0
+    if (rd_S1_ is not None) and (S2 is not None) and (S2 is not None) :
+        features['d(rd(S1))p(S2)p(S2)='+str(state.tree.dtypes.get(rd_S1_))+S2.pos+S2.pos]=1.0
+    if (rd_S2_ is not None) and (S0 is not None) and (S0 is not None) :
+        features['d(rd(S2))p(S0)p(S0)='+str(state.tree.dtypes.get(rd_S2_))+S0.pos+S0.pos]=1.0
+    if (rd_S2_ is not None) and (S0 is not None) and (S1 is not None) :
+        features['d(rd(S2))p(S0)p(S1)='+str(state.tree.dtypes.get(rd_S2_))+S0.pos+S1.pos]=1.0
+    if (rd_S2_ is not None) and (S0 is not None) and (S2 is not None) :
+        features['d(rd(S2))p(S0)p(S2)='+str(state.tree.dtypes.get(rd_S2_))+S0.pos+S2.pos]=1.0
+    if (rd_S2_ is not None) and (S1 is not None) and (S0 is not None) :
+        features['d(rd(S2))p(S1)p(S0)='+str(state.tree.dtypes.get(rd_S2_))+S1.pos+S0.pos]=1.0
+    if (rd_S2_ is not None) and (S1 is not None) and (S1 is not None) :
+        features['d(rd(S2))p(S1)p(S1)='+str(state.tree.dtypes.get(rd_S2_))+S1.pos+S1.pos]=1.0
+    if (rd_S2_ is not None) and (S1 is not None) and (S2 is not None) :
+        features['d(rd(S2))p(S1)p(S2)='+str(state.tree.dtypes.get(rd_S2_))+S1.pos+S2.pos]=1.0
+    if (rd_S2_ is not None) and (S2 is not None) and (S0 is not None) :
+        features['d(rd(S2))p(S2)p(S0)='+str(state.tree.dtypes.get(rd_S2_))+S2.pos+S0.pos]=1.0
+    if (rd_S2_ is not None) and (S2 is not None) and (S1 is not None) :
+        features['d(rd(S2))p(S2)p(S1)='+str(state.tree.dtypes.get(rd_S2_))+S2.pos+S1.pos]=1.0
+    if (rd_S2_ is not None) and (S2 is not None) and (S2 is not None) :
+        features['d(rd(S2))p(S2)p(S2)='+str(state.tree.dtypes.get(rd_S2_))+S2.pos+S2.pos]=1.0
     if (S0 is not None) and (d0_S0_ is not None) and (d1_S0_ is not None) and (d2_S0_ is not None) :
         features['p(S0)d(d0(S0))d(d1(S0))d(d2(S0))='+S0.pos+str(state.tree.dtypes.get(d0_S0_))+str(state.tree.dtypes.get(d1_S0_))+str(state.tree.dtypes.get(d2_S0_))]=1.0
     if (S0 is not None) and (d0_S1_ is not None) and (d1_S1_ is not None) and (d2_S1_ is not None) :

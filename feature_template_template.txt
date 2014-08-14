@@ -1,0 +1,62 @@
+p(S$S1)
+l(S$S1)
+w(S$S1)
+p(S+$C1$S1)
+w(ld(S$S1))
+
+w(S$S1)p(S$S2)
+l(S$S1)p(S$S2)
+p(S$S1)p(S$S2)
+
+w(S+$C1$S1)p(S+$C2$S2)
+
+p(S0)h0
+
+w(S+$C1$S1)w(S+$C2$S2)p(S$S1)
+w(S+$C1$S1)w(S+$C2$S2)p(S$S2)
+w(S+$C1$S1)p(S+$C2$S2)p(S$S1)
+w(S+$C1$S1)p(S+$C2$S2)p(S$S2)
+w(S+$C1$S1)l(S+$C2$S2)p(S$S1)
+w(S+$C1$S1)l(S+$C2$S2)p(S$S2)
+
+l(S+$C1$S1)w(S+$C2$S2)p(S$S3)
+l(S+$C1$S1)p(S+$C2$S2)p(S$S3)
+l(S+$C1$S1)l(S+$C2$S2)p(S$S3)
+
+d(rd(S$S1))p(S$S2)p(S$S3)
+d(ld(S$S1))p(S$S2)p(S$S3)
+w(rd(S$S1))p(S$S2)p(S$S3)
+w(ld(S$S1))p(S$S2)p(S$S3)
+l(rd(S$S1))p(S$S2)p(S$S3)
+l(ld(S$S1))p(S$S2)p(S$S3)
+
+p(S0) h0 h1
+
+w(S0 )w(S+10 )p(S1 )p(S0 )
+p(S0 )p(d0 (S0 ))p(d1 (S0 ))p(d2 (S0 ))
+p(S0 )d(d0 (S0 ))d(d1 (S0 ))d(d2 (S0 ))
+p(S0 )p(d0 (S1 ))p(d1 (S1 ))p(d2 (S1 ))
+p(S0 )d(d0 (S1 ))d(d1 (S1 ))d(d2 (S1 ))
+p(S0 )h0 h1 h2
+
+
+p(S0 )l(S0 )d(d0 (S0 ))d(d1 (S0 ))d(d2 (S0 ))
+p(S0 )l(S0 )d(d0 (S1 ))d(d1 (S1 ))d(d2 (S1 ))
+p(S0 )h0 h1 h2 h3
+
+w(B$B1)p(B$B2)
+l(B$B1)p(B$B2)
+p(B$B1)p(B$B2)
+
+w(B$B1)p(S$S1)
+l(B$B1)p(S$S1)
+p(B$B1)p(S$S1)
+
+w(B$B1)w(S$S1)
+l(B$B1)w(S$S1)
+p(B$B1)w(S$S1)
+
+w(B$B1)l(S$S1)
+l(B$B1)l(S$S1)
+p(B$B1)l(S$S1)
+
