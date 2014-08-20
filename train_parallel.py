@@ -97,7 +97,7 @@ def launch_instances(args):
     done.set() #tells the regular save process to finish
 
     #...and we should be done
-    save_model(args,None)
+    save_model(sh_state,args,None)
 
 def save_model(sh_state,args,iteration_number=None):
     """
