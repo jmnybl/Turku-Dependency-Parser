@@ -11,17 +11,18 @@ import sys
 logging.basicConfig(level=logging.INFO)
 
 ### Loads cython functions, or the fallback if fails
-try:
-    import pyximport
-    import traceback
-    pyximport.install()#setup_args={"include_dirs": get_include()})
-    from perceptron_opt import _score_f, _feature2dim
-    print >> sys.stderr, "Using cython"
-except:
-    traceback.print_exc()
-    print >> sys.stderr, "Falling back on pure python implementation"
-    from perceptron_fbk import _score_f, _feature2dim
+# try:
+#     import pyximport
+#     import traceback
+#     pyximport.install()#setup_args={"include_dirs": get_include()})
+#     from perceptron_opt import _score_f, _feature2dim
+#     print >> sys.stderr, "Using cython"
+# except:
+#     traceback.print_exc()
+#     print >> sys.stderr, "Falling back on pure python implementation"
+#     from perceptron_fbk import _score_f, _feature2dim
 
+from perceptron_opt import _score_f, _feature2dim
 
 class PerceptronSharedState(object):
 

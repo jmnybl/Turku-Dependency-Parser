@@ -5,8 +5,11 @@ import numpy
 cimport numpy
 from cpython cimport bool
 from libc.stdint cimport int32_t
-import sklearn.utils.murmurhash
-#cimport sklearn.utils.murmurhash ###---why doesn't this work?
+#cimport murmurhash
+
+from libc.stdint cimport uint64_t, int64_t
+cdef extern from "MurmurHash3.h":
+    void MurmurHash3_x86_32(void * key, uint64_t len, uint64_t seed, void* out)
 
 DOUBLETYPE = numpy.float64
 ctypedef numpy.float64_t DOUBLETYPE_t
@@ -40,7 +43,11 @@ def _feature2dim(self, unicode feature_name):
     """
     cdef int32_t v
     cdef int32_t w_len=self.w_len
-    v=sklearn.utils.murmurhash.murmurhash3_32(feature_name)
+
+    py_byte_string = feature_name.encode('UTF-8')
+    cdef char* c_string = py_byte_string
+
+    MurmurHash3_x86_32(c_string, len(py_byte_string), 0, &v) # feature_name.hash() #sklearn.utils.murmurhash.murmurhash3_32(feature_name)
     if v<0:
         return (-v)%w_len
     else:
