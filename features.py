@@ -56,22 +56,31 @@ class Features(object):
                 for j in xrange(0,len(tags1)):
                     features['p(S0)p(S1)m(S0)m(S1)='+S0.pos+S1.pos+tags0[i]+tags1[j]]=1.0
 
-            # morpho queue  
-            if (B0 is not None) and (B1 is not None):
-                tags0=B0.feat.split(u"|")
-                tags1=B1.feat.split(u"|")
-                for i in xrange(0,len(tags0)):
-                    features['p(S0)p(S1)m(B0)='+S0.pos+S1.pos+tags0[i]]=1.0
-                for i in xrange(0,len(tags1)):
-                    features['p(S0)p(S1)m(B1)='+S0.pos+S1.pos+tags1[i]]=1.0
-                for i in xrange(0,len(tags0)):
-                    for j in xrange(0,len(tags1)):
-                        features['p(S0)p(S1)m(B0)m(B1)='+S0.pos+S1.pos+tags0[i]+tags1[j]]=1.0
-            elif (B0 is not None):
-                tags0=B0.feat.split(u"|")
-                for i in xrange(0,len(tags0)):
-                    features['p(S0)p(S1)m(B0)='+S0.pos+S1.pos+tags0[i]]=1.0
+            # prefixes and suffixes
+            features[u"p(S0)p1(S0)p1(S1)="+S0.pos+S0.text[:2]+S1.text[:2]]=1.0
+            features[u"p(S0)s1(S0)s1(S1)="+S0.pos+S0.text[-2:]+S1.text[-2:]]=1.0
+            features[u"p(S0)p2(S0)s3(S1)="+S0.pos+S0.text[:3]+S1.text[-4:]]=1.0
+            features[u"p(S0)s3(S0)p2(S1)="+S0.pos+S0.text[-4:]+S1.text[:3]]=1.0
 
+            # queue  
+            if (B0 is not None):
+                tags0=B0.feat.split(u"|")
+                for i in xrange(0,len(tags0)):
+                    features['p(S0)p(S1)m(B0)='+S0.pos+S1.pos+tags0[i]]=1.0
+                # prefixes and suffixes
+                features[u"p(B0)p2(B0)="+B0.pos+B0.text[:3]]=1.0
+                features[u"p(B0)s2(B0)="+B0.pos+B0.text[-3:]]=1.0
+                features[u"p(B0)p1(B0)p1(S0)="+B0.pos+B0.text[-2:]+S0.text[:2]]=1.0
+                features[u"p(S0)w(B0)s1(S0)="+S0.pos+B0.text+S0.text[-2:]]=1.0
+                features[u"p(S0)w(B0)s2(S0)="+S0.pos+B0.text+S0.text[-3:]]=1.0
+                # morpho
+                if (B1 is not None):
+                    tags1=B1.feat.split(u"|")
+                    for i in xrange(0,len(tags1)):
+                        features['p(S0)p(S1)m(B1)='+S0.pos+S1.pos+tags1[i]]=1.0
+                    for i in xrange(0,len(tags0)):
+                        for j in xrange(0,len(tags1)):
+                            features['p(S0)p(S1)m(B0)m(B1)='+S0.pos+S1.pos+tags0[i]+tags1[j]]=1.0
 
         return features
 
