@@ -186,8 +186,7 @@ class Parser(object):
                 gs_transitions=self.extract_transitions(gs_tree,sent)
                 self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
-                #traceback.print_exc()
-                # TODO: more than one non-projective dependency
+                traceback.print_exc()
                 failed+=1 
         if not quiet:
             print u"Failed to parse:",failed
