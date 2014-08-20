@@ -4,6 +4,9 @@ import cython
 import numpy
 cimport numpy
 from cpython cimport bool
+from libc.stdint cimport int32_t
+import sklearn.utils.murmurhash
+#cimport sklearn.utils.murmurhash ###---why doesn't this work?
 
 DOUBLETYPE = numpy.float64
 ctypedef numpy.float64_t DOUBLETYPE_t
@@ -33,11 +36,11 @@ def _score_f(self,features,bool test_time=False, unicode prefix=u""):
 
 def _feature2dim(self, unicode feature_name):
     """
-    Translates `feature_name` (string) to the corresponding weight vector dimension (int)
+    Translates `feature_name` (string) to the corresponding weight vector dimension (int).
     """
-    cdef long int v
-    cdef long int w_len=self.w_len
-    v=hash(feature_name)
+    cdef int32_t v
+    cdef int32_t w_len=self.w_len
+    v=sklearn.utils.murmurhash.murmurhash3_32(feature_name)
     if v<0:
         return (-v)%w_len
     else:
