@@ -1,3 +1,5 @@
+#cython: boundscheck=False, wraparound=False, cdivision=True
+
 import cython
 import numpy
 cimport numpy
