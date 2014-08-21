@@ -328,6 +328,9 @@ class Parser(object):
         #Rank the state w.r.t. every possible transition, use str(trans) as the prefix to differentiate features
         scores=[] #Holds (score,transition,state) tuples
         for state in beam:
+            if len(state.queue)==0 and len(state.stack)==1: # this state is ready
+                scores.append((state.score,None,state))
+                continue
             for trans in self.enum_transitions(state):
                 s=self.perceptron.score(state.features,self.test_time,prefix=unicode(trans))
                 scores.append((state.score+s,trans,state))
@@ -339,6 +342,9 @@ class Parser(object):
         rfeats,rscore,rfactors=None,None,None
         for score,transition,state in selected_transitions:
             #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
+            if transition is None: # this state is ready
+                new_beam.append(state)
+                continue
             newS=State.copy_and_point(state)
             newS.update(transition)
             newS.score=score # Do not use '+'
