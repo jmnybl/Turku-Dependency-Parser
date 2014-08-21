@@ -7,6 +7,11 @@ ext_modules = [Extension("perceptron_opt",
                      ["perceptron_opt.pyx", "MurmurHash3.cpp"],
                      language='c++',
                      extra_compile_args = ["-march=native","-O6","-ffast-math"],
+                     ),
+               Extension("auto_features",
+                     ["auto_features.pyx"],
+                     language='c++',
+                     extra_compile_args = ["-march=native","-O6","-ffast-math"],
                      )]
 
 

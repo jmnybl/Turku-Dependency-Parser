@@ -1,5 +1,8 @@
+#cython: boundscheck=False
 
-def get_child(token,idx,state):
+
+
+def get_child(token, str idx, state):
     if token is None: return None
     childs=sorted(state.tree.childs[token], key=lambda x:x.index)
     if len(childs)>0:
@@ -29,7 +32,7 @@ def get_from_stack(stack):
 
 
 
-def get_following(token,idx,state):
+def get_following(token, str idx,state):
     if token is None: return None
     if idx[0]==u"+":
         index=token.index+int(idx[1])
@@ -41,7 +44,7 @@ def get_following(token,idx,state):
 
 
 
-def get_from_queue(queue):
+def get_from_queue(list queue):
     if len(queue)>1:
         return queue[0],queue[1]
     elif len(queue)>0:
@@ -54,7 +57,7 @@ def get_from_queue(queue):
 def create_auto_features(state):
     S0,S1,S2=get_from_stack(state.stack)
     B0,B1=get_from_queue(state.queue)
-    features={}
+    cdef dict features={}
     d1_S0_=get_child(S0,'d1',state)
     rd_S0_=get_child(S0,'rd',state)
     d2_S0_=get_child(S0,'d2',state)
