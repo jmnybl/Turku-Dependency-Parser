@@ -13,4 +13,3 @@ ext_modules = [Extension("perceptron_opt",
 setup(name="perceptron_opt",
       cmdclass = {'build_ext': build_ext},
       ext_modules = ext_modules)
-
