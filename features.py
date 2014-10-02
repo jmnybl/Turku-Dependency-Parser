@@ -162,9 +162,9 @@ class Features(object):
                 factors.append([dep,u"cho",order])
             else:
                 assert False # should never happen...
-        if len(deps)>1: ## ch1 and ch2
-            ch1=deps[0]
-            ch2=deps[1]
+        if len(deps)>2: ## ch1 and ch2
+            ch1=deps[0] if deps[0]!=d else deps[1]
+            ch2=deps[1] if (deps[1]!=ch1 and deps[1]!=d) else deps[2]
             order=self.factor_location(g,d,ch1,ch2)
             factors.append([ch1,u"ch1",ch2,u"ch2",order])
         deps=sorted(state.tree.childs[d]) # cmi,cmo
