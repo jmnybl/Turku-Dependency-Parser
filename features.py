@@ -104,23 +104,23 @@ class Features(object):
             for factor in factors:
                 if len(factor)==3: # second order
                     dtype=unicode(state.tree.dtypes.get(factor[0]))
-                    features[u"p(p)p(d)p(z)d(z)_"+factor[1]+u"="+g.pos+d.pos+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
-                    features[u"p(p)p(z)d(z)_"+factor[1]+u"="+g.pos+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
-                    features[u"p(d)d(z)_"+factor[1]+u"="+d.pos+dtype+u"_"+unicode(factor[2])]=1.0
-                    features[u"p(p)d(z)_"+factor[1]+u"="+g.pos+dtype+u"_"+unicode(factor[2])]=1.0
-                    features[u"p(z)d(z)_"+factor[1]+u"="+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
-                    features[u"d(z)_"+factor[1]+u"="+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"grfp(p)p(d)p(z)d(z)_"+factor[1]+u"="+g.pos+d.pos+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"grfp(p)p(z)d(z)_"+factor[1]+u"="+g.pos+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"grfp(d)d(z)_"+factor[1]+u"="+d.pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"grfp(p)d(z)_"+factor[1]+u"="+g.pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"grfp(z)d(z)_"+factor[1]+u"="+factor[0].pos+dtype+u"_"+unicode(factor[2])]=1.0
+                    features[u"grfd(z)_"+factor[1]+u"="+dtype+u"_"+unicode(factor[2])]=1.0
                 elif len(factor)==5: # third order
                     dtype1=unicode(state.tree.dtypes.get(factor[0]))
                     dtype2=unicode(state.tree.dtypes.get(factor[2]))
-                    features[u"p(p)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+g.pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"p(d)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+d.pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"p(z)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[2].pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"p(y)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[0].pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"w(p)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+g.text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"w(d)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+d.text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"w(z)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[2].text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
-                    features[u"w(y)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[0].text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfp(p)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+g.pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfp(d)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+d.pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfp(z)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[2].pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfp(y)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[0].pos+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfw(p)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+g.text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfw(d)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+d.text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfw(z)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[2].text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
+                    features[u"grfw(y)d(y)d(z)_"+factor[1]+u"_"+factor[3]+u"="+factor[0].text+dtype1+dtype2+u"_"+unicode(factor[4])]=1.0
                 else:
                     assert False # should never happen...
 
@@ -211,10 +211,10 @@ class Features(object):
                     tags2=factor[0].feat.split(u"|")
                     for i in xrange(0,len(tags0)):
                         for j in xrange(0,len(tags2)):
-                            fact_feats['p(p)p(z)m(p)m(z)='+g.pos+factor[0].pos+tags0[i]+tags2[j]+u"_"+factor[1]]=1.0
+                            fact_feats['grfp(p)p(z)m(p)m(z)='+g.pos+factor[0].pos+tags0[i]+tags2[j]+u"_"+factor[1]]=1.0
                     for i in xrange(0,len(tags1)):
                         for j in xrange(0,len(tags2)):
-                            fact_feats['p(d)p(z)m(d)m(z)='+d.pos+factor[0].pos+tags1[i]+tags2[j]+u"_"+factor[1]]=1.0
+                            fact_feats['grfp(d)p(z)m(d)m(z)='+d.pos+factor[0].pos+tags1[i]+tags2[j]+u"_"+factor[1]]=1.0
 
                 elif len(factor)==5: # third order
                     fact_feats.update(create_third_order(g,d,factor[0],factor[2],factor[1],factor[3],factor[4],state))
@@ -228,17 +228,17 @@ class Features(object):
             else:
                 tokens=state.tree.tokens[d.index+1:g.index]
             for x in tokens:
-                fact_feats[u"p(g)p(d)p(x)="+g.pos+d.pos+x.pos]=1.0
+                fact_feats[u"grfp(g)p(d)p(x)="+g.pos+d.pos+x.pos]=1.0
             # morpho g,d
             tags0=g.feat.split(u"|")
             tags1=d.feat.split(u"|")
             for i in xrange(0,len(tags0)):
-                fact_feats['p(p)p(d)m(p)='+g.pos+d.pos+tags0[i]+u"_"+unicode(self.factor_location(g,d))]=1.0
+                fact_feats['grfp(p)p(d)m(p)='+g.pos+d.pos+tags0[i]+u"_"+unicode(self.factor_location(g,d))]=1.0
             for i in xrange(0,len(tags1)):
-                fact_feats['p(p)p(d)m(d)='+g.pos+d.pos+tags1[i]+u"_"+unicode(self.factor_location(g,d))]=1.0
+                fact_feats['grfp(p)p(d)m(d)='+g.pos+d.pos+tags1[i]+u"_"+unicode(self.factor_location(g,d))]=1.0
             for i in xrange(0,len(tags0)):
                 for j in xrange(0,len(tags1)):
-                    fact_feats['p(p)p(d)m(p)m(d)='+g.pos+d.pos+tags0[i]+tags1[j]+u"_"+unicode(self.factor_location(g,d))]=1.0
+                    fact_feats['grfp(p)p(d)m(p)m(d)='+g.pos+d.pos+tags0[i]+tags1[j]+u"_"+unicode(self.factor_location(g,d))]=1.0
 
             feat.update(fact_feats) ## mix with normal features
         else:

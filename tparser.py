@@ -93,7 +93,10 @@ class State(object):
         """
         if prefix!=None: #Will not extract information from the final state, but that probably makes no difference at all
             for f,w in self.features.iteritems():
-                d[prefix+f]=d.get(f,0.0)+w
+                if f.startswith(u"grf"):
+                    d[f]=d.get(f,0.0)+w
+                else:
+                    d[prefix+f]=d.get(f,0.0)+w
         if self.prev_state:
             self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 

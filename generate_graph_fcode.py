@@ -40,7 +40,10 @@ def encode_token(token):
     token=token.replace(u"-",u"left")
     return token
 
+
 if __name__==u"__main__":
+    
+    gprefix=u"grf"
 
     gen=codecs.open(u"auto_graph_features.py",u"wt",u"utf-8")
 
@@ -85,12 +88,12 @@ if __name__==u"__main__":
                 if_string+=" ("+encode_token(t)+" is not None) and"
             if_string=if_string[:-3]+":" # replace the last 'and' with ':'
             print >> gen, "    "+if_string
-            str_repr=u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p)"
+            str_repr=gprefix+u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p)"
             value=u"+".join(str(exp_dictionary.get(end))%(encode_token(token)) for end,token in feat)+u'+"_"+str(order)'
 
             print >> gen, ("        features['"+str_repr+"='+"+value+"]=1.0").encode(u"utf-8")
         else:
-            str_repr=u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p)"
+            str_repr=gprefix+u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p)"
             value=u"+".join(str(exp_dictionary.get(end))%(encode_token(token)) for end,token in feat)+u'+"_"+str(order)'
 
             print >> gen, ("    features['"+str_repr+"='+"+value+"]=1.0").encode(u"utf-8")
@@ -139,12 +142,12 @@ if __name__==u"__main__":
                 if_string+=" ("+encode_token(t)+" is not None) and"
             if_string=if_string[:-3]+":" # replace the last 'and' with ':'
             print >> gen, "    "+if_string
-            str_repr=u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,z)_'+role"
+            str_repr=gprefix+u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,z)_'+role"
             value=u"+".join(str(exp_dictionary.get(end))%(encode_token(token)) for end,token in feat)+u'+"_"+str(order)'
 
             print >> gen, ("        features['"+str_repr+"+'='+"+value+"]=1.0").encode(u"utf-8")
         else:
-            str_repr=u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,z)_'+role"
+            str_repr=gprefix+u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,z)_'+role"
             value=u"+".join(str(exp_dictionary.get(end))%(encode_token(token)) for end,token in feat)+u'+"_"+str(order)'
             if u"d(y)" in str_repr: continue
             print >> gen, ("    features['"+str_repr+"+'='+"+value+"]=1.0").encode(u"utf-8")
@@ -195,12 +198,12 @@ if __name__==u"__main__":
                 if_string+=" ("+encode_token(t)+" is not None) and"
             if_string=if_string[:-3]+":" # replace the last 'and' with ':'
             print >> gen, "    "+if_string
-            str_repr=u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,y,z)_'+role1+'_'+role2"
+            str_repr=gprefix+u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,y,z)_'+role1+'_'+role2"
             value=u"+".join(str(exp_dictionary.get(end))%(encode_token(token)) for end,token in feat)+u'+"_"+str(order)'
 
             print >> gen, ("        features['"+str_repr+"+'='+"+value+"]=1.0").encode(u"utf-8")
         else:
-            str_repr=u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,y,z)_'+role1+'_'+role2"
+            str_repr=gprefix+u"".join(end+"("+token+")" for end,token in feat)+u"o(d,p,y,z)_'+role1+'_'+role2"
             value=u"+".join(str(exp_dictionary.get(end))%(encode_token(token)) for end,token in feat)+u'+"_"+str(order)'
             print >> gen, ("    features['"+str_repr+"+'='+"+value+"]=1.0").encode(u"utf-8")
 

@@ -30,7 +30,10 @@ def _score_f(self,features,bool test_time=False, unicode prefix=u""):
     else:
         w=self.w
     for feature_name,weight in features.iteritems():
-        dim=_feature2dim(self,prefix+feature_name)
+        if feature_name.startswith(u"grf"):
+            dim=_feature2dim(self,feature_name)
+        else:
+            dim=_feature2dim(self,prefix+feature_name)
         res+=w[dim]*weight
     if test_time:
         res/=self.update_counter.value
