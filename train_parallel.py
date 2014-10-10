@@ -60,7 +60,7 @@ def launch_instances(args):
     #1) Create the Shared State for perceptron
     # TODO: maybe I could have a flag with which I'd check the model exists and load instead?
     #      ...will overwrite by default anyway
-
+ 
     sh_state=perceptron.PerceptronSharedState(w_len=args.dim)
     q=multiprocessing.Queue(30)  #Queue to pass pieces of the training data to the processes
 

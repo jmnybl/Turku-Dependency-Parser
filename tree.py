@@ -91,6 +91,7 @@ class Tree(object):
         self.root=None #?
         self.projective_order=None 
         self.ready=False
+        self.semeval_root_idx=None
 
     #Called from new_from_conll() classmethod
     def from_conll(self,lines,syn,conll_format="conll09"):    
@@ -101,6 +102,11 @@ class Tree(object):
             line=lines[i]
             token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA])
             self.tokens.append(token)
+            if line[form.DEPREL]==u"ROOT":
+                self.semeval_root_idx=i
+                self.tokens[-1].is_semeval_root=True
+            else:
+                self.tokens[-1].is_semeval_root=False
 
         
         if syn: # create dependencies
@@ -195,6 +201,7 @@ class Token(object):
         self.pos=pos
         self.feat=feat
         self.lemma=lemma
+        self.is_semeval_root=False
 
     def __str__(self):
         return self.text.encode(u"utf-8")

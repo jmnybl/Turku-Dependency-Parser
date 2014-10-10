@@ -133,13 +133,15 @@ class State(object):
         if len(self.queue)>0: # SHIFT
             moves.add(SHIFT)
         if len(self.stack)>1: # ARCS
-            if self.stack[-2].index!=-1: # if s2 is not root
+            if not self.stack[-2].is_semeval_root and self.stack[-2].index!=-1: # if s2 is not root
                 moves.add(LEFT)
-            if  self.stack[-2].index!=-1 or len(self.queue)==0: # Only allow RIGHT from ROOT when queue is empty
+            if  not self.stack[-1].is_semeval_root and (self.stack[-2].index!=-1 or len(self.queue)==0): # Only allow RIGHT from ROOT when queue is empty
                 moves.add(RIGHT)
-        if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index and self.stack[-2].index!=-1: # SWAP
-            if len(self.queue)==0 and len(self.stack)==2: return moves # no need for swap, we can use simple LEFT or RIGHT 
-            moves.add(SWAP)
+            if len(self.stack)==2 and len(self.queue)==0:
+                moves.add(RIGHT)
+        #if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index and self.stack[-2].index!=-1: # SWAP
+        #    if len(self.queue)==0 and len(self.stack)==2: return moves # no need for swap, we can use simple LEFT or RIGHT 
+        #    moves.add(SWAP)
         return moves
 
     def __str__(self):
@@ -156,10 +158,10 @@ class Parser(object):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
-        if os.path.exists(u"corpus_stats.pkl"):
-            self.model=Model.load(u"corpus_stats.pkl")
+        if os.path.exists(u"corpus_stats_dm.pkl"):
+            self.model=Model.load(u"corpus_stats_dm.pkl")
         else:
-            self.model=Model.collect(u"corpus_stats.pkl",u"tdt.conll")
+            self.model=Model.collect(u"corpus_stats_dm.pkl",u"/home/ginter/SemEval2014.svn/data/train_final_dm_trees.conll09")
         if gp:
             self.perceptron=gp
             return
@@ -186,7 +188,7 @@ class Parser(object):
                 gs_transitions=self.extract_transitions(gs_tree,sent)
                 self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
-                #traceback.print_exc()
+                traceback.print_exc()
                 # TODO: more than one non-projective dependency
                 failed+=1 
         if not quiet:

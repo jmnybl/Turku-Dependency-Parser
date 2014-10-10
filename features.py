@@ -18,6 +18,7 @@ class Features(object):
         
         ### manually added features ###
         if (S0 is not None) and (S1 is not None): # all of these needs S0 and S1, so check these first
+            features[u'SEVAL'+unicode(S0.is_semeval_root)+unicode(S1.is_semeval_root)]=1.0
             for i in xrange(1,4):
                 for char in ['+','-']:
                     idx=char+str(i)
