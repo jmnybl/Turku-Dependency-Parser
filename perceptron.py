@@ -1,7 +1,7 @@
 from __future__ import division
 import math
 import numpy
-import os.path
+import os
 import json
 import logging
 import multiprocessing
@@ -22,6 +22,7 @@ logging.basicConfig(level=logging.INFO)
 #     print >> sys.stderr, "Falling back on pure python implementation"
 #     from perceptron_fbk import _score_f, _feature2dim
 
+os.system("python setup.py build_ext --inplace > /dev/null") # I don't know why, but this seems to print sys.stdout (and not stderr), conflicts with parse_paraller output
 from perceptron_opt import _score_f, _feature2dim
 
 class PerceptronSharedState(object):
