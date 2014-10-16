@@ -1,5 +1,7 @@
 import sys
 import codecs
+import argparse
+from collections import defaultdict
 
 out=codecs.getwriter("utf-8")(sys.stdout)
 
@@ -46,9 +48,11 @@ def gen_one_root(comment,sentence,root_token_idx,predicates):
             else:
                 one_line(root_token_idx+1,types[tok_idx],cols)
     print >> out
+
         
 def gen(comment,sentence):
     #Will be generating as many trees as there are tokens in the sentence
+
     predicates=[] #index of the argument column (0-based) if predicate, None otherwise, as many entries as tokens in the sentence
     counter=0
 
@@ -68,9 +72,66 @@ def gen(comment,sentence):
 
     for tok_idx in range(len(sentence)):
         gen_one_root(comment,sentence,tok_idx,predicates)
-    
+
+
+def build_graph(arguments,idx,sent):
+    ''' Use the argument dictionary to build the final graph. '''
+    for id,token in enumerate(sent):
+        token=token[:6]
+        del token[3] # remove second lemma column
+        del token[4] # remove second pos column
+        for i in xrange(2): token.append(u"_")
+        for i in xrange(len(arguments)): token.append(u"_")
+        sent[id]=token
+    pred_count=0
+    for pred in sorted(arguments):
+        sent[pred-1][5]=u"+"
+        pred_count+=1
+        args=arguments[pred]
+        for arg,argtype in args:
+            sent[arg-1][5+pred_count]=argtype
+    for i,token in enumerate(sent):
+        token[4]=u"-" # root column (TODO)
+        if token[5]==u"_":token[5]=u"-" # not predicate
+        sent[i]=token     
+    print idx
+    for t in sent:
+        print (u"\t".join(c for c in t)).encode(u"utf-8")
+    print
+
+idx=u""
+tokens=[]
+arguments=defaultdict(lambda:[])
+def trees2graph(comment,sent):
+    ''' Read trees and collect an argument dictionary. '''
+    global arguments,idx,tokens
+    gidx,tidx=comment.rsplit(u".",1)
+    if gidx!=idx: # this is a new sentence, build the graph from arguments dictionary
+        if tokens:
+            build_graph(arguments,idx,tokens)
+            idx=u""
+            tokens=[]
+            arguments=defaultdict(lambda:[])
+        idx=gidx
+    for token in sent:
+        if token[10]!=u"NOTARG" and token[10]!=u"ROOT": # this is an argument
+            arguments[int(token[8])].append((int(token[0]),token[10]))
+        elif token[11]==u"ROOT":
+            tokens.append(token)
 
 if __name__ == "__main__":
-    for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
-        gen(comment,s)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-r', '--reverse', default=False, action="store_true", help='Create a graph from trees.')
+    args = parser.parse_args()
+
+    if args.reverse:
+        for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
+            trees2graph(comment,s)
+        if tokens: # print last sentence
+            build_graph(arguments,idx,tokens)
+    else:
+
+        for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
+            gen(comment,s)
 
