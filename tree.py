@@ -141,7 +141,7 @@ class Tree(object):
 
 
     def is_nonprojective(self):
-        """ Return 'non-projective dep' if tree is non-projective, else None"""
+        """ Return 'non-projective tokens' if tree is non-projective, else empty set"""
         non_projs=set()
         rootdep=Dep(Token(-1,u""),self.root,u"dummydep")
         for i in xrange(0,len(self.deps)):
@@ -155,32 +155,45 @@ class Tree(object):
                 if dep1.gov==dep2.gov or dep1.dep==dep2.dep or dep1.gov==dep2.dep or dep1.dep==dep2.gov: continue
                 non_proj=dep1.is_crossing(dep2)
                 if non_proj is not None:
-                    non_projs.add(non_proj)   
+                    if self.part_of_subtree(dep1.dep,dep2.gov): 
+                        non_projs.add(dep1.dep)
+                    elif self.part_of_subtree(dep2.dep,dep1.gov):
+                        non_projs.add(dep2.dep)
+                    elif dep1.dep.index<dep2.dep.index:
+                        non_projs.add(dep1.dep)
+                    else:
+                        non_projs.add(dep2.dep) 
         return non_projs
 
     def define_projective_order(self,tokens):
-        # TODO: process set of tokens
         tokens=list(tokens)
-        govIdx=None
-        main=[]
-        sub=[]
-        for token in self.tokens:
-            if self.part_of_subtree(token,tokens[0]):
-                sub.append(token)
-            else:
-                main.append(token)
-            if tokens[0] in self.childs[token]:
-                govIdx=token.index
-        if govIdx<tokens[0].index: # gov > dep
-            self.projective_order=main[:govIdx+1]+sub+main[govIdx+1:]
-        else: # dep < gov
-            self.projective_order=main[:govIdx]+sub+main[govIdx:]
+        order=self.tokens[:]
+        while tokens:
+            govIdx=None
+            main=[]
+            sub=[]
+            idx=0
+            for token in order:
+                if self.part_of_subtree(token,tokens[0]):
+                    sub.append(token)
+                else:
+                    main.append(token)
+                if tokens[0] in self.childs[token]:
+                    govIdx=idx
+                idx+=1
+            if govIdx<tokens[0].index: # gov > dep
+                order=main[:govIdx+1]+sub+main[govIdx+1:]
+            else: # dep < gov
+                order=main[:govIdx-1]+sub+main[govIdx-1:]
+            t=tokens.pop(0)
+        self.projective_order=order
             
     def part_of_subtree(self,token,subtree_head):
         if token==subtree_head: return True
         if token in self.childs[subtree_head]: return True
         for child in self.childs[subtree_head]:
-            return self.part_of_subtree(token,child)
+            if self.part_of_subtree(token,child):
+                return True
         return False
             
 

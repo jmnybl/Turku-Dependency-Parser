@@ -93,7 +93,10 @@ class State(object):
         """
         if prefix!=None: #Will not extract information from the final state, but that probably makes no difference at all
             for f,w in self.features.iteritems():
-                d[prefix+f]=d.get(f,0.0)+w
+                if f.startswith(u"grf"):
+                    d[f]=d.get(f,0.0)+w
+                else:
+                    d[prefix+f]=d.get(f,0.0)+w
         if self.prev_state:
             self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
@@ -189,7 +192,6 @@ class Parser(object):
                 self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
                 traceback.print_exc()
-                # TODO: more than one non-projective dependency
                 failed+=1 
         if not quiet:
             print u"Failed to parse:",failed
@@ -341,8 +343,8 @@ class Parser(object):
         selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
 
         new_beam=[]
-        lfeats,lscore=None,None # Holds shared features and score for left transition
-        rfeats,rscore=None,None
+        lfeats,lscore,lfactors=None,None,None # Holds shared features, score and new factors for left transition
+        rfeats,rscore,rfactors=None,None,None
         for score,transition,state in selected_transitions:
             #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
             if transition is None: # this state is ready
@@ -353,17 +355,20 @@ class Parser(object):
             newS.score=score # Do not use '+'
             if (gs_trans is None) or (not transition==gs_trans):
                 newS.wrong_transitions+=1 # TODO: is this fair?
-            newS.features=feats.create_deptype_features(newS) #These are different for every of these states
+            # we need to create general features first because it updates graph factors
             if trans.move==LEFT:
                 if lfeats is None: # create these features
-                    lfeats=feats.create_general_features(newS)
-                newS.features.update(lfeats)
+                    lfeats,lfactors=feats.create_general_features(newS)
+                newS.features=lfeats
+                newS.features.update(feats.create_deptype_features(newS,lfactors))
             elif trans.move==RIGHT:
                 if rfeats is None:
-                    rfeats=feats.create_general_features(newS)
-                newS.features.update(rfeats)
+                    rfeats,rfactors=feats.create_general_features(newS)
+                newS.features=rfeats
+                newS.features.update(feats.create_deptype_features(newS,rfactors))
             else:
-                newS.features.update(feats.create_general_features(newS))
+                newS.features,factors=feats.create_general_features(newS)
+                newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
         return new_beam #List of selected states, ordered by their score in this move
 
