@@ -181,7 +181,6 @@ class Parser(object):
         failed=0
         non=0
         for sent,comments in read_conll(inp):
-            print comments, sent
             total+=1
             gs_tree=Tree.new_from_conll(conll=sent,syn=True)
             non_projs=gs_tree.is_nonprojective()
