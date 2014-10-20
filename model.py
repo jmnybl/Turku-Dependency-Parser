@@ -21,7 +21,7 @@ class Model(object):
     def collect(cls,model_name,corpus,cutoff=2,conll_format="conll09"):
         form=formats[conll_format]
         pairs=defaultdict(lambda:0)
-        for sent in read_conll(corpus):
+        for sent,comment in read_conll(corpus):
             for token in sent:
                 gov=int(token[form.HEAD])
                 if gov==0: continue # ROOT

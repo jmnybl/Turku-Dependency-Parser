@@ -64,8 +64,12 @@ def feed_queue(q,inp,max_sent=0):
     job_counter=0
     counter=0
     ### WARNING: comments are not correctly paired with sentences -> if you communicate metadata through comments, this will need to be fixed
+    comments=[]
     current=[] #List of lines waiting to be scheduled
     for line in data:
+        if line.startswith(u"#"):
+            comments.append(line)
+            continue
         if line.startswith(u"1\t"):
             counter+=1
             if counter%5==0: #Split the queue into batches of 20 sentences to train on
@@ -74,6 +78,9 @@ def feed_queue(q,inp,max_sent=0):
                 current=[]
             if max_sent!=0 and counter>=max_sent:
                 break
+            for comm in comments:
+                current.append(comm)
+            comments=[]
         current.append(line)
     else:
         if current:

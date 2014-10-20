@@ -18,20 +18,28 @@ def read_conll(inp):
         f=inp
 
     sent=[]
+    comments=[]
     for line in f:
         line=line.strip()
-        if not line or line.startswith(u"#"): #Do not rely on empty lines in conll files, ignore comments
-            continue 
-        if line.startswith(u"1\t") and sent: #New sentence, and I have an old one to yield
-            yield sent
+        if not line:
+            if sent:
+                yield sent, comments
             sent=[]
-        sent.append(line.split(u"\t"))
+            comments=[]
+        elif line.startswith(u"#"):
+            if sent:
+                raise ValueError("Missing newline after sentence")
+            comments.append(line)
+            continue
+        else:
+            sent.append(line.split(u"\t"))
     else:
         if sent:
-            yield sent
+            yield sent, comments
 
     if isinstance(inp,basestring):
         f.close() #Close it if you opened it
+
 
 def fill_conll(sent,state,conll_format=u"conll09"):
     form=formats[conll_format]
@@ -47,7 +55,9 @@ def fill_conll(sent,state,conll_format=u"conll09"):
         else:
             sent[i][form.DEPREL]=state.tree.dtypes[token]
 
-def write_conll(f,sent):
+def write_conll(f,sent,comments=[]):
+    for comm in comments:
+        f.write(comm+u"\n")
     for line in sent:
         f.write(u"\t".join(c for c in line)+u"\n")
     f.write(u"\n")

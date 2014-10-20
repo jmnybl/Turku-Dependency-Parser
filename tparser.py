@@ -164,7 +164,7 @@ class Parser(object):
         if os.path.exists(u"corpus_stats_dm.pkl"):
             self.model=Model.load(u"corpus_stats_dm.pkl")
         else:
-            self.model=Model.collect(u"corpus_stats_dm.pkl",u"/home/ginter/SemEval2014.svn/data/train_final_dm_trees.conll09")
+            self.model=Model.collect(u"corpus_stats_dm.pkl",u"semeval_data/train_dm_trees.conll")
         if gp:
             self.perceptron=gp
             return
@@ -180,7 +180,8 @@ class Parser(object):
         total=0
         failed=0
         non=0
-        for sent in read_conll(inp):
+        for sent,comments in read_conll(inp):
+            print comments, sent
             total+=1
             gs_tree=Tree.new_from_conll(conll=sent,syn=True)
             non_projs=gs_tree.is_nonprojective()
@@ -376,7 +377,7 @@ class Parser(object):
 
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
-        for sent in read_conll(inp):
+        for sent,comments in read_conll(inp):
             beam=[State(sent,syn=False)]
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
@@ -395,7 +396,8 @@ if __name__==u"__main__":
     for i in xrange(0,10):
 
         print >> sys.stderr, "iter",i+1
-        parser.train(u"tdt.conll")
+        #parser.train(u"tdt.conll")
+        parser.train(u"semeval_data/train_dm_trees.conll")
         break
         parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
     sys.exit()
