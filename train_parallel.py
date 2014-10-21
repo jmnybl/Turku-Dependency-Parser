@@ -148,7 +148,7 @@ if __name__=="__main__":
     g.add_argument('--max_sent', type=int, default=0, help='How many sentences to read from the input? 0 for all.  (default %(default)d)')
     g=parser.add_argument_group("Training algorithm choices")
     g.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? If you want more than one, you must give the input as a file. (default %(default)d)')
-    g.add_argument('--dim', type=int, default=5000000, help='Dimensionality of the trained vector. (default %(default)d)')
+    g.add_argument('--dim', type=int, default=20000000, help='Dimensionality of the trained vector. (default %(default)d)')
     g.add_argument('--beam_size', type=int, default=40, help='Size of the beam. (default %(default)d)')
     args = parser.parse_args()
 

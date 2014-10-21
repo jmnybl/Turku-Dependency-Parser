@@ -31,7 +31,7 @@ def one_line(new_root,new_type,cols):
     global out
     print >> out, u"\t".join((cols[0],cols[1],cols[2],cols[2],cols[3],cols[3],u"_",u"_",unicode(new_root),unicode(new_root),new_type,new_type))
 
-def gen_one_root(comment,sentence,root_token_idx,predicates):
+def gen_one_root(comment,sentence,root_token_idx,predicates,empty):
     global out
     #1) Is this a predicate to begin with?
     print >> out, comment+u".%d"%root_token_idx
@@ -43,14 +43,17 @@ def gen_one_root(comment,sentence,root_token_idx,predicates):
         if tok_idx==root_token_idx:
             one_line(0,u"ROOT",cols)
         else:
-            if types[tok_idx]==u"_":
-                one_line(root_token_idx+1,u"NOTARG",cols)
+            if not empty:
+                if types[tok_idx]==u"_":
+                    one_line(root_token_idx+1,u"NOTARG",cols)
+                else:
+                    one_line(root_token_idx+1,types[tok_idx],cols)
             else:
-                one_line(root_token_idx+1,types[tok_idx],cols)
+                one_line(u"_",u"_",cols)
     print >> out
 
         
-def gen(comment,sentence):
+def gen(comment,sentence,empty):
     #Will be generating as many trees as there are tokens in the sentence
 
     predicates=[] #index of the argument column (0-based) if predicate, None otherwise, as many entries as tokens in the sentence
@@ -71,7 +74,7 @@ def gen(comment,sentence):
             assert False
 
     for tok_idx in range(len(sentence)):
-        gen_one_root(comment,sentence,tok_idx,predicates)
+        gen_one_root(comment,sentence,tok_idx,predicates,empty)
 
 
 def build_graph(arguments,idx,sent):
@@ -122,6 +125,7 @@ def trees2graph(comment,sent):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--empty', default=False, action="store_true", help='Create empty trees (arguments removed, only root dependency included).')
     parser.add_argument('-r', '--reverse', default=False, action="store_true", help='Create a graph from trees.')
     args = parser.parse_args()
 
@@ -133,5 +137,5 @@ if __name__ == "__main__":
     else:
 
         for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
-            gen(comment,s)
+            gen(comment,s,args.empty)
 
