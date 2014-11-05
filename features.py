@@ -108,7 +108,7 @@ class Features(object):
             s0_context_features.add('s0_context_' + '_'.join(route_pieces))
 
         for context_feature in s0_context_features:
-            features[context_feature] = 1.0
+            route_feats[context_feature] = 1.0
 
         s1_context_features = set()
         for route in s1_tree_context:
@@ -124,7 +124,7 @@ class Features(object):
             s1_context_features.add('s1_context_' + '_'.join(route_pieces))
 
         for context_feature in s1_context_features:
-            features[context_feature] = 1.0
+            route_feats[context_feature] = 1.0
 
         #Full linear route POS
         #Hmmm...  this might already be there somewhere
@@ -133,7 +133,7 @@ class Features(object):
             for t_id in linear_route:
                 pos_list.append(tree.tokens[t_id].pos)
             if S0.index < S1.index:
-                features['pos_linear_route>' + '_'.join(pos_list)] = 1.0
+                route_feats['pos_linear_route>' + '_'.join(pos_list)] = 1.0
 
         return route_feats
 
