@@ -45,13 +45,13 @@ class State(object):
     def __init__(self,sent=None):
         if sent!=None:
             self.tree,self.extra_tree=Tree.new_from_conll(sent)
-            self.queue=self.tree.tokens[:]
+            #self.queue=self.tree.tokens[:]
         else:
             self.tree=None
-            self.queue=[]
+            #self.queue=[]
         self.stack=[]
         self.queue=[Token(-1,u"ROOT",lemma=u"ROOT",pos=u"ROOT",feat=u"ROOT")]
-        self.queue+=self.tree.tokens[:]
+        self.queue+=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
         self.score=0.0
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
@@ -204,6 +204,7 @@ class Parser(object):
 
     def extract_transitions(self,gs_tree,sent):
         state=State(sent)
+        #print state.queue
         while not state.tree.ready:
             if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
                 move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
