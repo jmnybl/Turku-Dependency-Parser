@@ -280,7 +280,7 @@ class Tree(object):
 
         #Otherwise, we'll get more routes
         for start_token, dep in where_to_go:
-            routes.extend(get_token_tree_context(start_token, tree, max_len=max_len - 1, route + [dep]))
+            routes.extend(self.get_token_tree_context(start_token, tree, max_len=max_len - 1, route + [dep]))
 
         return routes
 
@@ -306,7 +306,7 @@ class Tree(object):
             return []
 
         for start_token, dep in where_to_go:
-            result = get_route_in_tree(start_token, target, tree, route=route + [dep])
+            result = self.get_route_in_tree(start_token, target, tree, route=route + [dep])
             if result != []:
                 return result
         return []
@@ -316,9 +316,10 @@ class Tree(object):
         self.routes = {}
         for t in self.tokens:
             if t not in self.routes.keys():
-                self.routes[dep.gov] = {}
+                self.routes[t] = {}
             for tt in self.tokens:
-                self.route[t][tt] = get_route_in_tree(t, tt)
+                if t != tt:
+                    self.route[t][tt] = self.get_route_in_tree(t, tt)
 
     def create_context_routes(self):
         #This is quite likely not very optimal
