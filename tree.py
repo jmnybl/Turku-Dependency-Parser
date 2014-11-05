@@ -257,6 +257,75 @@ class Tree(object):
         return (u",".join(str(d) for d in self.deps)).encode(u"utf-8")
 
 
+    def get_token_tree_context(self, token, max_len=3, route=[]):
+
+        #If max_len less than 1 return what was given
+        if max_len < 1:
+            return [route]
+
+        #Get every dep in which current token is mentioned
+        where_to_go = []
+        for dep in tree.deps:
+            if start in dep.gov and dep not in route:
+                where_to_go.append((dep.dep, dep))
+            if start in dep.dep and dep not in route:
+                where_to_go.append((dep.gov, dep))        
+
+        #If max_len less than 2 return our findings
+        routes = []
+        if max_len == 1:
+            for start_token, dep in where_to_go:
+                routes.append(route + [dep])
+            return routes
+
+        #Otherwise, we'll get more routes
+        for start_token, dep in where_to_go:
+            routes.extend(get_token_tree_context(start_token, tree, max_len=max_len - 1, route + [dep]))
+
+        return routes
+
+    def get_route_in_tree(self, start, target, route=[]):
+
+        #Get every dep in which current token is mentioned
+        where_to_go = []
+        for dep in tree.deps:
+            if start in dep.gov and dep not in route:
+                if dep.dep = target:
+                    #Found it!
+                    route.append(dep)
+                    return route
+                where_to_go.append((dep.dep, dep))
+            if start in dep.dep and dep not in route:
+                if dep.gov = target:
+                    #Found it!
+                    route.append(dep)
+                    return route
+                where_to_go.append((dep.gov, dep))
+
+        if len(where_to_go) == 0:
+            return []
+
+        for start_token, dep in where_to_go:
+            result = get_route_in_tree(start_token, target, tree, route=route + [dep])
+            if result != []:
+                return result
+        return []
+
+    def create_token_routes(self):
+        #This is for emergency use only!
+        self.routes = {}
+        for t in self.tokens:
+            if t not in self.routes.keys():
+                self.routes[dep.gov] = {}
+            for tt in self.tokens:
+                self.route[t][tt] = get_route_in_tree(t, tt)
+
+    def create_context_routes(self):
+        #This is quite likely not very optimal
+        self.context = {}
+        for t in self.tokens:
+            self.context[t] = get_token_tree_context(t, max_len=3)
+
 
 class Token(object):
 
