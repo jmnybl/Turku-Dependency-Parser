@@ -42,9 +42,9 @@ class Transition(object):
 
 class State(object):
 
-    def __init__(self,sent=None,syn=False):
+    def __init__(self,sent=None):
         if sent!=None:
-            self.tree=Tree.new_from_conll(sent,syn)
+            self.tree,self.extra_tree=Tree.new_from_conll(sent)
             self.queue=self.tree.tokens[:]
         else:
             self.tree=None
@@ -76,6 +76,7 @@ class State(object):
         newS.wrong_transitions=s.wrong_transitions
         #newS.tree=copy.deepcopy(s.tree)
         newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
+        newS.extra_tree=s.extra_tree # TODO: this won't change, can be shared
         return newS
         
     def create_feature_dict(self):
@@ -182,7 +183,8 @@ class Parser(object):
         non=0
         for sent,comments in read_conll(inp):
             total+=1
-            gs_tree=Tree.new_from_conll(conll=sent,syn=True)
+            gs_tree,e=Tree.new_from_conll(sent,extra_tree=False) # extra_tree is always False here, no need for it yet
+            gs_tree.fill_syntax(sent)
             non_projs=gs_tree.is_nonprojective()
             if len(non_projs)>0:
                 gs_tree.define_projective_order(non_projs)
@@ -201,7 +203,7 @@ class Parser(object):
 
 
     def extract_transitions(self,gs_tree,sent):
-        state=State(sent,syn=False)
+        state=State(sent)
         while not state.tree.ready:
             if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
                 move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
@@ -247,8 +249,8 @@ class Parser(object):
 
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
-        beam=[State(sent,syn=False)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
-        gs_state=State(sent,syn=False)
+        beam=[State(sent)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+        gs_state=State(sent)
         while not self.beam_ready(beam):
             if not gs_state.tree.ready: # update gs if it's not ready
                 gs_trans=gs_transitions[len(gs_state.transitions)]
@@ -377,7 +379,7 @@ class Parser(object):
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
         for sent,comments in read_conll(inp):
-            beam=[State(sent,syn=False)]
+            beam=[State(sent)]
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,beam[0])

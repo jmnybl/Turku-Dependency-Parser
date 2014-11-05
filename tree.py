@@ -3,10 +3,10 @@ from collections import defaultdict,namedtuple
 import codecs
 import copy
 
-CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL"])
+CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL","EXTRA"])
 
 #Column lists for the various formats
-formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10)}
+formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10,12),"conll-u":CoNLLFormat(0,1,2,3,5,6,7,8)}
 
 
 
@@ -41,7 +41,7 @@ def read_conll(inp):
         f.close() #Close it if you opened it
 
 
-def fill_conll(sent,state,conll_format=u"conll09"):
+def fill_conll(sent,state,conll_format=u"conll-u"):
     form=formats[conll_format]
     for i in xrange(0,len(sent)):
         token=state.tree.tokens[i]
@@ -65,10 +65,15 @@ def write_conll(f,sent,comments=[]):
 class Tree(object):
 
     @classmethod
-    def new_from_conll(cls,conll,syn,conll_format="conll09"):
+    def new_from_conll(cls,conll,conll_format="conll-u",extra_tree=True): # TODO extra_tree
         t=cls()
-        t.from_conll(conll,syn,conll_format)
-        return t
+        form=formats[conll_format]
+        if conll[0][form.EXTRA]!=u"_" and extra_tree: # if not empty TODO
+            extra=Tree() # create empty tree
+        else:
+            extra=None
+        t.from_conll(conll,conll_format,extra)
+        return t,extra
 
     @classmethod
     def new_from_tree(cls,t):
@@ -104,7 +109,7 @@ class Tree(object):
         self.semeval_root_idx=None
 
     #Called from new_from_conll() classmethod
-    def from_conll(self,lines,syn,conll_format="conll09"):    
+    def from_conll(self,lines,conll_format="conll-u",extra=None):
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
             which will be looked up in the formats module-level dictionary"""
         form=formats[conll_format] #named tuple with the column indices
@@ -112,29 +117,45 @@ class Tree(object):
             line=lines[i]
             token=Token(i,line[form.FORM],pos=line[form.POS],feat=line[form.FEAT],lemma=line[form.LEMMA])
             self.tokens.append(token)
+            if extra is not None:
+                extra.tokens.append(token)
             if line[form.DEPREL]==u"ROOT":
                 self.semeval_root_idx=i
                 self.tokens[-1].is_semeval_root=True
             else:
                 self.tokens[-1].is_semeval_root=False
-
-        
-        if syn: # create dependencies
+        self.ready=False
+        if extra is not None: # create extra tree
             for line in lines:
-                self.dtypes[self.tokens[int(line[form.ID])-1]]=line[form.DEPREL] # fill dtype for token
-                gov=int(line[form.HEAD])
+                head,deprel=line[form.EXTRA].split(u":")
+                extra.dtypes[extra.tokens[int(line[form.ID])-1]]=deprel # fill dtype for token
+                gov=int(head)
                 if gov==0:
-                    self.root=self.tokens[int(line[0])-1] # TODO: why I store this information?
+                    extra.root=extra.tokens[int(line[form.ID])-1] # TODO: why I store this information?
                     continue
-                gov=self.tokens[gov-1]
-                dep=self.tokens[int(line[0])-1]
-                dType=line[form.DEPREL]
-                dependency=Dep(gov,dep,dType)
-                self.add_dep(dependency)
-            self.ready=True
-            self.ready_nodes=set(self.tokens) # all nodes are ready
-        else: 
-            self.ready=False
+                gov=extra.tokens[gov-1]
+                dep=extra.tokens[int(line[form.ID])-1]
+                dependency=Dep(gov,dep,deprel)
+                extra.add_dep(dependency)
+            extra.ready=True
+            extra.ready_nodes=set(self.tokens) # all nodes are ready
+
+    def fill_syntax(self,sent,conll_format="conll-u"):
+        form=formats[conll_format] #named tuple with the column indices
+        for line in sent:
+            self.dtypes[self.tokens[int(line[form.ID])-1]]=line[form.DEPREL] # fill dtype for token
+            gov=int(line[form.HEAD])
+            if gov==0:
+                self.root=self.tokens[int(line[0])-1] # TODO: why I store this information?
+                continue
+            gov=self.tokens[gov-1]
+            dep=self.tokens[int(line[0])-1]
+            dType=line[form.DEPREL]
+            dependency=Dep(gov,dep,dType)
+            self.add_dep(dependency)
+        self.ready=True
+        self.ready_nodes=set(self.tokens) # all nodes are ready
+        
 
     def add_dep(self,dependency):
         self.deps.append(dependency)
@@ -213,6 +234,9 @@ class Tree(object):
         if (tok1.index<tok2.index) and (self.projective_order.index(tok1)>self.projective_order.index(tok2)): return True
         elif (tok1.index>tok2.index) and (self.projective_order.index(tok1)<self.projective_order.index(tok2)): return True
         else: return False
+
+    def __str__(self):
+        return (u",".join(str(d) for d in self.deps)).encode(u"utf-8")
 
 
 
