@@ -29,7 +29,7 @@ def get_sentence(data_in):
 
 def one_line(new_root,new_type,cols):
     global out
-    print >> out, u"\t".join((cols[0],cols[1],cols[2],cols[2],cols[3],cols[3],u"_",u"_",unicode(new_root),unicode(new_root),new_type,new_type))
+    print >> out, u"\t".join((cols[0],cols[1],cols[2],cols[3],u"_",u"_",unicode(new_root),new_type,cols[5]+u":"+cols[6],u"_"))
 
 def gen_one_root(comment,sentence,root_token_idx,predicates,empty):
     global out
@@ -72,6 +72,7 @@ def gen(comment,sentence,empty):
             predicates.append(None)
         else:
             assert False
+    
 
     for tok_idx in range(len(sentence)):
         gen_one_root(comment,sentence,tok_idx,predicates,empty)
