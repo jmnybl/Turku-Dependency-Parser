@@ -27,7 +27,7 @@ class Features(object):
         #Get the route
         #Recursive is the way to go!
         #Returns a list of Deps as the route
-        dep_tree_route = state.dep_tree.routes[S0][S1]#get_route_in_tree(S0, S1, self.dep_tree)
+        dep_tree_route = state.extra_tree.routes[S0][S1]#get_route_in_tree(S0, S1, self.dep_tree)
         linear_route = range(min(S0.index, S1.index), max(S0.index, S1.index) + 1)
 
         #Tree Route size
@@ -91,8 +91,8 @@ class Features(object):
 
         #Context of the two tokens
         #Given as a list of deps
-        s0_tree_context = state.dep_tree.context[S0]#get_token_tree_context(S0, self.dep_tree, max_len=3)
-        s1_tree_context = state.dep_tree.context[S1]#get_token_tree_context(S1, self.dep_tree, max_len=3)
+        s0_tree_context = state.extra_tree.context[S0]#get_token_tree_context(S0, self.dep_tree, max_len=3)
+        s1_tree_context = state.extra_tree.context[S1]#get_token_tree_context(S1, self.dep_tree, max_len=3)
 
         s0_context_features = set()
         for route in s0_tree_context:
@@ -320,6 +320,9 @@ class Features(object):
     def create_general_features(self,state):
         feat=create_auto_features(state)
         self.manual_features(state,feat)
+        #Pairwise features
+        feat.update(self.route_features(state))
+
         # now graph-based features...
         if state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT:
             factors=self.new_factors(state)
@@ -381,61 +384,7 @@ class Features(object):
         """ Main function to create all features. GS state uses this one. """
         feat,factors=self.create_general_features(state)
         feat.update(self.create_deptype_features(state,factors))
-        #Pairwise features
-        feat.update(self.pairwise_features(state))
 
         return feat
 
-def get_token_tree_context(token, tree, max_len=3, route=[]):
 
-    #If max_len less than 1 return what was given
-    if max_len < 1:
-        return [route]
-
-    #Get every dep in which current token is mentioned
-    where_to_go = []
-    for dep in tree.deps:
-        if start in dep.gov and dep not in route:
-            where_to_go.append((dep.dep, dep))
-        if start in dep.dep and dep not in route:
-            where_to_go.append((dep.gov, dep))        
-
-    #If max_len less than 2 return our findings
-    routes = []
-    if max_len == 1:
-        for start_token, dep in where_to_go:
-            routes.append(route + [dep])
-        return routes
-
-    #Otherwise, we'll get more routes
-    for start_token, dep in where_to_go:
-        routes.extend(get_token_tree_context(start_token, tree, max_len=max_len - 1, route + [dep]))
-
-    return routes
-
-def get_route_in_tree(start, target, tree, route=[]):
-
-    #Get every dep in which current token is mentioned
-    where_to_go = []
-    for dep in tree.deps:
-        if start in dep.gov and dep not in route:
-            if dep.dep = target:
-                #Found it!
-                route.append(dep)
-                return route
-            where_to_go.append((dep.dep, dep))
-        if start in dep.dep and dep not in route:
-            if dep.gov = target:
-                #Found it!
-                route.append(dep)
-                return route
-            where_to_go.append((dep.gov, dep))
-
-    if len(where_to_go) == 0:
-        return []
-
-    for start_token, dep in where_to_go:
-        result = get_route_in_tree(start_token, target, tree, route=route + [dep])
-        if result != []:
-            return result
-    return []

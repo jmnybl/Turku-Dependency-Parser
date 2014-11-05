@@ -18,7 +18,7 @@ class Model(object):
         return model
 
     @classmethod
-    def collect(cls,model_name,corpus,cutoff=2,conll_format="conll09"):
+    def collect(cls,model_name,corpus,cutoff=2,conll_format="conll-u"):
         form=formats[conll_format]
         pairs=defaultdict(lambda:0)
         for sent,comment in read_conll(corpus):

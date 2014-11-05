@@ -107,6 +107,8 @@ class Tree(object):
         self.projective_order=None 
         self.ready=False
         self.semeval_root_idx=None
+        self.context={}
+        self.route={}
 
     def BFS_queue(self,token):
         result_dict={token:0} #itself at distance 0
@@ -265,10 +267,10 @@ class Tree(object):
 
         #Get every dep in which current token is mentioned
         where_to_go = []
-        for dep in tree.deps:
-            if start in dep.gov and dep not in route:
+        for dep in self.deps:
+            if token == dep.gov and dep not in route:
                 where_to_go.append((dep.dep, dep))
-            if start in dep.dep and dep not in route:
+            if token == dep.dep and dep not in route:
                 where_to_go.append((dep.gov, dep))        
 
         #If max_len less than 2 return our findings
@@ -280,7 +282,7 @@ class Tree(object):
 
         #Otherwise, we'll get more routes
         for start_token, dep in where_to_go:
-            routes.extend(self.get_token_tree_context(start_token, tree, max_len=max_len - 1, route + [dep]))
+            routes.extend(self.get_token_tree_context(start_token, max_len=max_len - 1, route=route + [dep]))
 
         return routes
 
@@ -288,15 +290,15 @@ class Tree(object):
 
         #Get every dep in which current token is mentioned
         where_to_go = []
-        for dep in tree.deps:
-            if start in dep.gov and dep not in route:
-                if dep.dep = target:
+        for dep in self.deps:
+            if start == dep.gov and dep not in route:
+                if dep.dep == target:
                     #Found it!
                     route.append(dep)
                     return route
                 where_to_go.append((dep.dep, dep))
-            if start in dep.dep and dep not in route:
-                if dep.gov = target:
+            if start == dep.dep and dep not in route:
+                if dep.gov == target:
                     #Found it!
                     route.append(dep)
                     return route
@@ -306,7 +308,7 @@ class Tree(object):
             return []
 
         for start_token, dep in where_to_go:
-            result = self.get_route_in_tree(start_token, target, tree, route=route + [dep])
+            result = self.get_route_in_tree(start_token, target, route=route + [dep])
             if result != []:
                 return result
         return []
@@ -319,13 +321,13 @@ class Tree(object):
                 self.routes[t] = {}
             for tt in self.tokens:
                 if t != tt:
-                    self.route[t][tt] = self.get_route_in_tree(t, tt)
+                    self.routes[t][tt] = self.get_route_in_tree(t, tt)
 
     def create_context_routes(self):
         #This is quite likely not very optimal
         self.context = {}
         for t in self.tokens:
-            self.context[t] = get_token_tree_context(t, max_len=3)
+            self.context[t] = self.get_token_tree_context(t, max_len=3)
 
 
 class Token(object):

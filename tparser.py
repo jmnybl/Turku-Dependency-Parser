@@ -47,8 +47,10 @@ class State(object):
             self.tree,self.extra_tree=Tree.new_from_conll(sent)
             #self.queue=self.tree.tokens[:]
         else:
-            self.tree=None
+            self.tree,self.extra_tree=None,None
             #self.queue=[]
+        self.extra_tree.create_token_routes()
+        self.extra_tree.create_context_routes()
         self.stack=[]
         self.queue=[Token(-1,u"ROOT",lemma=u"ROOT",pos=u"ROOT",feat=u"ROOT")]
         self.queue+=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
@@ -252,6 +254,8 @@ class Parser(object):
         """ Sent is a list of conll lines."""
         beam=[State(sent)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
         gs_state=State(sent)
+        print "context:",gs_state.extra_tree.context
+        print "routes:",gs_state.extra_tree.routes
         while not self.beam_ready(beam):
             if not gs_state.tree.ready: # update gs if it's not ready
                 gs_trans=gs_transitions[len(gs_state.transitions)]
