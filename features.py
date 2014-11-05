@@ -12,130 +12,7 @@ class Features(object):
     def __init__(self):
         pass
 
-    def route_features(self, state):
 
-        route_size_limit = 7
-        #So, the pair being pondered about is:
-        #Stack first and stack second
-        S0,S1,S2=get_from_stack(state.stack)
-        #s0 = S0.index
-        #s1 = S1.index
-        #For this task naturally a dependency tree is required
-        #I'll just pretend it is state.dep_tree
-        route_feats = {}
-
-        #Get the route
-        #Recursive is the way to go!
-        #Returns a list of Deps as the route
-        dep_tree_route = state.dep_tree.routes[S0][S1]#get_route_in_tree(S0, S1, self.dep_tree)
-        linear_route = range(min(S0.index, S1.index), max(S0.index, S1.index) + 1)
-
-        #Tree Route size
-        route_feats['tree_route_size_' + len(dep_tree_route)] = 1.0
-        #Linear Route size
-        route_feats['linear_route_size_' + len(linear_route)] = 1.0
-
-        #Full dep route
-        if len(dep_tree_route) < route_size_limit:
-            prev_token = S0
-            route_pieces = []
-            for dep in dep_tree_route:
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
-                    prev_token = dep.dep
-                else:
-                    route_pieces.append('<_' + str(dep.dType))
-                    prev_token = dep.gov
-            route_feats['dep_tree_route_' + '_'.join(route_pieces)] = 1.0
-
-        #The route with pos tags        
-        if len(dep_tree_route) < route_size_limit:
-            prev_token = S0
-            route_pieces = [tree.tokens[S0].pos, ]
-            for dep in dep_tree_route:
-                if prev_token in dep.gov:
-                    pos = tree.tokens[dep.dep].pos
-                    route_pieces.append('>_' + str(pos))
-                    prev_token = dep.dep
-                else:
-                    pos = tree.tokens[dep.gov].pos
-                    route_pieces.append('<_' + str(pos))
-                    prev_token = dep.gov
-            route_feats['dep_tree_route_pos_' + '_'.join(route_pieces)] = 1.0
-
-        #Partial routes
-        if len(dep_tree_route) > 5:
-            prev_token = S0
-            route_pieces = []
-            for dep in dep_tree_route[:2]:
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
-                    prev_token = dep.dep
-                else:
-                    route_pieces.append('<_' + str(dep.dType))
-                    prev_token = dep.gov
-
-            prev_token = S1
-            for dep in reversed(dep_tree_route[-2:]):
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
-                    prev_token = dep.dep
-                else:
-                    route_pieces.append('<_' + str(dep.dType))
-                    prev_token = dep.gov
-
-            #without route length
-            route_feats['dep_tree_route_partial_2_' + '_'.join(route_pieces)] = 1.0
-            #with route length
-            route_feats['dep_tree_route_partial_2_' + '_'.join(route_pieces) + '_' + str(len(dep_tree_route))] = 1.0
-
-        #Context of the two tokens
-        #Given as a list of deps
-        s0_tree_context = state.dep_tree.context[S0]#get_token_tree_context(S0, self.dep_tree, max_len=3)
-        s1_tree_context = state.dep_tree.context[S1]#get_token_tree_context(S1, self.dep_tree, max_len=3)
-
-        s0_context_features = set()
-        for route in s0_tree_context:
-            route_pieces = []
-            prev_token = S0
-            for dep in route:
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
-                    prev_token = dep.dep
-                else:
-                    route_pieces.append('<_' + str(dep.dType))
-                    prev_token = dep.gov
-            s0_context_features.add('s0_context_' + '_'.join(route_pieces))
-
-        for context_feature in s0_context_features:
-            features[context_feature] = 1.0
-
-        s1_context_features = set()
-        for route in s1_tree_context:
-            route_pieces = []
-            prev_token = S1
-            for dep in route:
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
-                    prev_token = dep.dep
-                else:
-                    route_pieces.append('<_' + str(dep.dType))
-                    prev_token = dep.gov
-            s1_context_features.add('s1_context_' + '_'.join(route_pieces))
-
-        for context_feature in s1_context_features:
-            features[context_feature] = 1.0
-
-        #Full linear route POS
-        #Hmmm...  this might already be there somewhere
-        if len(linear_route) < route_size_limit:
-            pos_list = []
-            for t_id in linear_route:
-                pos_list.append(tree.tokens[t_id].pos)
-            if S0.index < S1.index:
-                features['pos_linear_route>' + '_'.join(pos_list)] = 1.0
-
-        return route_feats
 
 
     def manual_features(self,state,features):
@@ -145,6 +22,7 @@ class Features(object):
         
         ### manually added features ###
         if (S0 is not None) and (S1 is not None): # all of these needs S0 and S1, so check these first
+            features[u'SEVAL'+unicode(S0.is_semeval_root)+unicode(S1.is_semeval_root)]=1.0
             for i in xrange(1,4):
                 for char in ['+','-']:
                     idx=char+str(i)
@@ -372,7 +250,6 @@ class Features(object):
     def create_deptype_features(self,state,factors):
         feat=create_auto_dep_features(state)
         self.manual_dep_features(state,feat,factors)
-
         return feat
 
 
@@ -380,61 +257,7 @@ class Features(object):
         """ Main function to create all features. GS state uses this one. """
         feat,factors=self.create_general_features(state)
         feat.update(self.create_deptype_features(state,factors))
-        #Pairwise features
-        feat.update(self.pairwise_features(state))
-
         return feat
 
-def get_token_tree_context(token, tree, max_len=3, route=[]):
 
-    #If max_len less than 1 return what was given
-    if max_len < 1:
-        return [route]
-
-    #Get every dep in which current token is mentioned
-    where_to_go = []
-    for dep in tree.deps:
-        if start in dep.gov and dep not in route:
-            where_to_go.append((dep.dep, dep))
-        if start in dep.dep and dep not in route:
-            where_to_go.append((dep.gov, dep))        
-
-    #If max_len less than 2 return our findings
-    routes = []
-    if max_len == 1:
-        for start_token, dep in where_to_go:
-            routes.append(route + [dep])
-        return routes
-
-    #Otherwise, we'll get more routes
-    for start_token, dep in where_to_go:
-        routes.extend(get_token_tree_context(start_token, tree, max_len=max_len - 1, route + [dep]))
-
-    return routes
-
-def get_route_in_tree(start, target, tree, route=[]):
-
-    #Get every dep in which current token is mentioned
-    where_to_go = []
-    for dep in tree.deps:
-        if start in dep.gov and dep not in route:
-            if dep.dep = target:
-                #Found it!
-                route.append(dep)
-                return route
-            where_to_go.append((dep.dep, dep))
-        if start in dep.dep and dep not in route:
-            if dep.gov = target:
-                #Found it!
-                route.append(dep)
-                return route
-            where_to_go.append((dep.gov, dep))
-
-    if len(where_to_go) == 0:
-        return []
-
-    for start_token, dep in where_to_go:
-        result = get_route_in_tree(start_token, target, tree, route=route + [dep])
-        if result != []:
-            return result
-    return []
+    
