@@ -2,6 +2,7 @@
 from collections import defaultdict,namedtuple
 import codecs
 import copy
+import itertools
 
 CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL","EXTRA"])
 
@@ -54,7 +55,6 @@ def fill_conll(sent,state,conll_format=u"conll-u"):
             sent[i][form.DEPREL]=u"ROOT"
         else:
             sent[i][form.DEPREL]=state.tree.dtypes[token]
-
 def write_conll(f,sent,comments=[]):
     for comm in comments:
         f.write(comm+u"\n")
@@ -107,6 +107,24 @@ class Tree(object):
         self.projective_order=None 
         self.ready=False
         self.semeval_root_idx=None
+
+    def BFS_queue(self,token):
+        result_dict={token:0} #itself at distance 0
+        self.BFS_order(token,0,result_dict) 
+        #result_dict should now have a distance for every reachable token
+        #dependency distance from token, linear distance from token, position in sentence, and the second token itself
+        queue=[(dis,abs(t.index-token.index),t.index,t) for t,dis in result_dict.iteritems()]
+        queue.sort()
+        return [item[-1] for item in queue] #pick just the token, nothing else
+
+    def BFS_order(self,token,distance,result_dict):
+        """
+        result_dict {token:distance}
+        """
+        for t in itertools.chain(self.childs[token],[self.govs.get(token,None)]):
+            if t is not None and t not in result_dict: #not visited yet (can happen on the way up in the tree) and not None (could come from .govs)
+                result_dict[t]=distance+1 #children and roots are at a distance one longer than the token itself
+                self.BFS_order(t,distance+1,result_dict)
 
     #Called from new_from_conll() classmethod
     def from_conll(self,lines,conll_format="conll-u",extra=None):
