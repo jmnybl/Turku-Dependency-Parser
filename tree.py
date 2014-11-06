@@ -108,7 +108,7 @@ class Tree(object):
         self.ready=False
         self.semeval_root_idx=None
         self.context={}
-        self.route={}
+        self.routes={}
 
     def BFS_queue(self,token):
         result_dict={token:0} #itself at distance 0
@@ -286,48 +286,103 @@ class Tree(object):
 
         return routes
 
-    def get_route_in_tree(self, start, target, route=[]):
 
-        #Get every dep in which current token is mentioned
-        where_to_go = []
-        for dep in self.deps:
-            if start == dep.gov and dep not in route:
-                if dep.dep == target:
-                    #Found it!
-                    route.append(dep)
-                    return route
-                where_to_go.append((dep.dep, dep))
-            if start == dep.dep and dep not in route:
-                if dep.gov == target:
-                    #Found it!
-                    route.append(dep)
-                    return route
-                where_to_go.append((dep.gov, dep))
+    def create_routes(self):
 
-        if len(where_to_go) == 0:
-            return []
+        routes_under_construction = {}
+        ready_routes = []
+        processed_nodes = []
+        candidates_for_next_round = set()
 
-        for start_token, dep in where_to_go:
-            result = self.get_route_in_tree(start_token, target, route=route + [dep])
-            if result != []:
-                return result
-        return []
+        #Ah, start with the leaves
+        leaves = list(set(self.tokens) - set(self.childs.keys()))
+        for leaf in leaves:
+            new_ready_routes = self.process_node(leaf, routes_under_construction)
+            ready_routes.extend(new_ready_routes)
+            processed_nodes.append(leaf)
 
-    def create_token_routes(self):
-        #This is for emergency use only!
-        self.routes = {}
-        for t in self.tokens:
-            if t not in self.routes.keys():
-                self.routes[t] = {}
-            for tt in self.tokens:
-                if t != tt:
-                    self.routes[t][tt] = self.get_route_in_tree(t, tt)
+            #I'd better replace this with something better later
+            if leaf in self.govs.keys():
+                candidates_for_next_round.add(self.govs[leaf])
+
+        #Now, we have the leaves handled, started some routes, we need to find those nodes whose children are all
+        #processed
+        while(len(processed_nodes) < len(self.tokens)):
+            new_candidates = set()
+            for candidate in list(candidates_for_next_round):
+                if len(set(self.childs[candidate]) - set(processed_nodes)) < 1 and candidate not in processed_nodes:
+                    #This node is ready to be processed
+                    new_ready_routes = self.process_node(candidate, routes_under_construction)
+                    ready_routes.extend(new_ready_routes)
+                    processed_nodes.append(candidate)
+
+                    #I'd better replace this with something better later
+                    if candidate in self.govs.keys():
+                        if self.govs[candidate] not in processed_nodes:
+                            new_candidates.add(self.govs[candidate])
+
+            candidates_for_next_round = new_candidates
+
+        #And finally, make a nice dictionary
+        route_dict = {}
+        for ready in ready_routes:
+            route_dict[(ready[0], ready[-1])] = ready[1:-1]
+            route_dict[(ready[-1], ready[0])] = ready[1:-1][::-1]
+        self.routes = route_dict
+        if len(set([item for item in itertools.combinations(self.tokens, 2)]))*2 != len(self.routes.keys()):
+            import pdb; pdb.set_trace()
+
+    def process_node(self, node, all_routes_under_construction):
+        
+        new_ready_routes = []
+        new_routes_under_construction = []
+
+        routes_under_construction = []
+        for child_node in self.childs[node]:
+            routes_under_construction.extend(all_routes_under_construction[child_node])
+
+        #The Law
+        #1. Since you are here your subtrees are known
+        #2. Start a new route, beginning from the most important node; me
+        #3. Build ready routes ending in me
+        #4. Build ready routes for my loyal subtrees
+        #5. continue the efforts of earlier route builders with me
+
+        #2. New routes; the only unknown territory is above me
+        #Or is it? Am I governed? Am I free?
+        #if node in self.govs.keys():
+        #Route should start from the basics
+
+        #new_routes_under_construction.append([node])
+        if node in self.govs.keys():
+            new_routes_under_construction.append([node, Dep(self.govs[node], node, self.dtypes[node])])
+            new_ready_routes.append([node, Dep(self.govs[node], node, self.dtypes[node]), self.govs[node]])
+            #3. What ends with me must be complete!
+            #also 5.
+            for r_route in routes_under_construction:
+                new_ready_routes.append(r_route + [Dep(self.govs[node], node, self.dtypes[node]), self.govs[node]])
+                new_routes_under_construction.append(r_route + [Dep(self.govs[node], node, self.dtypes[node])])
+
+        #4. Subtrees
+        #for r_comb in itertools.combinations(routes_under_construction, 2):
+        #    new_ready_routes.append(r_comb[0] + [node] + r_comb[1][::-1])
+
+        for child_combo in itertools.combinations(self.childs[node], 2):
+            for route_1 in all_routes_under_construction[child_combo[0]]:
+                for route_2 in all_routes_under_construction[child_combo[1]]:
+                    new_ready_routes.append(route_1 + route_2[::-1])
+
+
+        all_routes_under_construction[node] = new_routes_under_construction
+
+        return new_ready_routes
+
 
     def create_context_routes(self):
         #This is quite likely not very optimal
         self.context = {}
         for t in self.tokens:
-            self.context[t] = self.get_token_tree_context(t, max_len=3)
+            self.context[t] = []# self.get_token_tree_context(t, max_len=3)
 
 
 class Token(object):

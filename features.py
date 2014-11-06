@@ -18,76 +18,92 @@ class Features(object):
         #So, the pair being pondered about is:
         #Stack first and stack second
         S0,S1,S2=get_from_stack(state.stack)
+
+
         #s0 = S0.index
         #s1 = S1.index
         #For this task naturally a dependency tree is required
         #I'll just pretend it is state.dep_tree
         route_feats = {}
 
+        if S1 is None or S0 is None or S2 is None:
+            return route_feats
+
+
         #Get the route
         #Recursive is the way to go!
         #Returns a list of Deps as the route
-        dep_tree_route = state.extra_tree.routes[S0][S1]#get_route_in_tree(S0, S1, self.dep_tree)
+        try:
+            dep_tree_route = state.extra_tree.routes[(S0, S1)]#get_route_in_tree(S0, S1, self.dep_tree)
+        except:
+            print S0, S1
+            import pdb; pdb.set_trace()
         linear_route = range(min(S0.index, S1.index), max(S0.index, S1.index) + 1)
 
         #Tree Route size
-        route_feats['tree_route_size_' + len(dep_tree_route)] = 1.0
+        route_feats[u'tree_route_size_' + str(len(dep_tree_route))] = 1.0
         #Linear Route size
-        route_feats['linear_route_size_' + len(linear_route)] = 1.0
+        route_feats[u'linear_route_size_' + str(len(linear_route))] = 1.0
 
         #Full dep route
         if len(dep_tree_route) < route_size_limit:
             prev_token = S0
             route_pieces = []
             for dep in dep_tree_route:
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
+                if prev_token == dep.gov:
+                    route_pieces.append(u'>_' + str(dep.dType))
                     prev_token = dep.dep
                 else:
-                    route_pieces.append('<_' + str(dep.dType))
+                    route_pieces.append(u'<_' + str(dep.dType))
                     prev_token = dep.gov
-            route_feats['dep_tree_route_' + '_'.join(route_pieces)] = 1.0
+            route_feats[u'dep_tree_route_' + u'_'.join(route_pieces)] = 1.0
 
         #The route with pos tags        
         if len(dep_tree_route) < route_size_limit:
             prev_token = S0
-            route_pieces = [tree.tokens[S0].pos, ]
+            route_pieces = [S0.pos, ]
             for dep in dep_tree_route:
-                if prev_token in dep.gov:
-                    pos = tree.tokens[dep.dep].pos
-                    route_pieces.append('>_' + str(pos))
+                if prev_token == dep.gov:
+                    pos = dep.dep.pos
+                    route_pieces.append(u'>_' + str(pos))
                     prev_token = dep.dep
                 else:
-                    pos = tree.tokens[dep.gov].pos
-                    route_pieces.append('<_' + str(pos))
+                    pos = dep.gov.pos
+                    route_pieces.append(u'<_' + str(pos))
                     prev_token = dep.gov
-            route_feats['dep_tree_route_pos_' + '_'.join(route_pieces)] = 1.0
+            route_feats[u'dep_tree_route_pos_' + u'_'.join(route_pieces)] = 1.0
 
         #Partial routes
         if len(dep_tree_route) > 5:
             prev_token = S0
             route_pieces = []
             for dep in dep_tree_route[:2]:
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
+                if prev_token == dep.gov:
+                    route_pieces.append(u'>_' + str(dep.dType))
                     prev_token = dep.dep
                 else:
-                    route_pieces.append('<_' + str(dep.dType))
+                    route_pieces.append(u'<_' + str(dep.dType))
                     prev_token = dep.gov
 
             prev_token = S1
             for dep in reversed(dep_tree_route[-2:]):
-                if prev_token in dep.gov:
-                    route_pieces.append('>_' + str(dep.dType))
+                if prev_token == dep.gov:
+                    route_pieces.append(u'>_' + str(dep.dType))
                     prev_token = dep.dep
                 else:
-                    route_pieces.append('<_' + str(dep.dType))
+                    route_pieces.append(u'<_' + str(dep.dType))
                     prev_token = dep.gov
 
             #without route length
-            route_feats['dep_tree_route_partial_2_' + '_'.join(route_pieces)] = 1.0
+            route_feats[u'dep_tree_route_partial_2_' + u'_'.join(route_pieces)] = 1.0
             #with route length
-            route_feats['dep_tree_route_partial_2_' + '_'.join(route_pieces) + '_' + str(len(dep_tree_route))] = 1.0
+            route_feats[u'dep_tree_route_partial_2_' + u'_'.join(route_pieces) + u'_' + str(len(dep_tree_route))] = 1.0
+
+        return route_feats
+
+    def context_features(self):
+
+        route_feats = {}
 
         #Context of the two tokens
         #Given as a list of deps
