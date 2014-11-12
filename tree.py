@@ -46,15 +46,14 @@ def fill_conll(sent,state,conll_format=u"conll-u"):
     form=formats[conll_format]
     for i in xrange(0,len(sent)):
         token=state.tree.tokens[i]
-#        if token not in state.tree.govs: # ROOT
-#            sent[i][form.HEAD]=u"0"
-#            sent[i][form.DEPREL]=u"ROOT"
-#        else:
-        sent[i][form.HEAD]=unicode(state.tree.govs[token].index+1)
-        if state.tree.govs[token].index+1==0: # hard-code deprel to be ROOT
-            sent[i][form.DEPREL]=u"ROOT"
-        else:
+        if token in state.tree.govs:
+            sent[i][form.HEAD]=unicode(state.tree.govs[token].index+1)
             sent[i][form.DEPREL]=state.tree.dtypes[token]
+        else:
+            sent[i][form.HEAD]=u"0" # must be ROOT then
+            sent[i][form.DEPREL]=u"ROOT"
+        
+            
 def write_conll(f,sent,comments=[]):
     for comm in comments:
         f.write(comm+u"\n")

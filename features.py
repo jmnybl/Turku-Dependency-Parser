@@ -26,24 +26,20 @@ class Features(object):
         #I'll just pretend it is state.dep_tree
         route_feats = {}
 
-        if S1 is None or S0 is None or S2 is None:
+        if S1 is None or S0 is None:
             return route_feats
 
 
         #Get the route
         #Recursive is the way to go!
         #Returns a list of Deps as the route
-        try:
-            dep_tree_route = state.extra_tree.routes[(S0, S1)]#get_route_in_tree(S0, S1, self.dep_tree)
-        except:
-            print S0, S1
-            import pdb; pdb.set_trace()
+        dep_tree_route = state.extra_tree.routes[(S0, S1)]
         linear_route = range(min(S0.index, S1.index), max(S0.index, S1.index) + 1)
 
         #Tree Route size
-        route_feats[u'tree_route_size_' + str(len(dep_tree_route))] = 1.0
+        route_feats[u'tree_route_size=' + str(len(dep_tree_route))] = 1.0
         #Linear Route size
-        route_feats[u'linear_route_size_' + str(len(linear_route))] = 1.0
+        route_feats[u'linear_route_size=' + str(len(linear_route))] = 1.0
 
         #Full dep route
         if len(dep_tree_route) < route_size_limit:
@@ -51,12 +47,12 @@ class Features(object):
             route_pieces = []
             for dep in dep_tree_route:
                 if prev_token == dep.gov:
-                    route_pieces.append(u'>_' + str(dep.dType))
+                    route_pieces.append(u'>' + str(dep.dType))
                     prev_token = dep.dep
                 else:
-                    route_pieces.append(u'<_' + str(dep.dType))
+                    route_pieces.append(u'<' + str(dep.dType))
                     prev_token = dep.gov
-            route_feats[u'dep_tree_route_' + u'_'.join(route_pieces)] = 1.0
+            route_feats[u'dep_tree_route=' + u'_'.join(route_pieces)] = 1.0
 
         #The route with pos tags        
         if len(dep_tree_route) < route_size_limit:
@@ -65,39 +61,39 @@ class Features(object):
             for dep in dep_tree_route:
                 if prev_token == dep.gov:
                     pos = dep.dep.pos
-                    route_pieces.append(u'>_' + str(pos))
+                    route_pieces.append(u'>' + str(pos))
                     prev_token = dep.dep
                 else:
                     pos = dep.gov.pos
-                    route_pieces.append(u'<_' + str(pos))
+                    route_pieces.append(u'<' + str(pos))
                     prev_token = dep.gov
-            route_feats[u'dep_tree_route_pos_' + u'_'.join(route_pieces)] = 1.0
+            route_feats[u'dep_tree_route_pos=' + u'_'.join(route_pieces)] = 1.0
 
         #Partial routes
-        if len(dep_tree_route) > 5:
+        if len(dep_tree_route) > 5: # TODO can't we take this from full route we already built?
             prev_token = S0
             route_pieces = []
             for dep in dep_tree_route[:2]:
                 if prev_token == dep.gov:
-                    route_pieces.append(u'>_' + str(dep.dType))
+                    route_pieces.append(u'>' + str(dep.dType))
                     prev_token = dep.dep
                 else:
-                    route_pieces.append(u'<_' + str(dep.dType))
+                    route_pieces.append(u'<' + str(dep.dType))
                     prev_token = dep.gov
 
             prev_token = S1
             for dep in reversed(dep_tree_route[-2:]):
                 if prev_token == dep.gov:
-                    route_pieces.append(u'>_' + str(dep.dType))
+                    route_pieces.append(u'>' + str(dep.dType))
                     prev_token = dep.dep
                 else:
-                    route_pieces.append(u'<_' + str(dep.dType))
+                    route_pieces.append(u'<' + str(dep.dType))
                     prev_token = dep.gov
 
             #without route length
-            route_feats[u'dep_tree_route_partial_2_' + u'_'.join(route_pieces)] = 1.0
+            route_feats[u'dep_tree_route_partial_2=' + u'_'.join(route_pieces)] = 1.0
             #with route length
-            route_feats[u'dep_tree_route_partial_2_' + u'_'.join(route_pieces) + u'_' + str(len(dep_tree_route))] = 1.0
+            route_feats[u'dep_tree_route_partial_2=' + u'_'.join(route_pieces) + u'_' + str(len(dep_tree_route))] = 1.0
 
         return route_feats
 
@@ -291,9 +287,12 @@ class Features(object):
         g=state.tree.deps[-1].gov
         d=state.tree.deps[-1].dep
         factors=[]
-        # now collect cmi, cmo, ci, cho, ch1, ch2, cm1, cm2 and tmo
+        # now collect cmi, cmo, ci, cho, ch1, ch2, cm1, cm2 and tmo # TODO only for real dependencies
         deps=sorted(state.tree.childs[g]) # cho,ci
+        real_deps=[] # TODO check these features
         for dep in deps:
+            if state.tree.dtypes[dep]!=u"NOTARG": real_deps.append(dep)
+        for dep in real_deps:
             if dep==d: continue
             order=self.factor_location(g,d,dep)
             if order==5 or order==2:
@@ -302,33 +301,33 @@ class Features(object):
                 factors.append([dep,u"cho",order])
             else:
                 assert False # should never happen...
-        if len(deps)>2: ## ch1 and ch2
-            ch1=deps[0] if deps[0]!=d else deps[1]
-            ch2=deps[1] if (deps[1]!=ch1 and deps[1]!=d) else deps[2]
+        if len(real_deps)>2: ## ch1 and ch2
+            ch1=real_deps[0] if real_deps[0]!=d else real_deps[1]
+            ch2=real_deps[1] if (real_deps[1]!=ch1 and real_deps[1]!=d) else real_deps[2]
             order=self.factor_location(g,d,ch1,ch2)
             factors.append([ch1,u"ch1",ch2,u"ch2",order])
-        deps=sorted(state.tree.childs[d]) # cmi,cmo
-        for dep in deps:
-            order=self.factor_location(g,d,dep)
-            if order==2 or order==5:
-                factors.append([dep,u"cmi",order])
-            elif order==0 or order==7 or order==1 or order==6:
-                factors.append([dep,u"cmo",order])
-            else:
-                assert False # should never happen...
-        if len(deps)>1: # cm1, cm2
-            cm1=deps[0]
-            cm2=deps[1]
-            order=self.factor_location(g,d,cm1,cm2)
-            factors.append([cm1,u"cm1",cm2,u"cm2",order])
-        ## tmo
-        if len(deps)>0:
-            rightmost=deps[-1]
-            deps_of_rightmost=sorted(state.tree.childs[rightmost])
-            if len(deps_of_rightmost)>0:
-                tmo=deps_of_rightmost[-1]
-                order=self.factor_location(g,d,rightmost,tmo)
-                factors.append([rightmost,u"cmo",tmo,u"tmo",order])
+##        deps=sorted(state.tree.childs[d]) # cmi,cmo # TODO not possible in semeval system
+##        for dep in deps:
+##            order=self.factor_location(g,d,dep)
+##            if order==2 or order==5:
+##                factors.append([dep,u"cmi",order])
+##            elif order==0 or order==7 or order==1 or order==6:
+##                factors.append([dep,u"cmo",order])
+##            else:
+##                assert False # should never happen...
+##        if len(deps)>1: # cm1, cm2 # TODO not possible in semeval system
+##            cm1=deps[0]
+##            cm2=deps[1]
+##            order=self.factor_location(g,d,cm1,cm2)
+##            factors.append([cm1,u"cm1",cm2,u"cm2",order])
+##        ## tmo # TODO not possible in semeval system
+##        if len(deps)>0:
+##            rightmost=deps[-1]
+##            deps_of_rightmost=sorted(state.tree.childs[rightmost])
+##            if len(deps_of_rightmost)>0:
+##                tmo=deps_of_rightmost[-1]
+##                order=self.factor_location(g,d,rightmost,tmo)
+##                factors.append([rightmost,u"cmo",tmo,u"tmo",order])
         return factors
                 
 
@@ -339,8 +338,8 @@ class Features(object):
         #Pairwise features
         feat.update(self.route_features(state))
 
-        # now graph-based features...
-        if state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT:
+        # now graph-based features... # TODO only for real dependencies
+        if (state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT) and state.tree.deps[-1].dType!=u"NOTARG":
             factors=self.new_factors(state)
             g=state.tree.deps[-1].gov
             d=state.tree.deps[-1].dep

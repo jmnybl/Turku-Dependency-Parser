@@ -45,16 +45,13 @@ class State(object):
     def __init__(self,sent=None):
         if sent!=None:
             self.tree,self.extra_tree=Tree.new_from_conll(sent)
-            #self.queue=self.tree.tokens[:]
         else:
             self.tree,self.extra_tree=None,None
-            #self.queue=[]
         self.extra_tree.create_routes()
         #Not today
         #self.extra_tree.create_context_routes()
         self.stack=[]
-        self.queue=[Token(-1,u"ROOT",lemma=u"ROOT",pos=u"ROOT",feat=u"ROOT")]
-        self.queue+=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
+        self.queue=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
         self.score=0.0
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
@@ -79,7 +76,7 @@ class State(object):
         newS.wrong_transitions=s.wrong_transitions
         #newS.tree=copy.deepcopy(s.tree)
         newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
-        newS.extra_tree=s.extra_tree # TODO: this won't change, can be shared
+        newS.extra_tree=s.extra_tree
         return newS
         
     def create_feature_dict(self):
@@ -117,7 +114,7 @@ class State(object):
             raise ValueError("Incorrect transition")
         self.transitions.append(trans)
         if len(self.queue)==0 and len(self.stack)==1:
-            assert self.stack[-1].index==-1,("ROOT is not the last token in the stack.", self.stack)
+            assert self.stack[-1].is_semeval_root,("semeval is not the last token in the stack.", self.stack)
             self.tree.ready=True
 
 
@@ -140,15 +137,10 @@ class State(object):
         if len(self.queue)>0: # SHIFT
             moves.add(SHIFT)
         if len(self.stack)>1: # ARCS
-            if not self.stack[-2].is_semeval_root and self.stack[-2].index!=-1: # if s2 is not root
+            if self.stack[-1].is_semeval_root:
                 moves.add(LEFT)
-            if  not self.stack[-1].is_semeval_root and (self.stack[-2].index!=-1 or len(self.queue)==0): # Only allow RIGHT from ROOT when queue is empty
+            if  self.stack[-2].is_semeval_root:
                 moves.add(RIGHT)
-            if len(self.stack)==2 and len(self.queue)==0:
-                moves.add(RIGHT)
-        #if len(self.stack)>1 and self.stack[-1].index>self.stack[-2].index and self.stack[-2].index!=-1: # SWAP
-        #    if len(self.queue)==0 and len(self.stack)==2: return moves # no need for swap, we can use simple LEFT or RIGHT 
-        #    moves.add(SWAP)
         return moves
 
     def __str__(self):
@@ -197,7 +189,7 @@ class Parser(object):
                 self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
                 traceback.print_exc()
-                failed+=1 
+                failed+=1
         if not quiet:
             print u"Failed to parse:",failed
             print u"Total number of trees:",total
@@ -209,12 +201,12 @@ class Parser(object):
         state=State(sent)
         #print state.queue
         while not state.tree.ready:
-            if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
-                move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
-                assert (move==RIGHT or move==LEFT)
-                trans=Transition(move,u"ROOT")
-                state.update(trans)
-                continue
+##            if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
+##                move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
+##                assert (move==RIGHT or move==LEFT)
+##                trans=Transition(move,u"ROOT") # TODO semeval 
+##                state.update(trans)
+##                continue
             if len(state.stack)>1:
                 move,dType=self.extract_dep(state,gs_tree)
                 if move is not None:
@@ -311,7 +303,6 @@ class Parser(object):
                 #for dType in DEPTYPES: #FILTERING GOES HERE
                 for dType in allowed:
                     yield Transition(move,dType)
-                yield Transition(move,u"ROOT") #TODO: what should be done with root?
             else:
                 yield Transition(move,None)
                 

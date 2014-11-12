@@ -82,8 +82,8 @@ def build_graph(arguments,idx,sent):
     ''' Use the argument dictionary to build the final graph. '''
     for id,token in enumerate(sent):
         token=token[:6]
-        del token[3] # remove second lemma column
-        del token[4] # remove second pos column
+        #del token[3] # remove second lemma column
+        #del token[4] # remove second pos column
         for i in xrange(2): token.append(u"_")
         for i in xrange(len(arguments)): token.append(u"_")
         sent[id]=token
@@ -118,9 +118,9 @@ def trees2graph(comment,sent):
             arguments=defaultdict(lambda:[])
         idx=gidx
     for token in sent:
-        if token[10]!=u"NOTARG" and token[10]!=u"ROOT": # this is an argument
-            arguments[int(token[8])].append((int(token[0]),token[10]))
-        elif token[11]==u"ROOT":
+        if token[7]!=u"NOTARG" and token[7]!=u"ROOT": # this is an argument
+            arguments[int(token[6])].append((int(token[0]),token[7]))
+        elif token[7]==u"ROOT":
             tokens.append(token)
 
 if __name__ == "__main__":
