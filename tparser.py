@@ -259,8 +259,9 @@ class Parser(object):
                 gs_state.features=feats.create_features(gs_state)
             else:
                 gs_trans=None
+
             beam=self.give_next_state(beam,gs_trans) # update beam         
-                
+
             best_state=beam[0]
 #            if len(beam)>1:
 #                state2nd=beam[1]
@@ -291,6 +292,9 @@ class Parser(object):
         """Enumerates transition objects allowable for the state. TODO: Filtering here?"""
         for move in state.valid_transitions():
             if move==RIGHT or move==LEFT:
+                if len(state.queue)==0 and len(state.stack)==2: 
+                    yield Transition(move,u"ROOT")
+                    continue
                 if move==RIGHT:
                     gov_pos=state.stack[-2].pos
                     dep_pos=state.stack[-1].pos
@@ -298,10 +302,8 @@ class Parser(object):
                     gov_pos=state.stack[-1].pos
                     dep_pos=state.stack[-2].pos
                 allowed=self.model.deptypes.get((gov_pos,dep_pos),set())
-                #for dType in DEPTYPES: #FILTERING GOES HERE
                 for dType in allowed:
                     yield Transition(move,dType)
-                yield Transition(move,u"ROOT") #TODO: what should be done with root?
             else:
                 yield Transition(move,None)
                 
@@ -341,8 +343,6 @@ class Parser(object):
         selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
 
         new_beam=[]
-        lfeats,lscore,lfactors=None,None,None # Holds shared features, score and new factors for left transition
-        rfeats,rscore,rfactors=None,None,None
         for score,transition,state in selected_transitions:
             #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
             if transition is None: # this state is ready
@@ -353,20 +353,8 @@ class Parser(object):
             newS.score=score # Do not use '+'
             if (gs_trans is None) or (not transition==gs_trans):
                 newS.wrong_transitions+=1 # TODO: is this fair?
-            # we need to create general features first because it updates graph factors
-            if trans.move==LEFT:
-                if lfeats is None: # create these features
-                    lfeats,lfactors=feats.create_general_features(newS)
-                newS.features=lfeats
-                newS.features.update(feats.create_deptype_features(newS,lfactors))
-            elif trans.move==RIGHT:
-                if rfeats is None:
-                    rfeats,rfactors=feats.create_general_features(newS)
-                newS.features=rfeats
-                newS.features.update(feats.create_deptype_features(newS,rfactors))
-            else:
-                newS.features,factors=feats.create_general_features(newS)
-                newS.features.update(feats.create_deptype_features(newS,factors))
+            newS.features,factors=feats.create_general_features(newS)
+            newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
         return new_beam #List of selected states, ordered by their score in this move
 
