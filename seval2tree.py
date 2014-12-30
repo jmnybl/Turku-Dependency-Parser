@@ -120,7 +120,7 @@ def trees2graph(comment,sent):
     for token in sent:
         if token[7]!=u"NOTARG" and token[7]!=u"ROOT": # this is an argument
             arguments[int(token[6])].append((int(token[0]),token[7]))
-        elif token[7]==u"ROOT":
+        elif token[6]==u"0":
             tokens.append(token)
 
 if __name__ == "__main__":
