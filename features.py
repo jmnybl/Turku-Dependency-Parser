@@ -339,7 +339,7 @@ class Features(object):
         feat.update(self.route_features(state))
 
         # now graph-based features... # TODO only for real dependencies
-        if (state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT) and state.tree.deps[-1].dType!=u"NOTARG":
+        if state.transitions and (state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT) and state.tree.deps[-1].dType!=u"NOTARG":
             factors=self.new_factors(state)
             g=state.tree.deps[-1].gov
             d=state.tree.deps[-1].dep
