@@ -170,7 +170,7 @@ class Parser(object):
         total=0
         failed=0
         non=0
-        for sent,comments in read_conll(inp):
+        for sidx, (sent,comments) in enumerate(read_conll(inp)):
             total+=1
             gs_tree,e=Tree.new_from_conll(sent,extra_tree=False) # extra_tree is always False here, no need for it yet
             gs_tree.fill_syntax(sent)
@@ -184,6 +184,11 @@ class Parser(object):
             except ValueError:
                 traceback.print_exc()
                 failed+=1
+            except:
+                print >> sys.stderr, "ERROR! ERROR!"
+                print >> sys.stderr, repr(sent)
+                print >> sys.stderr, "End of repr"
+                traceback.print_exc()
         if not quiet:
             print u"Failed to parse:",failed
             print u"Total number of trees:",total
