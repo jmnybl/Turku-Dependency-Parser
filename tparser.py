@@ -134,7 +134,7 @@ class State(object):
 
     def valid_transitions(self):
         moves=set()
-        if len(self.queue)>0: # SHIFT
+        if len(self.stack)<2 and len(self.queue)>0: # SHIFT
             moves.add(SHIFT)
         if len(self.stack)>1: # ARCS
             if self.stack[-1].is_semeval_root:
@@ -301,6 +301,7 @@ class Parser(object):
                     dep_pos=state.stack[-2].pos
                 allowed=self.model.deptypes.get((gov_pos,dep_pos),set())
                 #for dType in DEPTYPES: #FILTERING GOES HERE
+                allowed.add(u"NOTARG")
                 for dType in allowed:
                     yield Transition(move,dType)
             else:
@@ -369,6 +370,10 @@ class Parser(object):
                 newS.features,factors=feats.create_general_features(newS)
                 newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
+#        if len(new_beam)==0:
+#            print >> sys.stderr, "old:",beam
+#            print >> sys.stderr, "scores",scores
+#            print >> sys.stderr, "selected:",selected_transitions
         return new_beam #List of selected states, ordered by their score in this move
 
 
