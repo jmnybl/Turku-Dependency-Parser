@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import datetime
 import sys
 import os.path
 from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
@@ -192,6 +193,7 @@ class Parser(object):
                 print >> sys.stderr, "End of repr"
                 traceback.print_exc()
         if not quiet:
+            print datetime.datetime.now().isoformat()
             print u"Failed to parse:",failed
             print u"Total number of trees:",total
             print u"Non-projectives:",non
