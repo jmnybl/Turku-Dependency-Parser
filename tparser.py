@@ -53,6 +53,7 @@ class State(object):
         self.stack=[]
         self.queue=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
         self.stack.extend(self.queue[:2]) #Put the first two tokens on the stack, should be semeval_root_idx and the first word
+        assert self.stack[-2].is_semeval_root==True
         self.queue[:2]=[]
         self.score=0.0
         self.transitions=[]
@@ -212,6 +213,7 @@ class Parser(object):
             assert dType is not None
             trans=Transition(RIGHT,dType)
             state.update(trans)
+        assert len(state.transitions)==len(state.tree.tokens)-1
         return state.transitions
             
     def extract_dep(self,state,gs_tree):
@@ -235,6 +237,7 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
         beam=[State(sent)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+        beam[0].features=feats.create_features(beam[0]) #Added this one here because otherwise the update would have no features to work with
         gs_state=State(sent)
         gs_state.features=feats.create_features(gs_state) #Added this one here because the first transition should have some features to work with
         #print "context:",gs_state.extra_tree.context
@@ -250,6 +253,7 @@ class Parser(object):
                 gs_state.update(gs_trans)
                 gs_state.features=feats.create_features(gs_state)
             else:
+                assert False
                 gs_trans=None
 
             beam=self.give_next_state(beam,gs_trans) # update beam         
@@ -272,7 +276,7 @@ class Parser(object):
 #                self.perceptron.update(state2nd.create_feature_dict(),best_state.create_feature_dict(),state2nd.score,best_state.score,progress)
         else: # gold still in beam and beam ready
             if beam[0].wrong_transitions==0: # no need for update
-                print "**", len(gs_state.transitions)
+                print "**", len(gs_state.transitions)#, gs_state.transitions
             else:
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,beam[0].wrong_transitions,progress) # update the perceptron
                 print "*", len(gs_state.transitions)
@@ -341,7 +345,7 @@ class Parser(object):
             newS.update(transition)
             newS.score=score # Do not use '+'
             if (gs_trans is None) or (not transition==gs_trans):
-                newS.wrong_transitions+=1 # TODO: is this fair?
+                newS.wrong_transitions+=1 # TODO: is this fair? (TODO2: what do you mean here, @jmnybl?)
             newS.features,factors=feats.create_general_features(newS)
             newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
