@@ -105,6 +105,7 @@ class State(object):
 
     def update(self,trans):
         if trans.move==RIGHT: # RIGHT ARC + SHIFT
+            assert self.stack[-2].is_semeval_root
             self.add_arc(self.stack[-2],self.stack.pop(-1),trans)
             if len(self.queue)>0:
                 self.stack.append(self.queue.pop(0))
@@ -351,6 +352,9 @@ class Parser(object):
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
         for sent,comments in read_conll(inp):
+            if len(sent)==1:
+                write_conll(outp,sent,comments)
+                continue
             beam=[State(sent)]
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
