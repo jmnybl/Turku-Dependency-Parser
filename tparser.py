@@ -362,6 +362,7 @@ class Parser(object):
                 write_conll(outp,sent,comments)
                 continue
             beam=[State(sent)]
+            beam[0].features=feats.create_features(beam[0])
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,beam[0])
