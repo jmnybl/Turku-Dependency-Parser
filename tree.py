@@ -67,10 +67,7 @@ class Tree(object):
     def new_from_conll(cls,conll,conll_format="conll-u",extra_tree=True): # TODO extra_tree
         t=cls()
         form=formats[conll_format]
-        if conll[0][form.EXTRA]!=u"_" and extra_tree: # if not empty TODO
-            extra=Tree() # create empty tree
-        else:
-            extra=None
+        extra=Tree() # create empty tree
         t.from_conll(conll,conll_format,extra)
         return t,extra
 
@@ -109,7 +106,14 @@ class Tree(object):
         self.context={}
         self.routes={}
 
+    def Linear_queue(self,token):
+        queue=[(0,abs(t.index-token.index),t.index,t) for t in self.tokens]
+        queue.sort()
+        return [item[-1] for item in queue]
+
     def BFS_queue(self,token):
+        if not self.deps:
+            return self.Linear_queue(token) #Fall-back on linear
         result_dict={token:0} #itself at distance 0
         self.BFS_order(token,0,result_dict) 
         #result_dict should now have a distance for every reachable token
@@ -144,8 +148,8 @@ class Tree(object):
             else:
                 self.tokens[-1].is_semeval_root=False
         self.ready=False
-        if extra is not None: # create extra tree
-            for line in lines:
+        for line in lines:
+            if line[form.EXTRA]!=u"_":
                 head,deprel=line[form.EXTRA].split(u":")
                 extra.dtypes[extra.tokens[int(line[form.ID])-1]]=deprel # fill dtype for token
                 gov=int(head)
@@ -156,8 +160,8 @@ class Tree(object):
                 dep=extra.tokens[int(line[form.ID])-1]
                 dependency=Dep(gov,dep,deprel)
                 extra.add_dep(dependency)
-            extra.ready=True
-            extra.ready_nodes=set(self.tokens) # all nodes are ready
+        extra.ready=True
+        extra.ready_nodes=set(self.tokens) # all nodes are ready
 
     def fill_syntax(self,sent,conll_format="conll-u"):
         form=formats[conll_format] #named tuple with the column indices
@@ -328,8 +332,8 @@ class Tree(object):
             route_dict[(ready[0], ready[-1])] = ready[1:-1]
             route_dict[(ready[-1], ready[0])] = ready[1:-1][::-1]
         self.routes = route_dict
-        if len(set([item for item in itertools.combinations(self.tokens, 2)]))*2 != len(self.routes.keys()):
-            import pdb; pdb.set_trace()
+        #if len(set([item for item in itertools.combinations(self.tokens, 2)]))*2 != len(self.routes.keys()):
+        #    import pdb; pdb.set_trace()
 
     def process_node(self, node, all_routes_under_construction):
         
