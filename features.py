@@ -33,7 +33,11 @@ class Features(object):
         #Get the route
         #Recursive is the way to go!
         #Returns a list of Deps as the route
-        dep_tree_route = state.extra_tree.routes[(S0, S1)]
+        try:
+            dep_tree_route = state.extra_tree.routes[(S0, S1)]
+        except:
+            dep_tree_route = []
+
         linear_route = range(min(S0.index, S1.index), max(S0.index, S1.index) + 1)
 
         #Tree Route size
