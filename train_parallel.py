@@ -10,6 +10,8 @@ import json
 import time
 import threading
 
+
+
 def one_process(g_perceptron,q,beam_size):
     """
     g_perceptron - instance of generalized perceptron (not state)
@@ -146,6 +148,7 @@ if __name__=="__main__":
     g=parser.add_argument_group("Training config")
     g.add_argument('-p', '--processes', type=int, default=4, help='How many training workers to run? (default %(default)d)')
     g.add_argument('--max_sent', type=int, default=0, help='How many sentences to read from the input? 0 for all.  (default %(default)d)')
+    g.add_argument('--cpu-affinity',default=False,action="store_true",help="If all processes only end up using a single core, specify this parameter to reset any CPU affinity restrictions. This is necessary e.g. on the CSC RHEL cluster.")
     g=parser.add_argument_group("Training algorithm choices")
     g.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? If you want more than one, you must give the input as a file. (default %(default)d)')
     g.add_argument('--dim', type=int, default=20000000, help='Dimensionality of the trained vector. (default %(default)d)')
@@ -156,4 +159,7 @@ if __name__=="__main__":
         print >> sys.stderr, "If you want more than one iteration, you will need to give the training data as a file, not on stdin"
         sys.exit(1)
     
+    if args.cpu_affinity:
+        os.system("taskset -p 0xff %d" % os.getpid())
+
     launch_instances(args)
