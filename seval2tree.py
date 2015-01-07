@@ -72,7 +72,7 @@ def gen_one_root(comment,sentence,root_token_idx,predicates,empty,comp,format):
         types=[u"_" for cols in sentence]
     for tok_idx, cols in enumerate(sentence):
         DEPS=comp.get(tok_idx,u"_")
-        if format==u"2015":
+        if format==u"2015" and not empty: # include senses or not?
             MISC=cols[SENSE]
         else:
             MISC=u"_"
