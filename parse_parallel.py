@@ -140,5 +140,11 @@ if __name__=="__main__":
     parser.add_argument('-p', '--processes', type=int, default=4, help='How many parsing workers to run? (default %(default)d)')
     parser.add_argument('--max_sent', type=int, default=0, help='How many sentences to parse from the input? 0 for all.  (default %(default)d)')
     parser.add_argument('--no_avg', default=False, action="store_true",  help='Do not use the averaged perceptron but the original weight vector (default %(default)s)')
+    g.add_argument('--cpu-affinity',default=False,action="store_true",help="If all processes only end up using a single core, specify this parameter to reset any CPU affinity restrictions. This is necessary e.g. on the CSC RHEL cluster.")
+
     args = parser.parse_args()
+
+    if args.cpu_affinity:
+        os.system("taskset -p 0xff %d" % os.getpid())
+
     launch_instances(args)
