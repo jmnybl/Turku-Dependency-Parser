@@ -155,14 +155,11 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,fName=None,gp=None,beam_size=40,test_time=False):
+    def __init__(self,model_file_name,fName=None,gp=None,beam_size=40,test_time=False):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
-        if os.path.exists(u"corpus_stats.pkl"):
-            self.model=Model.load(u"corpus_stats.pkl")
-        else:
-            self.model=Model.collect(u"corpus_stats.pkl",u"tdt.conll")
+        self.model=Model.load(model_file_name)
         if gp:
             self.perceptron=gp
             return
