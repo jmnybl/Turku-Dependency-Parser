@@ -73,7 +73,12 @@ def gen_one_root(comment,sentence,root_token_idx,predicates,empty,comp,format):
     for tok_idx, cols in enumerate(sentence):
         DEPS=comp.get(tok_idx,u"_")
         if format==u"2015" and not empty: # include senses or not?
-            MISC=cols[SENSE]
+            if cols[SENSE]!=u"_" or cols[TOP]==u"+":
+                sense=u"SENSE="+cols[SENSE] if cols[SENSE]!=u"_" else None
+                top=u"TOPNODE=Yes" if cols[TOP]==u"+" else None
+                MISC=u"|".join(i for i in [sense,top] if i is not None)
+            else:
+                MISC=u"_"
         else:
             MISC=u"_"
         if tok_idx==root_token_idx:
