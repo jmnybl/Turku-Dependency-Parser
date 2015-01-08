@@ -150,14 +150,11 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,fName=None,gp=None,beam_size=40,test_time=False):
+    def __init__(self,model_file_name,fName=None,gp=None,beam_size=40,test_time=False):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
-        if os.path.exists(u"corpus_stats_dm.pkl"):
-            self.model=Model.load(u"corpus_stats_dm.pkl")
-        else:
-            self.model=Model.collect(u"corpus_stats_dm.pkl",u"semeval_data/train_dm_trees.conll")
+        self.model=Model.load(model_file_name)
         if gp:
             self.perceptron=gp
             return
@@ -360,6 +357,9 @@ class Parser(object):
         for sent,comments in read_conll(inp):
             if len(sent)==1:
                 write_conll(outp,sent,comments)
+                continue
+            if len(sent)==0:
+                print >> sys.stderr, "EMPTY SENTENCE!"
                 continue
             beam=[State(sent)]
             beam[0].features=feats.create_features(beam[0])

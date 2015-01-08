@@ -9,16 +9,16 @@ import tparser
 import json
 import time
 import threading
+import model
+import shutil
 
-
-
-def one_process(g_perceptron,q,beam_size):
+def one_process(model_file_name,g_perceptron,q,beam_size):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
     beam_size - size of the beam to be passed to the parser instance
     """
-    parser=tparser.Parser(gp=g_perceptron,beam_size=beam_size)
+    parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=beam_size)
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
@@ -65,6 +65,13 @@ def launch_instances(args):
     """
     main() to launch everything
     """
+    #TODO - don't overwrite blindly
+    args.model_file_name=os.path.basename(args.input)+".model.pkl"
+    if not os.path.exists(args.model_file_name):
+        print >> sys.stderr, "Collecting filtering stats into", args.model_file_name, "...will tell when ready"
+        model.Model.collect(args.model_file_name,args.input)
+        print >> sys.stderr, "Done!"
+
 
     #1) Create the Shared State for perceptron
     # TODO: maybe I could have a flag with which I'd check the model exists and load instead?
@@ -76,7 +83,7 @@ def launch_instances(args):
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(gp,q,args.beam_size))
+        p=multiprocessing.Process(target=one_process, args=(args.model_file_name,gp,q,args.beam_size))
         p.start()
         procs.append(p)
 
@@ -118,6 +125,7 @@ def save_model(sh_state,args,iteration_number=None):
         oName=args.output
     sh_state.save(oName,True)
     d={"beam_size":args.beam_size}
+    shutil.copyfile(args.model_file_name,os.path.join(oName,"model.pkl"))
     with open(os.path.join(oName,"parser_config.json"),"w") as f: # save also parser configuration, currently only beam size
         json.dump(d,f)
 
