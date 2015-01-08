@@ -103,8 +103,8 @@ def gen_one_root(comment,sentence,root_token_idx,predicates,empty,comp,format):
             pos,cpos,feats=analyze_morpho(cols[POS])
         else:
             pos=cols[POS]
-            cpos=cols[CPOS]
-            feats=cols[FEAT]
+            cpos=u"_"
+            feats=u"_"
         if tok_idx==root_token_idx:
             #one_line(0,u"ROOT",cols,deps_field)
             print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],pos,cpos,feats,u"0",u"ROOT",DEPS,MISC))
