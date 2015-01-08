@@ -32,6 +32,8 @@ def read_companion(data_in):
     curr_comment=None
     for line in data_in:
         line=line.strip()
+        if line==u"#SDP 2015":
+            continue
         if not line:
             yield curr_comment, curr_sentence
             curr_comment=None
@@ -55,6 +57,22 @@ def read_companion(data_in):
 #    else: # no sense
 #        print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],cols[POS],u"_",u"_",unicode(new_root),new_type,deps_field,u"_"))
 
+
+
+def analyze_morpho(m):
+    CATS=u"Gen, Num, Cas, PGe, PNu, Per, Ten, Gra, Neg, Voi, Var".split(u", ") #From Dan's email
+    CPOS=m[0]
+    POS=m[:2]
+    assert u"-" not in POS
+    feat=[]
+    for CAT,VAL in zip(CATS,m[2:13]):
+        if VAL!=u'-':
+            feat.append(CAT+u"="+VAL)
+    if feat:
+        feat_str=u"|".join(feat)
+    else:
+        feat_str=u"_"
+    return CPOS,POS,feat_str
 
 def gen_one_root(comment,sentence,root_token_idx,predicates,empty,comp,format):
     global out
@@ -81,20 +99,26 @@ def gen_one_root(comment,sentence,root_token_idx,predicates,empty,comp,format):
                 MISC=u"_"
         else:
             MISC=u"_"
+        if len(cols[POS])==15: # split czech POS tags
+            pos,cpos,feats=analyze_morpho(cols[POS])
+        else:
+            pos=cols[POS]
+            cpos=cols[CPOS]
+            feats=cols[FEAT]
         if tok_idx==root_token_idx:
             #one_line(0,u"ROOT",cols,deps_field)
-            print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],cols[POS],u"_",u"_",u"0",u"ROOT",DEPS,MISC))
+            print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],pos,cpos,feats,u"0",u"ROOT",DEPS,MISC))
         else:
             if not empty:
                 if types[tok_idx]==u"_":
                     #one_line(root_token_idx+1,u"NOTARG",cols,deps_field,format)
-                    print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],cols[POS],u"_",u"_",unicode(root_token_idx+1),u"NOTARG",DEPS,MISC))
+                    print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],pos,cpos,feats,unicode(root_token_idx+1),u"NOTARG",DEPS,MISC))
                 else:
                     #one_line(root_token_idx+1,types[tok_idx],cols,deps_field,format)
-                    print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],cols[POS],u"_",u"_",unicode(root_token_idx+1),types[tok_idx],DEPS,MISC))
+                    print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],pos,cpos,feats,unicode(root_token_idx+1),types[tok_idx],DEPS,MISC))
             else:
                 #one_line(u"_",u"_",cols,deps_field,format)
-                print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],cols[POS],u"_",u"_",u"_",u"_",DEPS,MISC))
+                print >> out, u"\t".join((cols[ID],cols[TOKEN],cols[LEMMA],pos,cpos,feats,u"_",u"_",DEPS,MISC))
     print >> out
 
         
