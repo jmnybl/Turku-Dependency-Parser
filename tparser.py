@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import datetime
 import sys
 import os.path
 from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
@@ -48,10 +49,13 @@ class State(object):
         else:
             self.tree,self.extra_tree=None,None
         self.extra_tree.create_routes()
-        #Not today
+        #Not today   <- huh? TODO
         #self.extra_tree.create_context_routes()
         self.stack=[]
         self.queue=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
+        self.stack.extend(self.queue[:2]) #Put the first two tokens on the stack, should be semeval_root_idx and the first word
+        assert self.stack[-2].is_semeval_root==True
+        self.queue[:2]=[]
         self.score=0.0
         self.transitions=[]
         self.features=defaultdict(lambda:0.0)
@@ -102,14 +106,11 @@ class State(object):
             self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
     def update(self,trans):
-        if trans.move==SHIFT: # SHIFT
-            self.shift(trans)
-        elif trans.move==RIGHT: # RIGHT ARC
-            self.add_arc(self.stack[-2],self.stack.pop(-1),trans) 
-        elif trans.move==LEFT: # LEFT ARC
-            self.add_arc(self.stack[-1],self.stack.pop(-2),trans)
-        elif trans.move==SWAP: # SWAP
-            self.swap(trans)
+        if trans.move==RIGHT: # RIGHT ARC + SHIFT
+            assert self.stack[-2].is_semeval_root
+            self.add_arc(self.stack[-2],self.stack.pop(-1),trans)
+            if len(self.queue)>0:
+                self.stack.append(self.queue.pop(0))
         else:
             raise ValueError("Incorrect transition")
         self.transitions.append(trans)
@@ -134,13 +135,9 @@ class State(object):
 
     def valid_transitions(self):
         moves=set()
-        if len(self.stack)<2 and len(self.queue)>0: # SHIFT
-            moves.add(SHIFT)
-        if len(self.stack)>1: # ARCS
-            if self.stack[-1].is_semeval_root:
-                moves.add(LEFT)
-            if  self.stack[-2].is_semeval_root:
-                moves.add(RIGHT)
+        if len(self.stack)==2:
+            assert self.stack[-2].is_semeval_root
+            moves.add(RIGHT)
         return moves
 
     def __str__(self):
@@ -176,7 +173,7 @@ class Parser(object):
         total=0
         failed=0
         non=0
-        for sent,comments in read_conll(inp):
+        for sidx, (sent,comments) in enumerate(read_conll(inp)):
             total+=1
             gs_tree,e=Tree.new_from_conll(sent,extra_tree=False) # extra_tree is always False here, no need for it yet
             gs_tree.fill_syntax(sent)
@@ -190,7 +187,13 @@ class Parser(object):
             except ValueError:
                 traceback.print_exc()
                 failed+=1
+            except:
+                print >> sys.stderr, "ERROR! ERROR!"
+                print >> sys.stderr, repr(sent)
+                print >> sys.stderr, "End of repr"
+                traceback.print_exc()
         if not quiet:
+            print datetime.datetime.now().isoformat()
             print u"Failed to parse:",failed
             print u"Total number of trees:",total
             print u"Non-projectives:",non
@@ -207,22 +210,12 @@ class Parser(object):
 ##                trans=Transition(move,u"ROOT") # TODO semeval 
 ##                state.update(trans)
 ##                continue
-            if len(state.stack)>1:
-                move,dType=self.extract_dep(state,gs_tree)
-                if move is not None:
-                    trans=Transition(move,dType)
-                    if trans.move not in state.valid_transitions():
-                        raise ValueError("Invalid transition:",trans.move)
-                    state.update(trans)
-                    continue
-            # cannot draw arc
-            if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    trans=Transition(SWAP,None)
-            else: # SHIFT
-                trans=Transition(SHIFT,None)
-            if trans.move not in state.valid_transitions():
-                raise ValueError("Invalid transition:",trans.move)
+            g,d=state.stack[-2],state.stack[-1]
+            dType=gs_tree.has_dep(g,d)
+            assert dType is not None
+            trans=Transition(RIGHT,dType)
             state.update(trans)
+        assert len(state.transitions)==len(state.tree.tokens)-1
         return state.transitions
             
     def extract_dep(self,state,gs_tree):
@@ -246,7 +239,9 @@ class Parser(object):
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
         beam=[State(sent)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+        beam[0].features=feats.create_features(beam[0]) #Added this one here because otherwise the update would have no features to work with
         gs_state=State(sent)
+        gs_state.features=feats.create_features(gs_state) #Added this one here because the first transition should have some features to work with
         #print "context:",gs_state.extra_tree.context
         #print "routes:",gs_state.extra_tree.routes
         while not self.beam_ready(beam):
@@ -260,6 +255,7 @@ class Parser(object):
                 gs_state.update(gs_trans)
                 gs_state.features=feats.create_features(gs_state)
             else:
+                assert False
                 gs_trans=None
 
             beam=self.give_next_state(beam,gs_trans) # update beam         
@@ -282,7 +278,7 @@ class Parser(object):
 #                self.perceptron.update(state2nd.create_feature_dict(),best_state.create_feature_dict(),state2nd.score,best_state.score,progress)
         else: # gold still in beam and beam ready
             if beam[0].wrong_transitions==0: # no need for update
-                print "**", len(gs_state.transitions)
+                print "**", len(gs_state.transitions)#, gs_state.transitions
             else:
                 self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,beam[0].wrong_transitions,progress) # update the perceptron
                 print "*", len(gs_state.transitions)
@@ -293,22 +289,18 @@ class Parser(object):
     def enum_transitions(self,state):
         """Enumerates transition objects allowable for the state. TODO: Filtering here?"""
         for move in state.valid_transitions():
-            if move==RIGHT or move==LEFT:
-                if len(state.queue)==0 and len(state.stack)==2: 
-                    yield Transition(move,u"ROOT")
-                    continue
+            if move==RIGHT:
                 if move==RIGHT:
                     gov_pos=state.stack[-2].pos
                     dep_pos=state.stack[-1].pos
                 else:
-                    gov_pos=state.stack[-1].pos
-                    dep_pos=state.stack[-2].pos
+                    assert False
                 allowed=self.model.deptypes.get((gov_pos,dep_pos),set())
                 allowed.add(u"NOTARG")
                 for dType in allowed:
                     yield Transition(move,dType)
             else:
-                yield Transition(move,None)
+                assert False
                 
 
 
@@ -355,7 +347,7 @@ class Parser(object):
             newS.update(transition)
             newS.score=score # Do not use '+'
             if (gs_trans is None) or (not transition==gs_trans):
-                newS.wrong_transitions+=1 # TODO: is this fair?
+                newS.wrong_transitions+=1 # TODO: is this fair? (TODO2: what do you mean here, @jmnybl?)
             newS.features,factors=feats.create_general_features(newS)
             newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
@@ -366,7 +358,11 @@ class Parser(object):
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
         for sent,comments in read_conll(inp):
+            if len(sent)==1:
+                write_conll(outp,sent,comments)
+                continue
             beam=[State(sent)]
+            beam[0].features=feats.create_features(beam[0])
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,beam[0])
