@@ -29,7 +29,6 @@ class Features(object):
         if S1 is None or S0 is None:
             return route_feats
 
-
         #Get the route
         #Recursive is the way to go!
         #Returns a list of Deps as the route
@@ -45,33 +44,103 @@ class Features(object):
         #Linear Route size
         route_feats[u'linear_route_size=' + str(len(linear_route))] = 1.0
 
+        #route_feats[u'linear_route=']
+        pos_list = []
+        for t in linear_route:
+            pos_list.append(state.extra_tree.tokens[t].pos)
+
+        arrow = '>'
+        if S1.index < S0.index:
+            pos_list.reverse()
+            arrow = '<'
+
+        if len(pos_list) < (route_size_limit - 2):
+            #without direction
+            #route_feats[u'linear_route=' + '_'.join(pos_list)] = 1.0
+            #with direction
+            route_feats[u'linear_route=' + arrow + '_'.join(pos_list)] = 1.0
+
+        #Linear route trigrams
+        #Not sure if these help but I guess they might
+        pos_list.append('end')
+        pos_list = ['start'] + pos_list
+
+        linear_route_trigrams = []
+        current_trigram = []
+        for i, pos_tag in enumerate(pos_list):
+             if len(current_trigram) > 2:
+                 linear_route_trigrams.append(current_trigram[:])
+                 current_trigram = []
+             current_trigram.append(pos_tag)
+
+        #Last trigram should also be there no matter what, or does it make any sense?
+        #I guess it does
+        linear_route_trigrams.append(pos_list[-3:])
+
+        for trigram in linear_route_trigrams:
+            route_feats[u'linear_pos_trigram=' + arrow + '_' + '_'.join(trigram)] = 1.0
+
         #Full dep route
+        prev_token = S0
+        route_pieces = []
+        for dep in dep_tree_route:
+            if prev_token == dep.gov:
+                route_pieces.append(u'>' + str(dep.dType))
+                prev_token = dep.dep
+            else:
+                route_pieces.append(u'<' + str(dep.dType))
+                prev_token = dep.gov
         if len(dep_tree_route) < route_size_limit:
-            prev_token = S0
-            route_pieces = []
-            for dep in dep_tree_route:
-                if prev_token == dep.gov:
-                    route_pieces.append(u'>' + str(dep.dType))
-                    prev_token = dep.dep
-                else:
-                    route_pieces.append(u'<' + str(dep.dType))
-                    prev_token = dep.gov
             route_feats[u'dep_tree_route=' + u'_'.join(route_pieces)] = 1.0
 
+        #The trigrams of the tree route
+        route_pieces.append('end')
+        route_pieces = ['start'] + route_pieces
+
+        tree_dep_route_trigrams = []
+        current_trigram = []
+        for i, piece in enumerate(route_pieces):
+             if len(current_trigram) > 2:
+                 tree_dep_route_trigrams.append(current_trigram[:])
+                 current_trigram = []
+             current_trigram.append(piece)
+        #Last trigram should also be there no matter what, or does it make any sense?
+        #I g#uess it does
+        tree_dep_route_trigrams.append(route_pieces[-3:])
+        for trigram in tree_dep_route_trigrams:
+            route_feats[u'tree_dep_trigram=' + '_'.join(trigram)] = 1.0
+
         #The route with pos tags        
+        prev_token = S0
+        route_pieces = [S0.pos, ]
+        for dep in dep_tree_route:
+            if prev_token == dep.gov:
+                pos = dep.dep.pos
+                route_pieces.append(u'>' + str(pos))
+                prev_token = dep.dep
+            else:
+                pos = dep.gov.pos
+                route_pieces.append(u'<' + str(pos))
+                prev_token = dep.gov
         if len(dep_tree_route) < route_size_limit:
-            prev_token = S0
-            route_pieces = [S0.pos, ]
-            for dep in dep_tree_route:
-                if prev_token == dep.gov:
-                    pos = dep.dep.pos
-                    route_pieces.append(u'>' + str(pos))
-                    prev_token = dep.dep
-                else:
-                    pos = dep.gov.pos
-                    route_pieces.append(u'<' + str(pos))
-                    prev_token = dep.gov
             route_feats[u'dep_tree_route_pos=' + u'_'.join(route_pieces)] = 1.0
+
+        #The trigrams of the pos tree route
+        route_pieces.append('end')
+        route_pieces = ['start'] + route_pieces
+
+        tree_dep_route_trigrams = []
+        current_trigram = []
+        for i, piece in enumerate(route_pieces):
+             if len(current_trigram) > 2:
+                 tree_dep_route_trigrams.append(current_trigram[:])
+                 current_trigram = []
+             current_trigram.append(piece)
+        #Last trigram should also be there no matter what, or does it make any sense?
+        #I guess it does
+        tree_dep_route_trigrams.append(route_pieces[-3:])
+        for trigram in tree_dep_route_trigrams:
+            route_feats[u'tree_pos_trigram=' + '_'.join(trigram)] = 1.0
 
         #Partial routes
         if len(dep_tree_route) > 5: # TODO can't we take this from full route we already built?
@@ -99,7 +168,18 @@ class Features(object):
             #with route length
             route_feats[u'dep_tree_route_partial_2=' + u'_'.join(route_pieces) + u'_' + str(len(dep_tree_route))] = 1.0
 
+            #Some simple features about arg and pred
+            #Deptype of arg
+            deptype_arg = state.extra_tree.dtypes[S1]
+            deptype_pred = state.extra_tree.dtypes[S0]
+            route_feats[u'deptype_arg=' + deptype_arg]
+            route_feats[u'deptype_pred=' + deptype_pred]
+
         return route_feats
+
+
+
+
 
     def context_features(self):
 
