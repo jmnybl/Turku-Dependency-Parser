@@ -145,6 +145,6 @@ if __name__=="__main__":
     args = parser.parse_args()
 
     if args.cpu_affinity:
-        os.system("taskset -p 0xff %d" % os.getpid())
+        os.system("taskset -p 0xFFFFFFF %d" % os.getpid())
 
     launch_instances(args)

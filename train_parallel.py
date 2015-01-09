@@ -168,6 +168,6 @@ if __name__=="__main__":
         sys.exit(1)
     
     if args.cpu_affinity:
-        os.system("taskset -p 0xff %d" % os.getpid())
+        os.system("taskset -p 0xFFFFFFFF %d" % os.getpid())
 
     launch_instances(args)
