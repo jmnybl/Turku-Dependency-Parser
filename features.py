@@ -172,8 +172,8 @@ class Features(object):
             #Deptype of arg
             deptype_arg = state.extra_tree.dtypes[S1]
             deptype_pred = state.extra_tree.dtypes[S0]
-            route_feats[u'deptype_arg=' + deptype_arg]
-            route_feats[u'deptype_pred=' + deptype_pred]
+            route_feats[u'deptype_arg=' + deptype_arg]=1.0
+            route_feats[u'deptype_pred=' + deptype_pred]=1.0
 
         return route_feats
 
