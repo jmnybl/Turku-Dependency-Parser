@@ -15,7 +15,7 @@ def get_sentence(data_in):
             continue
         if line.startswith(u"#"):
             #New sentence!
-            if curr_comment is not None and curr_sentence:
+            if curr_comment is not None:
                 yield curr_comment, curr_sentence
                 curr_comment=None
             curr_comment=line
@@ -222,6 +222,10 @@ if __name__ == "__main__":
         if args.format==u"2015": # 2015 Scorer requires this line
             print >> out, u"#SDP 2015"
         for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
+            if not s: # empty sentence
+                print >> out, comment
+                print >> out
+                continue
             trees2graph(comment,s,args.format)
         if tokens: # print last sentence
             build_graph(arguments,idx,tokens,args.format)
@@ -229,6 +233,10 @@ if __name__ == "__main__":
     else: # build conllu trees from sdp graphs
         if args.companion is None:
             for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
+                if not s: # empty sentence
+                    print >> out, comment
+                    print >> out
+                    continue
                 gen(comment,s,args.empty,{},args.format)
         else: # use companion data
             syntax={}
@@ -236,6 +244,10 @@ if __name__ == "__main__":
                 for comm,s in read_companion(f):
                     syntax[comm]=s
             for comment,s in get_sentence(codecs.getreader("utf-8")(sys.stdin)):
+                if not s: # empty sentence
+                    print >> out, comment
+                    print >> out
+                    continue
                 assert comment in syntax, "No companion data found: "+comment
                 comp={}
                 for idx,line in enumerate(syntax[comment]):
