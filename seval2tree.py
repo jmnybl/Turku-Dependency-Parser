@@ -132,14 +132,18 @@ def gen(comment,sentence,empty,comp,format):
     predicates=[] #index of the argument column (0-based) if predicate, None otherwise, as many entries as tokens in the sentence
     counter=0
 
-    for tok_idx, columns in enumerate(sentence):
-        if columns[PRED]==u"+":
-            predicates.append(counter)
-            counter+=1
-        elif columns[PRED]==u"-":
+    if not empty:
+        for tok_idx, columns in enumerate(sentence):
+            if columns[PRED]==u"+":
+                predicates.append(counter)
+                counter+=1
+            elif columns[PRED]==u"-":
+                predicates.append(None)
+            else:
+                assert False
+    else:
+        for i in range(len(sentence)):
             predicates.append(None)
-        else:
-            assert False
     
 
     for tok_idx in range(len(sentence)):
