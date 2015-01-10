@@ -158,27 +158,37 @@ def build_graph(arguments,idx,sent,format):
         ID,TOKEN,LEMMA,POS,TOP,PRED,ARGS=range(7)
 
     HEAD,DEPREL,DEPS,MISC=6,7,8,9
-
-    for id,token in enumerate(sent):
+    sdp_sent=sent[:]
+    for id,token in enumerate(sdp_sent):
         cols=token[:4]
         for i in xrange(2): cols.append(u"_") # TOP and PRED empty
-        if format==u"2015":
-            cols.append(token[MISC]) # sense from MISC field
+        if format==u"2015": # sense from MISC field
+            cols.append(u"_")
+            if u"SENSE=" in sent[id][MISC]: 
+                values=sent[id][MISC].split(u"|")
+                for val in values:
+                    if u"SENSE=" in val:
+                        cols.append(val.lsplit(u"=",1)[1])
+                        break
+                assert cols[-1]!=u"_"
         for i in xrange(len(arguments)): cols.append(u"_") # append empty places for arguments
-        sent[id]=cols
+        sdp_sent[id]=cols
     pred_count=0
     for pred in sorted(arguments):
-        sent[pred-1][PRED]=u"+" # PRED == +
+        sdp_sent[pred-1][PRED]=u"+" # PRED == +
         pred_count+=1
         args=arguments[pred]
         for arg,argtype in args:
-            sent[arg-1][ARGS-1+pred_count]=argtype
-    for i,token in enumerate(sent):
-        token[TOP]=u"-" # top node (TODO)
+            sdp_sent[arg-1][ARGS-1+pred_count]=argtype
+    for i,token in enumerate(sdp_sent):
+        if u"TOPNODE=YES" in sent[i][MISC]: # TOP == +
+            token[TOP]=u"+"
+        else:
+            token[TOP]=u"-"
         if token[PRED]==u"_": token[PRED]=u"-" # not predicate
-        sent[i]=token     
+        sdp_sent[i]=token     
     print idx
-    for t in sent:
+    for t in sdp_sent:
         print (u"\t".join(c for c in t)).encode(u"utf-8")
     print
 
