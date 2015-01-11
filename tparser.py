@@ -61,6 +61,7 @@ class State(object):
         self.features=defaultdict(lambda:0.0)
         self.prev_state=None #The state from which this one was created, if any
         self.wrong_transitions=0 # number of wrong transitions, if 0 then same as gold
+        self.route_feat_cache_dict = {}
 
     @classmethod
     def _copy_and_point(cls,s):
@@ -81,8 +82,32 @@ class State(object):
         #newS.tree=copy.deepcopy(s.tree)
         newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
         newS.extra_tree=s.extra_tree
+        newS.route_feat_cache_dict = s.route_feat_cache_dict
         return newS
-        
+
+    def is_route_cached(self):
+        #So the key to the route is the ids of the two tokens in order
+        if len(self.stack) > 1:
+            the_key = str(self.stack[-1].index) + '--' + str(self.stack[-2].index)
+            return the_key in self.route_feat_cache_dict.keys()
+        else:
+            return False
+
+    def cache_route_feats(self, r_feats):
+        if len(self.stack) > 1:
+            the_key = str(self.stack[-1].index) + '--' + str(self.stack[-2].index)
+            self.route_feat_cache_dict[the_key] = r_feats
+
+    def get_cached_features(self):
+
+        if not self.is_route_cached():
+            return None
+
+        if len(self.stack) > 1:
+            the_key = str(self.stack[-1].index) + '--' + str(self.stack[-2].index)
+            return self.route_feat_cache_dict[the_key]
+
+
     def create_feature_dict(self):
         """
         Creates the full feature dictionary by assembling the dictionaries

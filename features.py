@@ -419,8 +419,14 @@ class Features(object):
     def create_general_features(self,state):
         feat=create_auto_features(state)
         self.manual_features(state,feat)
-        #Pairwise features
-        feat.update(self.route_features(state))
+
+        if not state.is_route_cached():
+            #Pairwise features
+            route_feats = self.route_features(state)
+            state.cache_route_feats(route_feats)
+            feat.update(route_feats)
+        else:
+            feat.update(state.get_cached_features())
 
         # now graph-based features... # TODO only for real dependencies
         if state.transitions and (state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT) and state.tree.deps[-1].dType!=u"NOTARG":
