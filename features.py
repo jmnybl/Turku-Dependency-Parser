@@ -372,10 +372,7 @@ class Features(object):
         d=state.tree.deps[-1].dep
         factors=[]
         # now collect cmi, cmo, ci, cho, ch1, ch2, cm1, cm2 and tmo # TODO only for real dependencies
-        deps=sorted(state.tree.childs[g]) # cho,ci
-        real_deps=[] # TODO check these features
-        for dep in deps:
-            if state.tree.dtypes[dep]!=u"NOTARG": real_deps.append(dep)
+        real_deps=state.tree.real_childs[g] # cho,ci ## this skips NOTARGs
         for dep in real_deps:
             if dep==d: continue
             order=self.factor_location(g,d,dep)
