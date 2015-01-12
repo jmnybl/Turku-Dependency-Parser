@@ -163,14 +163,14 @@ def build_graph(arguments,idx,sent,format):
         cols=token[:4]
         for i in xrange(2): cols.append(u"_") # TOP and PRED empty
         if format==u"2015": # sense from MISC field
-            cols.append(u"_")
+            cols.append(u"_") # add a column for it
             if u"SENSE=" in sent[id][MISC]: 
                 values=sent[id][MISC].split(u"|")
                 for val in values:
                     if u"SENSE=" in val:
-                        cols.append(val.lsplit(u"=",1)[1])
+                        cols[SENSE]=val.split(u"=",1)[1] # fill sense
                         break
-                assert cols[-1]!=u"_"
+                assert cols[SENSE]!=u"_"
         for i in xrange(len(arguments)): cols.append(u"_") # append empty places for arguments
         sdp_sent[id]=cols
     pred_count=0
@@ -181,7 +181,7 @@ def build_graph(arguments,idx,sent,format):
         for arg,argtype in args:
             sdp_sent[arg-1][ARGS-1+pred_count]=argtype
     for i,token in enumerate(sdp_sent):
-        if u"TOPNODE=YES" in sent[i][MISC]: # TOP == +
+        if u"TOPNODE=Yes" in sent[i][MISC]: # TOP == +
             token[TOP]=u"+"
         else:
             token[TOP]=u"-"
