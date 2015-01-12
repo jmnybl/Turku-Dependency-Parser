@@ -82,6 +82,9 @@ class Tree(object):
                 newT.childs[tok]=s # this one is ready, no need to copy
             else:
                 newT.childs[tok]=s.copy()
+        newT.real_childs=defaultdict(lambda:[])
+        for tok,l in t.real_childs.iteritems():
+            newT.real_childs[tok]=l[:]
         newT.ready_nodes=t.ready_nodes.copy() # this needs to be copied
         newT.govs=t.govs.copy()
         newT.deps=t.deps[:]
@@ -95,6 +98,7 @@ class Tree(object):
         #If you add any new attributes, make sure you copy them over in new_from_tree()
         self.tokens=[] #[Token(),...]
         self.childs=defaultdict(lambda:set()) #{token():set(token())#
+        self.real_childs=defaultdict(lambda:[]) #token():sorted list of tokens#
         self.ready_nodes=set() # set(token())
         self.govs={} #{token():govtoken()}
         self.dtypes={} #{token():dtype}
@@ -183,6 +187,9 @@ class Tree(object):
     def add_dep(self,dependency):
         self.deps.append(dependency)
         self.childs[dependency.gov].add(dependency.dep)
+        if dependency.dType!=u"NOTARG": # only dependents with real type
+            self.real_childs[dependency.gov].append(dependency.dep)
+            self.real_childs[dependency.gov].sort() # keep this sorted
         self.govs[dependency.dep]=dependency.gov
         self.dtypes[dependency.dep]=dependency.dType
         self.ready_nodes.add(dependency.dep)

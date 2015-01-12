@@ -1,7 +1,7 @@
 
 def get_child(token,idx,state):
     if token is None: return None
-    childs=sorted(state.tree.childs[token], key=lambda x:x.index)
+    childs=state.tree.real_childs[token]
     if len(childs)>0:
         if idx==u"ld": # leftmost
             return childs[0]
