@@ -17,5 +17,11 @@ fi
 
 for L in $LANGS
 do
-   echo "sbatch -t 36:0:0 -N1 --ntasks-per-node=1 -J $L -c$CPUs -e log/$L.err -o log/$L.out --mem-per-cpu=800 --wrap './t_and_t_lang.sh $L $CPUs $BEAM'"
+    if [[ "$L" == "cs.psd" || "$L" == "en.psd" ]]
+    then
+	DS=0.15
+    else
+	DS=0.3
+    fi
+    echo "sbatch -t 36:0:0 -N1 --ntasks-per-node=1 -J $L -c$CPUs -e log/$L.err -o log/$L.out --mem-per-cpu=800 --wrap './t_and_t_lang.sh $L $CPUs $BEAM --downsample=$DS'"
 done

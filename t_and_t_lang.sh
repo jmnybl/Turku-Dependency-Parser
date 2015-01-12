@@ -1,10 +1,11 @@
 LANG=$1
 CPUs=$2
 BEAM=$3
+shift 3
 
 mkdir -p out
 
-python train_parallel.py -p $CPUs --cpu-aff --beam $BEAM -o model.$LANG.taito.b$BEAM semeval_data/train.$LANG.conllu 
+python train_parallel.py -p $CPUs --cpu-aff --beam $BEAM $* -o model.$LANG.taito.b$BEAM semeval_data/train.$LANG.conllu 
 
 exit
 
