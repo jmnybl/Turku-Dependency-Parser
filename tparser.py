@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import random
 import datetime
 import sys
 import os.path
@@ -175,10 +176,11 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,model_file_name,fName=None,gp=None,beam_size=40,test_time=False):
+    def __init__(self,model_file_name,fName=None,gp=None,beam_size=40,args=None,test_time=False):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
+        self.args=args
         self.model=Model.load(model_file_name)
         if gp:
             self.perceptron=gp
@@ -197,6 +199,9 @@ class Parser(object):
         non=0
         for sidx, (sent,comments) in enumerate(read_conll(inp)):
             total+=1
+            if len(sent)<2:
+                print >> sys.stderr, "Skipping sentence of length", len(sent)
+                continue
             gs_tree,e=Tree.new_from_conll(sent,extra_tree=False) # extra_tree is always False here, no need for it yet
             gs_tree.fill_syntax(sent)
             non_projs=gs_tree.is_nonprojective()
@@ -205,7 +210,10 @@ class Parser(object):
                 non+=1
             try:
                 gs_transitions=self.extract_transitions(gs_tree,sent)
-                self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
+                if any(t.dType!=u"NOTARG" for t in gs_transitions) or random.random()<=self.args.downsample_nonargs:
+                    self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
+                else:
+                    print >> sys.stderr, "Skipping all-not-arg"
             except ValueError:
                 traceback.print_exc()
                 failed+=1

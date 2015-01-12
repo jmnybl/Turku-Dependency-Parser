@@ -12,13 +12,13 @@ import threading
 import model
 import shutil
 
-def one_process(model_file_name,g_perceptron,q,beam_size):
+def one_process(model_file_name,g_perceptron,q,beam_size,args):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
     beam_size - size of the beam to be passed to the parser instance
     """
-    parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=beam_size)
+    parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=beam_size,args=args)
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
@@ -83,7 +83,7 @@ def launch_instances(args):
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(args.model_file_name,gp,q,args.beam_size))
+        p=multiprocessing.Process(target=one_process, args=(args.model_file_name,gp,q,args.beam_size,args))
         p.start()
         procs.append(p)
 
@@ -161,6 +161,7 @@ if __name__=="__main__":
     g.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? If you want more than one, you must give the input as a file. (default %(default)d)')
     g.add_argument('--dim', type=int, default=20000000, help='Dimensionality of the trained vector. (default %(default)d)')
     g.add_argument('--beam_size', type=int, default=40, help='Size of the beam. (default %(default)d)')
+    g.add_argument('--downsample-nonargs', type=float, default=1.0, help='Proportion of purely notarg transition sequences to preserve in training. 1.0 means all, 0.2 means only 20 percent preserved, 80 percent discarded. (default %(default)d)')
     args = parser.parse_args()
 
     if args.iterations>1 and args.input==None:

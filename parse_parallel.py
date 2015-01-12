@@ -9,7 +9,7 @@ import tparser
 import time
 import json
 
-def one_process(model_file_name,g_perceptron,q,q_out,parser_config,no_avg):
+def one_process(model_file_name,g_perceptron,q,q_out,parser_config,no_avg,args):
     """
     g_perceptron - instance of generalized perceptron (not state)
     q - queue with examples
@@ -18,9 +18,9 @@ def one_process(model_file_name,g_perceptron,q,q_out,parser_config,no_avg):
     no_avg - do not use averaged weight vector (so, test_time=False)
     """
     if no_avg:
-        parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=parser_config["beam_size"],test_time=False)
+        parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=parser_config["beam_size"],args=args,test_time=False)
     else:
-        parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=parser_config["beam_size"],test_time=True)
+        parser=tparser.Parser(model_file_name,gp=g_perceptron,beam_size=parser_config["beam_size"],args=args,test_time=True)
     while True:
         next_job=q.get() #This will be either (progress,data) tuple, or None to signal end of training
         if next_job==None:
@@ -112,7 +112,7 @@ def launch_instances(args):
     procs=[] #List of running processes
     for _ in range(args.processes):
         gp=perceptron.GPerceptron.from_shared_state(sh_state) #Fork a new perceptron
-        p=multiprocessing.Process(target=one_process, args=(os.path.join(args.model[0],"model.pkl"),gp,q,q_out,d,args.no_avg))
+        p=multiprocessing.Process(target=one_process, args=(os.path.join(args.model[0],"model.pkl"),gp,q,q_out,d,args.no_avg,args))
         p.start()
         procs.append(p)
     p=multiprocessing.Process(target=assemble_results,args=(q_out,args.processes))
