@@ -68,8 +68,10 @@ class Tree(object):
         t=cls()
         form=formats[conll_format]
         extra=Tree() # create empty tree
-        t.from_conll(conll,conll_format,extra)
-        return t,extra
+        enju=Tree()
+        deep=Tree()
+        t.from_conll(conll,conll_format,extra,enju,deep)
+        return t,extra,enju,deep
 
     @classmethod
     def new_from_tree(cls,t):
@@ -136,7 +138,7 @@ class Tree(object):
                 self.BFS_order(t,distance+1,result_dict)
 
     #Called from new_from_conll() classmethod
-    def from_conll(self,lines,conll_format="conll-u",extra=None):
+    def from_conll(self,lines,conll_format="conll-u",extra=None,enju=None,deep=None):
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
             which will be looked up in the formats module-level dictionary"""
         form=formats[conll_format] #named tuple with the column indices
@@ -146,6 +148,10 @@ class Tree(object):
             self.tokens.append(token)
             if extra is not None:
                 extra.tokens.append(token)
+            if enju is not None:
+                enju.tokens.append(token)
+            if deep is not None:
+                deep.tokens.append(token)
             if line[form.DEPREL]==u"ROOT":
                 self.semeval_root_idx=i
                 self.tokens[-1].is_semeval_root=True
@@ -154,18 +160,50 @@ class Tree(object):
         self.ready=False
         for line in lines:
             if line[form.EXTRA]!=u"_":
-                head,deprel=line[form.EXTRA].split(u":")
-                extra.dtypes[extra.tokens[int(line[form.ID])-1]]=deprel # fill dtype for token
-                gov=int(head)
-                if gov==0:
-                    extra.root=extra.tokens[int(line[form.ID])-1] # TODO: why I store this information?
-                    continue
-                gov=extra.tokens[gov-1]
-                dep=extra.tokens[int(line[form.ID])-1]
-                dependency=Dep(gov,dep,deprel)
-                extra.add_dep(dependency)
+                trees=line[form.EXTRA].split(u"|")
+                assert len(trees)==3
+                for tree in trees:
+                    key,val=tree.split(u"=",1)                    
+                    head,deprel=val.split(u":")
+                    if key==u"PTB":
+                        extra.dtypes[extra.tokens[int(line[form.ID])-1]]=deprel # fill dtype for token
+                        gov=int(head)
+                        if gov==0:
+                            extra.root=extra.tokens[int(line[form.ID])-1] # TODO: why I store this information?
+                            continue
+                        gov=extra.tokens[gov-1]
+                        dep=extra.tokens[int(line[form.ID])-1]
+                        dependency=Dep(gov,dep,deprel)
+                        extra.add_dep(dependency)
+                    elif key==u"ENJU":
+                        try:
+                            enju.dtypes[enju.tokens[int(line[form.ID])-1]]=deprel # fill dtype for token
+                            gov=int(head)
+                            if gov==0:
+                                enju.root=enju.tokens[int(line[form.ID])-1] # TODO: why I store this information?
+                                continue
+                            gov=enju.tokens[gov-1]
+                            dep=enju.tokens[int(line[form.ID])-1]
+                            dependency=Dep(gov,dep,deprel)
+                            enju.add_dep(dependency)
+                        except:
+                            continue
+                    elif key==u"DEPP":
+                        deep.dtypes[deep.tokens[int(line[form.ID])-1]]=deprel # fill dtype for token
+                        gov=int(head)
+                        if gov==0:
+                            deep.root=deep.tokens[int(line[form.ID])-1] # TODO: why I store this information?
+                            continue
+                        gov=deep.tokens[gov-1]
+                        dep=deep.tokens[int(line[form.ID])-1]
+                        dependency=Dep(gov,dep,deprel)
+                        deep.add_dep(dependency)
         extra.ready=True
         extra.ready_nodes=set(self.tokens) # all nodes are ready
+        enju.ready=True
+        enju.ready_nodes=set(self.tokens) # all nodes are ready
+        deep.ready=True
+        deep.ready_nodes=set(self.tokens) # all nodes are ready
 
     def fill_syntax(self,sent,conll_format="conll-u"):
         form=formats[conll_format] #named tuple with the column indices

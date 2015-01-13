@@ -12,7 +12,7 @@ class Features(object):
     def __init__(self):
         pass
 
-    def route_features(self, state):
+    def route_features(self, state, tree_to_use, prefix):
 
         route_size_limit = 7
         #So, the pair being pondered about is:
@@ -33,21 +33,21 @@ class Features(object):
         #Recursive is the way to go!
         #Returns a list of Deps as the route
         try:
-            dep_tree_route = state.extra_tree.routes[(S0, S1)]
+            dep_tree_route = tree_to_use.routes[(S0, S1)]
         except:
             dep_tree_route = []
 
         linear_route = range(min(S0.index, S1.index), max(S0.index, S1.index) + 1)
 
         #Tree Route size
-        route_feats[u'tree_route_size=' + str(len(dep_tree_route))] = 1.0
+        route_feats[prefix+u'tree_route_size=' + str(len(dep_tree_route))] = 1.0
         #Linear Route size
-        route_feats[u'linear_route_size=' + str(len(linear_route))] = 1.0
+        route_feats[prefix+u'linear_route_size=' + str(len(linear_route))] = 1.0
 
         #route_feats[u'linear_route=']
         pos_list = []
         for t in linear_route:
-            pos_list.append(state.extra_tree.tokens[t].pos)
+            pos_list.append(tree_to_use.tokens[t].pos)
 
         arrow = '>'
         if S1.index < S0.index:
@@ -58,7 +58,7 @@ class Features(object):
             #without direction
             #route_feats[u'linear_route=' + '_'.join(pos_list)] = 1.0
             #with direction
-            route_feats[u'linear_route=' + arrow + '_'.join(pos_list)] = 1.0
+            route_feats[prefix+u'linear_route=' + arrow + '_'.join(pos_list)] = 1.0
 
         #Linear route trigrams
         #Not sure if these help but I guess they might
@@ -78,7 +78,7 @@ class Features(object):
         linear_route_trigrams.append(pos_list[-3:])
 
         for trigram in linear_route_trigrams:
-            route_feats[u'linear_pos_trigram=' + arrow + '_' + '_'.join(trigram)] = 1.0
+            route_feats[prefix+u'linear_pos_trigram=' + arrow + '_' + '_'.join(trigram)] = 1.0
 
         #Full dep route
         prev_token = S0
@@ -91,7 +91,7 @@ class Features(object):
                 route_pieces.append(u'<' + str(dep.dType))
                 prev_token = dep.gov
         if len(dep_tree_route) < route_size_limit:
-            route_feats[u'dep_tree_route=' + u'_'.join(route_pieces)] = 1.0
+            route_feats[prefix+u'dep_tree_route=' + u'_'.join(route_pieces)] = 1.0
 
         #The trigrams of the tree route
         route_pieces.append('end')
@@ -108,7 +108,7 @@ class Features(object):
         #I g#uess it does
         tree_dep_route_trigrams.append(route_pieces[-3:])
         for trigram in tree_dep_route_trigrams:
-            route_feats[u'tree_dep_trigram=' + '_'.join(trigram)] = 1.0
+            route_feats[prefix+u'tree_dep_trigram=' + '_'.join(trigram)] = 1.0
 
         #The route with pos tags        
         prev_token = S0
@@ -123,7 +123,7 @@ class Features(object):
                 route_pieces.append(u'<' + str(pos))
                 prev_token = dep.gov
         if len(dep_tree_route) < route_size_limit:
-            route_feats[u'dep_tree_route_pos=' + u'_'.join(route_pieces)] = 1.0
+            route_feats[prefix+u'dep_tree_route_pos=' + u'_'.join(route_pieces)] = 1.0
 
         #The trigrams of the pos tree route
         route_pieces.append('end')
@@ -140,7 +140,7 @@ class Features(object):
         #I guess it does
         tree_dep_route_trigrams.append(route_pieces[-3:])
         for trigram in tree_dep_route_trigrams:
-            route_feats[u'tree_pos_trigram=' + '_'.join(trigram)] = 1.0
+            route_feats[prefix+u'tree_pos_trigram=' + '_'.join(trigram)] = 1.0
 
         #Partial routes
         if len(dep_tree_route) > 5: # TODO can't we take this from full route we already built?
@@ -164,16 +164,16 @@ class Features(object):
                     prev_token = dep.gov
 
             #without route length
-            route_feats[u'dep_tree_route_partial_2=' + u'_'.join(route_pieces)] = 1.0
+            route_feats[prefix+u'dep_tree_route_partial_2=' + u'_'.join(route_pieces)] = 1.0
             #with route length
-            route_feats[u'dep_tree_route_partial_2=' + u'_'.join(route_pieces) + u'_' + str(len(dep_tree_route))] = 1.0
+            route_feats[prefix+u'dep_tree_route_partial_2=' + u'_'.join(route_pieces) + u'_' + str(len(dep_tree_route))] = 1.0
 
             #Some simple features about arg and pred
             #Deptype of arg
-            deptype_arg = state.extra_tree.dtypes[S1]
-            deptype_pred = state.extra_tree.dtypes[S0]
-            route_feats[u'deptype_arg=' + deptype_arg]=1.0
-            route_feats[u'deptype_pred=' + deptype_pred]=1.0
+            deptype_arg = tree_to_use.dtypes[S1]
+            deptype_pred = tree_to_use.dtypes[S0]
+            route_feats[prefix+u'deptype_arg=' + deptype_arg]=1.0
+            route_feats[prefix+u'deptype_pred=' + deptype_pred]=1.0
 
         return route_feats
 
@@ -419,7 +419,10 @@ class Features(object):
 
         if not state.is_route_cached():
             #Pairwise features
-            route_feats = self.route_features(state)
+            route_feats = self.route_features(state,state.extra_tree,u"PTB=")
+            route_feats.update(self.route_features(state,state.enju,u"ENJU="))
+            route_feats.update(self.route_features(state,state.deep,u"DEEP="))
+            print route_feats
             state.cache_route_feats(route_feats)
             feat.update(route_feats)
         else:

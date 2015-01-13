@@ -46,10 +46,12 @@ class State(object):
 
     def __init__(self,sent=None):
         if sent!=None:
-            self.tree,self.extra_tree=Tree.new_from_conll(sent)
+            self.tree,self.extra_tree,self.enju,self.deep=Tree.new_from_conll(sent)
         else:
-            self.tree,self.extra_tree=None,None
+            self.tree,self.extra_tree,self.enju,self.deep=None,None
         self.extra_tree.create_routes()
+        self.enju.create_routes()
+        self.deep.create_routes()
         #Not today   <- huh? TODO
         #self.extra_tree.create_context_routes()
         self.stack=[]
@@ -83,6 +85,8 @@ class State(object):
         #newS.tree=copy.deepcopy(s.tree)
         newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
         newS.extra_tree=s.extra_tree
+        newS.enju=s.enju
+        newS.deep=s.deep
         newS.route_feat_cache_dict = s.route_feat_cache_dict
         return newS
 
@@ -202,7 +206,7 @@ class Parser(object):
             if len(sent)<2:
                 print >> sys.stderr, "Skipping sentence of length", len(sent)
                 continue
-            gs_tree,e=Tree.new_from_conll(sent,extra_tree=False) # extra_tree is always False here, no need for it yet
+            gs_tree,e,xxx,xxx2=Tree.new_from_conll(sent,extra_tree=False) # extra_tree is always False here, no need for it yet
             gs_tree.fill_syntax(sent)
             non_projs=gs_tree.is_nonprojective()
             if len(non_projs)>0:
