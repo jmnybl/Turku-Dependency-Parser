@@ -53,7 +53,8 @@ class State(object):
         #Not today   <- huh? TODO
         #self.extra_tree.create_context_routes()
         self.stack=[]
-        self.queue=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
+        #self.queue=self.extra_tree.BFS_queue(self.tree.tokens[self.tree.semeval_root_idx])
+        self.queue=self.extra_tree.Linear_queue_LR(self.tree.tokens[self.tree.semeval_root_idx])
         self.stack.extend(self.queue[:2]) #Put the first two tokens on the stack, should be semeval_root_idx and the first word
         assert self.stack[-2].is_semeval_root==True
         self.queue[:2]=[]

@@ -106,6 +106,12 @@ class Tree(object):
         self.context={}
         self.routes={}
 
+    def Linear_queue_LR(self,token):
+        queue=[(0,t.index,t.index,t) for t in self.tokens if t!=token]
+        assert len(queue)==len(self.tokens)-1
+        queue.sort()
+        return [token]+[item[-1] for item in queue]
+
     def Linear_queue(self,token):
         queue=[(0,abs(t.index-token.index),t.index,t) for t in self.tokens]
         queue.sort()
