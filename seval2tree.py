@@ -100,7 +100,7 @@ def gen_one_root(comment,sentence,root_token_idx,predicates,empty,comp,format):
         else:
             MISC=u"_"
         if len(cols[POS])==15: # split czech POS tags
-            pos,cpos,feats=analyze_morpho(cols[POS])
+            cpos,pos,feats=analyze_morpho(cols[POS])
         else:
             pos=cols[POS]
             cpos=u"_"
