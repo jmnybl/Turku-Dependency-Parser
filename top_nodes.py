@@ -24,10 +24,19 @@ def get_full_sentence(f):
     
     for comment,sent in get_sentence(f):
 
+        if not sent: # this is empty sentence
+            assert u"." not in comment
+            yield comments,sentences,arguments # yield last one
+            comments=[]
+            sentences=[]
+            arguments={}
+            comments.append(comment) # add only comment
+            continue
+
         idx,count=comment.rsplit(u".",1)
         count=int(count)
         if count==0: # new sentence
-            if sentences:
+            if comments:
                 yield comments, sentences, arguments
             comments=[]
             sentences=[]
@@ -40,9 +49,22 @@ def get_full_sentence(f):
                 if int(line[HEAD]) not in arguments:
                     arguments[int(line[HEAD])]=set()
                 arguments[int(line[HEAD])].add((int(line[ID]),line[DEPREL]))    
-    if sentences:
+    if comments:
         yield comments, sentences, arguments
 
+def polynomial_features(feats):
+    """ Every feature value is just 1.0 so feats is just a list of features, not really a dictionary..."""
+    final_features={}
+    flist=[]
+    for fname, val in feats.iteritems():
+        flist.append(fname)
+    flist.sort()
+    for i in xrange(0,len(flist)):
+        for j in xrange(i,len(flist)):
+            f1=flist[i]
+            f2=flist[j]
+            final_features[f1+f2] = 1.0
+    return final_features
 
 def create_features(token_id, sent, args):
     """ token_id is 0-based, args keys are 1-based ints"""
@@ -95,10 +117,8 @@ def create_features(token_id, sent, args):
         if dep!=token_id+1:
             features[u"syntactic_sibling=%s" % t] = 1.0
 
+    return polynomial_features(features)
 
-#    TODO: create all pairs?
-
-    return features
 
 def get_label(token_id, sent):
     ID,TOKEN,LEMMA,POS,CPOS,FEAT,HEAD,DEPREL,DEPS,MISC=range(10)
@@ -118,6 +138,9 @@ def train(model_name):
     train_labels=[]
 
     for comments,sentences,arguments in get_full_sentence(codecs.getreader(u"utf-8")(sys.stdin)):
+
+        if not sentences:
+            continue
 
         for i in xrange(len(sentences[0])): # each sentence has the required information, so we can take just the first one
             
@@ -182,6 +205,9 @@ def test(model_name):
     test_labels=[]
 
     for comments,sentences,arguments in get_full_sentence(codecs.getreader(u"utf-8")(sys.stdin)):
+
+        if not sentences:
+            continue
 
         for i in xrange(len(sentences[0])): # each sentence has the required information, so we can take just the first one
         
@@ -285,6 +311,11 @@ def predict(model_name,lang):
 
     for comments,sentences,arguments in get_full_sentence(codecs.getreader(u"utf-8")(sys.stdin)):
 
+        if not sentences:
+            print >> out, comments[0]
+            print >> out
+            continue
+
         labels=[]
         scores=[]
 
@@ -299,7 +330,6 @@ def predict(model_name,lang):
             scores.append(score)
 
         final_top_nodes=filter_predictions(labels,scores,lang) # 0-based token indices
-        print >> sys.stderr, labels.count(1),len(final_top_nodes)
 
         # print sentences out with top node predictions
         for i in xrange(len(sentences)):
