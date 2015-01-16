@@ -279,13 +279,25 @@ def filter_predictions(labels,scores,lang):
         final_top_nodes.append(scores.index(max(scores)))
         return final_top_nodes
 
-    if lang==u"en.psd" or lang==u"cs.psd":
+    if lang==u"en.psd":
         if labels.count(1)==0:
             final_top_nodes.append(scores.index(max(scores)))
             return final_top_nodes
         for idx,val in enumerate(labels):
-            if val==1:
+            if val==1 and scores[ids] in sorted_scores:
                 final_top_nodes.append(idx)
+        return final_top_nodes
+    if lang==u"cs.psd":
+        if labels.count(1)==0:
+            final_top_nodes.append(scores.index(max(scores)))
+            return final_top_nodes
+        sorted_scores=sorted(scores,reverse=True)[:2]
+        #print >> sys.stderr,scores
+        #print >> sys.stderr,sorted_scores
+        for idx,val in enumerate(labels):
+            if val==1 and scores[idx] in sorted_scores:
+                final_top_nodes.append(idx)
+        #print >> sys.stderr, labels.count(1),len(final_top_nodes)
         return final_top_nodes
 
     assert False
