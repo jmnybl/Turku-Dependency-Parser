@@ -11,6 +11,7 @@ import time
 import threading
 import model
 import shutil
+import random
 
 def one_process(model_file_name,g_perceptron,q,beam_size):
     """
@@ -54,6 +55,57 @@ def feed_queue(q,inp,iteration_progress=0.0,max_sent=0):
     if inp!=None:
         data.close() #Close what you opened
 
+def feed_queue_from_list(q,data,iteration_progress=0.0,max_sent=0):
+    """iteration_progress -> progress through the total number of iterations, will be passed on to the parser.
+    """
+    counter=0
+    batch=[]
+    for sent in data:
+        counter+=1
+        if counter%40==0: #Split the queue into batches of 40 sentences to train on
+            q.put((iteration_progress,u"".join(batch)))
+            batch=[]
+        if max_sent!=0 and counter>=max_sent:
+            break
+        for line in sent:
+            batch.append(line)
+    else:
+        if batch:
+            q.put((iteration_progress,u"".join(batch)))
+
+
+def read_data(inp):
+     ### WARNING: ignores comments
+
+    if inp==None: #Do stdin
+        data=codecs.getreader("utf-8")(sys.stdin)
+    else:
+        data=codecs.open(inp,"rt","utf-8")
+
+    sentences=[] # all sentences
+    
+    counter=0
+    current=[] # individual sentence
+    for line in data:
+        if line.startswith(u"1\t"):
+            if current:
+                sentences.append(current)
+            current=[]
+            counter+=1
+            if counter>1000000:
+                assert False, "Too many sentences to read into memory, use --no_shuffle"
+        current.append(line)
+    else:
+        if current:
+            sentences.append(current)
+            
+    if inp!=None:
+        data.close() #Close what you opened
+
+    return sentences
+
+
+
 def launch_instances(args):
     """
     main() to launch everything
@@ -89,12 +141,22 @@ def launch_instances(args):
 
     #All processes started
     #...feed the queue with data
-    for iteration_number in range(args.iterations):
-        iteration_number_as_list[0]=iteration_number
-        feed_queue(q,args.input,float(iteration_number)/args.iterations,args.max_sent)
-        #Iteration ended, store if you are supposed to, unless it's the last iteration
-        if args.save_per_iter and iteration_number<args.iterations-1: 
-            save_model(sh_state,args,iteration_number)
+    if args.no_shuffle:
+        for iteration_number in range(args.iterations):
+            iteration_number_as_list[0]=iteration_number
+            feed_queue(q,args.input,float(iteration_number)/args.iterations,args.max_sent)
+            #Iteration ended, store if you are supposed to, unless it's the last iteration
+            if args.save_per_iter and iteration_number<args.iterations-1: 
+                save_model(sh_state,args,iteration_number)
+    else:
+        data=read_data(args.input)
+        for iteration_number in range(args.iterations):
+            iteration_number_as_list[0]=iteration_number
+            random.shuffle(data)
+            feed_queue_from_list(q,data,float(iteration_number)/args.iterations,args.max_sent)
+            #Iteration ended, store if you are supposed to, unless it's the last iteration
+            if args.save_per_iter and iteration_number<args.iterations-1: 
+                save_model(sh_state,args,iteration_number)
 
     #Signal end of work to all processes (Thanks @radimrehurek for this neat trick!)
     for _ in range(args.processes):
@@ -153,6 +215,7 @@ if __name__=="__main__":
     g.add_argument('-i', '--iterations', type=int, default=10, help='How many iterations to run? If you want more than one, you must give the input as a file. (default %(default)d)')
     g.add_argument('--dim', type=int, default=5000000, help='Dimensionality of the trained vector. (default %(default)d)')
     g.add_argument('--beam_size', type=int, default=40, help='Size of the beam. (default %(default)d)')
+    g.add_argument('--no_shuffle', required=False, action="store_true", default=False, help='Do not shuffle training data before every iteration. Reshuffling loads everything into memory, so this should be used when training with huge amount of data. Default %(default)s')
     args = parser.parse_args()
 
     if args.iterations>1 and args.input==None:
