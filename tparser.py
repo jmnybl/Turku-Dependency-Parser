@@ -21,23 +21,23 @@ SWAP=3
 DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparator complm conj cop csubj csubj-cop dep det dobj gobj gsubj iccomp infmod intj mark name neg nommod nsubj num parataxis partmod poss prt punct rcmod voc xcomp xsubj xsubj-cop nsubj-cop nommod-own csubjpass nn cc number quantmod rel preconj ROOT".split() # TODO: collect these from data
 
 
-class Transition(object):
+#class Transition(object):
 
-    def __init__(self,move,dType=None):
-        self.move=move
-        self.dType=dType
+#    def __init__(self,move,dType=None):
+#        self.move=move
+#        self.dType=dType
 
-    def __eq__(self,other):
-        return self.move==other.move and self.dType==other.dType
+#    def __eq__(self,other):
+#        return self.move==other.move and self.dType==other.dType
 
-    def __str__(self):
-        return str(self.move)+":"+str(self.dType)
+#    def __str__(self):
+#        return str(self.move)+":"+str(self.dType)
 
-    def __unicode__(self):
-        return unicode(self.move)+u":"+unicode(self.dType)
+#    def __unicode__(self):
+#        return unicode(self.move)+u":"+unicode(self.dType)
 
-    def __repr__(self):
-        return str(self.move)+":"+str(self.dType)
+#    def __repr__(self):
+#        return str(self.move)+":"+str(self.dType)
    
 
 class State(object):
@@ -100,35 +100,38 @@ class State(object):
         if self.prev_state:
             self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
-    def update(self,trans):
-        if trans.move==SHIFT: # SHIFT
-            self.shift(trans)
-        elif trans.move==RIGHT: # RIGHT ARC
-            self.add_arc(self.stack[-2],self.stack.pop(-1),trans) 
-        elif trans.move==LEFT: # LEFT ARC
-            self.add_arc(self.stack[-1],self.stack.pop(-2),trans)
-        elif trans.move==SWAP: # SWAP
-            self.swap(trans)
+
+    def update(self,move,dtype=None):
+        if move==SHIFT: # SHIFT
+            self.shift()
+        elif move==RIGHT: # RIGHT ARC
+            assert (dtype is not None)
+            self.add_arc(self.stack[-2],self.stack.pop(-1),dtype) 
+        elif move==LEFT: # LEFT ARC
+            assert (dtype is not None)
+            self.add_arc(self.stack[-1],self.stack.pop(-2),dtype)
+        elif move==SWAP: # SWAP
+            self.swap()
         else:
             raise ValueError("Incorrect transition")
-        self.transitions.append(trans)
+        self.transitions.append(move)
         if len(self.queue)==0 and len(self.stack)==1:
             assert self.stack[-1].index==-1,("ROOT is not the last token in the stack.", self.stack)
             self.tree.ready=True
 
 
 
-    def add_arc(self,gov,dep,trans):
+    def add_arc(self,gov,dep,dtype):
         """ Gov and dep are Token class instances. """
-        dependency=Dep(gov,dep,trans.dType)
+        dependency=Dep(gov,dep,dtype)
         self.tree.add_dep(dependency)
 
 
-    def shift(self,trans):
+    def shift(self):
         self.stack.append(self.queue.pop(0))
 
 
-    def swap(self,trans):
+    def swap(self):
         self.queue.insert(0,self.stack.pop(-2))
 
     def valid_transitions(self):
@@ -155,11 +158,12 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,model_file_name,fName=None,gp=None,beam_size=40,test_time=False):
+    def __init__(self,model_file_name,regressor,fName=None,gp=None,beam_size=40,test_time=False):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
         self.model=Model.load(model_file_name)
+        self.regressor=regressor
         if gp:
             self.perceptron=gp
             return
@@ -183,7 +187,7 @@ class Parser(object):
                 gs_tree.define_projective_order(non_projs)
                 non+=1
             try:
-                gs_transitions=self.extract_transitions(gs_tree,sent)
+                gs_transitions=self.extract_transitions(gs_tree,sent) #gs_transitions is a list of (move,dtype) tuples
                 self.train_one_sent(gs_transitions,sent,progress) # sent is a conll sentence
             except ValueError:
                 traceback.print_exc()
@@ -197,30 +201,32 @@ class Parser(object):
 
     def extract_transitions(self,gs_tree,sent):
         state=State(sent,syn=False)
+        trans_seq=[]
         while not state.tree.ready:
             if len(state.queue)==0 and len(state.stack)==2: # only final ROOT arc needed (it's not part of a tree)
                 move,=state.valid_transitions() # this is used to decide whether we need LEFT or RIGHT
                 assert (move==RIGHT or move==LEFT)
-                trans=Transition(move,u"ROOT")
-                state.update(trans)
+                state.update(move,u"ROOT")
+                trans_seq.append((move,u"ROOT"))
                 continue
             if len(state.stack)>1:
-                move,dType=self.extract_dep(state,gs_tree)
+                move,dtype=self.extract_dep(state,gs_tree)
                 if move is not None:
-                    trans=Transition(move,dType)
-                    if trans.move not in state.valid_transitions():
-                        raise ValueError("Invalid transition:",trans.move)
-                    state.update(trans)
+                    if move not in state.valid_transitions():
+                        raise ValueError("Invalid transition:",move)
+                    state.update(move,dtype)
+                    trans_seq.append((move,dtype))
                     continue
             # cannot draw arc
             if (len(state.stack)>1) and (gs_tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (gs_tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    trans=Transition(SWAP,None)
+                    move=SWAP
             else: # SHIFT
-                trans=Transition(SHIFT,None)
-            if trans.move not in state.valid_transitions():
-                raise ValueError("Invalid transition:",trans.move)
-            state.update(trans)
-        return state.transitions
+                move=SHIFT
+            if move not in state.valid_transitions():
+                raise ValueError("Invalid transition:",move)
+            state.update(move)
+            trans_seq.append((move,None))
+        return trans_seq
             
     def extract_dep(self,state,gs_tree):
         first,sec=state.stack[-1],state.stack[-2]
@@ -246,18 +252,25 @@ class Parser(object):
         gs_state=State(sent,syn=False)
         while not self.beam_ready(beam):
             if not gs_state.tree.ready: # update gs if it's not ready
-                gs_trans=gs_transitions[len(gs_state.transitions)]
-                if gs_trans.move not in gs_state.valid_transitions():
+                move,dtype=gs_transitions[len(gs_state.transitions)]
+                if move not in gs_state.valid_transitions():
                     raise ValueError("Invalid GS Transition")
-                s=self.perceptron.score(gs_state.features,False,prefix=unicode(gs_trans))
+                s=self.perceptron.score(gs_state.features,False,prefix=unicode(move))
                 gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
                 gs_state.score+=s
-                gs_state.update(gs_trans)
+                
+                if move==RIGHT or move==LEFT:
+                    if len(gs_state.queue)==0 and len(gs_state.stack)==2: 
+                        dtype=u"ROOT"
+                    else:
+                        dtype=u"xxx"
+
+                gs_state.update(move,dtype)
                 gs_state.features=feats.create_features(gs_state)
             else:
-                gs_trans=None
+                move,dtype=None,None
 
-            beam=self.give_next_state(beam,gs_trans) # update beam         
+            beam=self.give_next_state(beam,move,dtype) # update beam TODO    
 
             best_state=beam[0]
 #            if len(beam)>1:
@@ -288,21 +301,7 @@ class Parser(object):
     def enum_transitions(self,state):
         """Enumerates transition objects allowable for the state. TODO: Filtering here?"""
         for move in state.valid_transitions():
-            if move==RIGHT or move==LEFT:
-                if len(state.queue)==0 and len(state.stack)==2: 
-                    yield Transition(move,u"ROOT")
-                    continue
-                if move==RIGHT:
-                    gov_pos=state.stack[-2].pos
-                    dep_pos=state.stack[-1].pos
-                else:
-                    gov_pos=state.stack[-1].pos
-                    dep_pos=state.stack[-2].pos
-                allowed=self.model.deptypes.get((gov_pos,dep_pos),set())
-                for dType in allowed:
-                    yield Transition(move,dType)
-            else:
-                yield Transition(move,None)
+            yield move
                 
 
 
@@ -318,7 +317,7 @@ class Parser(object):
 
 
 
-    def give_next_state(self,beam,gs_trans=None):
+    def give_next_state(self,beam,gs_move=None,gs_dtype=None):
         """ Predict next state and creates it. Also returns the next best state, needed for the margin update """
         #We want to
         # 1) go over the allowed transitions and score each state with that operation's prefix
@@ -333,22 +332,32 @@ class Parser(object):
             if len(state.queue)==0 and len(state.stack)==1: # this state is ready
                 scores.append((state.score,None,state))
                 continue
-            for trans in self.enum_transitions(state):
-                s=self.perceptron.score(state.features,self.test_time,prefix=unicode(trans))
-                scores.append((state.score+s,trans,state))
+            for move in self.enum_transitions(state):
+                s=self.perceptron.score(state.features,self.test_time,prefix=unicode(move))
+                scores.append((state.score+s,move,state))
         #Okay, now we have the possible continuations ranked
         selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
 
         new_beam=[]
-        for score,transition,state in selected_transitions:
+        for score,move,state in selected_transitions:
             #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
-            if transition is None: # this state is ready
+            if move is None: # this state is ready
                 new_beam.append(state)
                 continue
             newS=State.copy_and_point(state)
-            newS.update(transition)
+
+            if move==RIGHT or move==LEFT:
+                if len(state.queue)==0 and len(state.stack)==2: # must be ROOT
+                    dtype=u"ROOT"
+                else:
+                    dtype=u"xxx" ## TODO: regress the type
+                newS.update(move,dtype)
+            else:
+                newS.update(move)
+
             newS.score=score # Do not use '+'
-            if (gs_trans is None) or (not transition==gs_trans):
+            #if (gs_trans is None) or (not transition==gs_trans):
+            if (gs_move is None) or (gs_move!=move): # TODO: ignore deptype
                 newS.wrong_transitions+=1 # TODO: is this fair?
             newS.features,factors=feats.create_general_features(newS)
             newS.features.update(feats.create_deptype_features(newS,factors))
@@ -372,13 +381,13 @@ class Parser(object):
 
 if __name__==u"__main__":
 
-    parser=Parser()
+    parser=Parser(u"corpus_stats.pkl")
 #    parser=Parser(u"full_model",test_time=True)
     
     for i in xrange(0,10):
 
         print >> sys.stderr, "iter",i+1
-        parser.train(u"tdt.conll")
+        parser.train(u"tdt-train-jktagged.conll09")
         break
         parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
     sys.exit()

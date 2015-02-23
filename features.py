@@ -94,7 +94,7 @@ class Features(object):
                 transit=state.transitions[::-1]
             for i in xrange(0,len(transit)):
                 name='p(S0)h'+'h'.join(str(j) for j in xrange(0,i+1)) # feature name
-                value=state.stack[-1].pos+''.join(str(t.move)+str(t.dType) for t in transit[:i+1]) # feature 'value'
+                value=state.stack[-1].pos+''.join(str(t) for t in transit[:i+1]) # feature 'value'
                 features[name+'='+value]=1.0
         # graph-based features
         if len(state.tree.deps)>0:
@@ -197,7 +197,7 @@ class Features(object):
         feat=create_auto_features(state)
         self.manual_features(state,feat)
         # now graph-based features...
-        if state.transitions[-1].move==RIGHT or state.transitions[-1].move==LEFT:
+        if state.transitions[-1]==RIGHT or state.transitions[-1]==LEFT:
             factors=self.new_factors(state)
             g=state.tree.deps[-1].gov
             d=state.tree.deps[-1].dep
