@@ -11,6 +11,10 @@ from perceptron import GPerceptron, PerceptronSharedState
 import copy
 from model import Model
 
+from regressor import regressorWrapper, VRegressor
+from reg import train
+from collections import namedtuple
+
 feats=Features()
 
 SHIFT=0
@@ -262,8 +266,6 @@ class Parser(object):
                 if move==RIGHT or move==LEFT:
                     if len(gs_state.queue)==0 and len(gs_state.stack)==2: 
                         dtype=u"ROOT"
-                    else:
-                        dtype=u"xxx"
 
                 gs_state.update(move,dtype)
                 gs_state.features=feats.create_features(gs_state)
@@ -350,7 +352,12 @@ class Parser(object):
                 if len(state.queue)==0 and len(state.stack)==2: # must be ROOT
                     dtype=u"ROOT"
                 else:
-                    dtype=u"xxx" ## TODO: regress the type
+                    #dtype=u"xxx" ## TODO: regress the type
+                    if move==LEFT:
+                        tokens=[state.stack[-2].text,state.stack[-1].text]
+                    else:
+                        tokens=[state.stack[-1].text,state.stack[-2].text]
+                    dtype=self.regressor.regress_vector(tokens).split(u"_")[1]
                 newS.update(move,dtype)
             else:
                 newS.update(move)
@@ -381,8 +388,22 @@ class Parser(object):
 
 if __name__==u"__main__":
 
-    parser=Parser(u"corpus_stats.pkl")
-#    parser=Parser(u"full_model",test_time=True)
+
+    # ...HACK TO TRAIN REGRESSOR...
+
+    vr=VRegressor(600,10)
+    
+    #reg.train needs these arguments
+    arguments=namedtuple("arg_names",["wvtoken","wvmorpho","conll09","dtype","morpho"])
+    values={"val1":arguments("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",True,True,False)}
+    temp_args=values["val1"]
+    
+    train(temp_args,vr,0.01)
+    
+    reg_wrapper=regressorWrapper("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",vr)
+
+
+    parser=Parser(u"corpus_stats.pkl",reg_wrapper,beam_size=5)
     
     for i in xrange(0,10):
 
@@ -390,9 +411,10 @@ if __name__==u"__main__":
         parser.train(u"tdt-train-jktagged.conll09")
         break
         parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
-    sys.exit()
-    outf=codecs.open(u"parserout_test.conll",u"wt",u"utf-8")
-    parser.parse(u"test.conll09",outf)
+    #sys.exit()
+    parser.test_time=True
+    outf=codecs.open(u"parsed.xxx.conll",u"wt",u"utf-8")
+    parser.parse(u"tdt_test_mm_tagged.conll09",outf)
     outf.close()
 
 

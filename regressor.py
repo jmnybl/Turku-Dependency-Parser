@@ -55,13 +55,40 @@ class VRegressor(object):
 
 class regressorWrapper(object):
 
-    def __init__(self,vector_model,regressor_model):
-        self.word_vectors=wvlib.load(vector_model, max_rank=10000).normalize()
+    def __init__(self,word_model,label_model,regressor_model):
+        # load word vectors
+        self.word_vectors=wvlib.load(word_model, max_rank=10000).normalize()
+        self.word_mapping=self.word_vectors.word_to_vector_mapping()
+        # load label vectors (e.g. dependency type vectors)
+        self.label_vectors=wvlib.load(label_model).normalize()
+        self.label_mapping=self.label_vectors.word_to_vector_mapping()
+        # regressor model
         self.regressor=regressor_model # TODO load the trained model
 
+    def tokens2vectors(self,tokens):
+        vectors=[]
+        for token in tokens:
+            try:
+                vectors.append(self.word_mapping[token])
+            except:
+                vectors.append(numpy.zeros(self.word_vectors.config.vector_dim))
+        return vectors
 
-    def predict(self,tokens):
-        pass
+    def regress_and_update(self,tokens,label): # TODO: learning rate
+        assert len(tokens)==2
+        vectors=self.tokens2vectors(tokens)
+        label_vector=self.label_mapping[label]
+        error=self.regressor.update(numpy.concatenate(tuple(vectors)),label_vector) # TODO: this should return the predicted vector...
+
+
+
+    def regress_vector(self,tokens):
+        assert len(tokens)==2
+        vectors=self.tokens2vectors(tokens)
+        predicted=self.regressor.predict(numpy.concatenate(tuple(vectors))) # predicted vector
+        label,sim=self.label_vectors.nearest(predicted.astype(numpy.float32))[0] # turn the vector into label
+        return label # TODO return the predicted vector...
+        
 
 if __name__=="__main__":
 

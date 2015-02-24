@@ -59,7 +59,7 @@ def train(args,vr,lr):
     mmodel=wvlib.load(args.wvmorpho, max_rank=10000).normalize()
 
     f=codecs.open(u"tdt-train-jktagged.conll09",u"rt",u"utf-8")
-    f=codecs.open(u"/usr/share/ParseBank/DepLing2015/fi-tdt-train.conllu",u"rt",u"utf-8")
+    #f=codecs.open(u"/usr/share/ParseBank/DepLing2015/fi-tdt-train.conllu",u"rt",u"utf-8")
     for comment,sent in read_conll(f):#(codecs.getreader(u"utf-8")(sys.stdin)):
         examples=process_sent(sent,args)
         for example in examples:
