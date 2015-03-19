@@ -316,15 +316,24 @@ class Tree(object):
 
         #Now, we have the leaves handled, started some routes, we need to find those nodes whose children are all
         #processed
+
+        process_temp = 0
+        same_count = 0
+
         while(len(processed_nodes) < len(self.tokens)):
+            if process_temp == len(processed_nodes):
+                same_count += 1
+            else:
+                same_count = 0
+            process_temp = len(processed_nodes)
+
             new_candidates = set()
             for candidate in list(candidates_for_next_round):
-                if len(set(self.childs[candidate]) - set(processed_nodes)) < 1 and candidate not in processed_nodes:
+                if len(set(self.childs[candidate]) - set(processed_nodes + [candidate])) < 1 and candidate not in processed_nodes:
                     #This node is ready to be processed
                     new_ready_routes = self.process_node(candidate, routes_under_construction)
                     ready_routes.extend(new_ready_routes)
                     processed_nodes.append(candidate)
-
                     #I'd better replace this with something better later
                     if candidate in self.govs.keys():
                         if self.govs[candidate] not in processed_nodes:
@@ -341,14 +350,20 @@ class Tree(object):
         #if len(set([item for item in itertools.combinations(self.tokens, 2)]))*2 != len(self.routes.keys()):
         #    import pdb; pdb.set_trace()
 
+
+
+
     def process_node(self, node, all_routes_under_construction):
-        
+
         new_ready_routes = []
         new_routes_under_construction = []
 
         routes_under_construction = []
         for child_node in self.childs[node]:
-            routes_under_construction.extend(all_routes_under_construction[child_node])
+
+            if child_node != node:
+
+                routes_under_construction.extend(all_routes_under_construction[child_node])
 
         #The Law
         #1. Since you are here your subtrees are known
@@ -364,19 +379,24 @@ class Tree(object):
 
         #new_routes_under_construction.append([node])
         if node in self.govs.keys():
-            new_routes_under_construction.append([node, Dep(self.govs[node], node, self.dtypes[node])])
-            new_ready_routes.append([node, Dep(self.govs[node], node, self.dtypes[node]), self.govs[node]])
-            #3. What ends with me must be complete!
-            #also 5.
-            for r_route in routes_under_construction:
-                new_ready_routes.append(r_route + [Dep(self.govs[node], node, self.dtypes[node]), self.govs[node]])
-                new_routes_under_construction.append(r_route + [Dep(self.govs[node], node, self.dtypes[node])])
+
+            if self.govs[node] != node:
+
+                new_routes_under_construction.append([node, Dep(self.govs[node], node, self.dtypes[node])])
+                new_ready_routes.append([node, Dep(self.govs[node], node, self.dtypes[node]), self.govs[node]])
+                #3. What ends with me must be complete!
+                #also 5.
+                for r_route in routes_under_construction:
+                    new_ready_routes.append(r_route + [Dep(self.govs[node], node, self.dtypes[node]), self.govs[node]])
+                    new_routes_under_construction.append(r_route + [Dep(self.govs[node], node, self.dtypes[node])])
 
         #4. Subtrees
         #for r_comb in itertools.combinations(routes_under_construction, 2):
         #    new_ready_routes.append(r_comb[0] + [node] + r_comb[1][::-1])
+        children = set(self.childs[node]) - set([node])
 
-        for child_combo in itertools.combinations(self.childs[node], 2):
+        for child_combo in itertools.combinations(children, 2):
+
             for route_1 in all_routes_under_construction[child_combo[0]]:
                 for route_2 in all_routes_under_construction[child_combo[1]]:
                     new_ready_routes.append(route_1 + route_2[::-1])
