@@ -284,7 +284,7 @@ def filter_predictions(labels,scores,lang):
             final_top_nodes.append(scores.index(max(scores)))
             return final_top_nodes
         for idx,val in enumerate(labels):
-            if val==1 and scores[ids] in sorted_scores:
+            if val==1:
                 final_top_nodes.append(idx)
         return final_top_nodes
     if lang==u"cs.psd":
