@@ -15,6 +15,8 @@ from regressor import regressorWrapper, VRegressor
 from reg import train
 from collections import namedtuple
 
+from auto_features import get_child
+
 feats=Features()
 
 SHIFT=0
@@ -159,6 +161,87 @@ class State(object):
         return u",".join(str(t.move)+u":"+str(t.dType) for t in self.transitions)
 
 
+    def collect_tokens(self,move):
+        """ Tokens used to train regressor
+            stack 1-3, queue 1-3, right 1-2 and left 1-2 dependent of stack 1-2 + leftmost of leftmost and rightmost of rightmost
+            18 tokens + pos tags
+        """
+        if move==LEFT:
+            g,d=self.stack[-1],self.stack[-2]
+        else:
+            g,d=self.stack[-2],self.stack[-1]
+        
+        tokens=self.fill_token(g,[]) # ...collect everything from gov token
+        tokens=self.fill_token(d,tokens) # ...collect everything from dep token
+
+        # ...stack three
+        if len(self.stack)>2 and self.stack[-3].text!=u"ROOT":
+            tokens.append(self.stack[-3].text)
+            tokens.append(self.stack[-3].pos)
+        else:
+            tokens.append(u"NONE")
+            tokens.append(u"NONE")
+
+        # ...and queue
+        for i in range(3):
+            if len(self.queue)>i:
+                tokens.append(self.queue[i].text)
+                tokens.append(self.queue[i].pos)
+            else:
+                tokens.append(u"NONE")
+                tokens.append(u"NONE")
+        assert len(tokens)==36
+        return tokens
+
+    def fill_token(self,token,tlist):
+        tlist.append(token.text)
+        tlist.append(token.pos)
+        # left and rightmost dependents + leftmost of leftmost and rightmost of rightmost
+        childs=sorted(self.tree.childs[token], key=lambda x:x.index)
+        if len(childs)>0:
+            if childs[0].index<token.index: # leftmost
+                tlist.append(childs[0].text)
+                tlist.append(childs[0].pos)
+                dep_childs=sorted(self.tree.childs[childs[0]], key=lambda x:x.index)
+                if len(dep_childs)>0 and dep_childs[0].index<childs[0].index: # leftmost of leftmost
+                    tlist.append(dep_childs[0].text)
+                    tlist.append(dep_childs[0].pos)
+                else:
+                    for _ in range(2):
+                        tlist.append(u"NONE")
+                if len(childs)>2 and childs[1].index<token.index: # second leftmost
+                    tlist.append(childs[1].text)
+                    tlist.append(childs[1].pos)
+                else:
+                    for _ in range(2):
+                        tlist.append(u"NONE")
+            else:
+                for _ in range(6):
+                    tlist.append(u"NONE")
+            if childs[-1].index>token.index: # rightmost
+                tlist.append(childs[-1].text)
+                tlist.append(childs[-1].pos)
+                dep_childs=sorted(self.tree.childs[childs[-1]], key=lambda x:x.index)
+                if len(dep_childs)>0 and dep_childs[-1].index>childs[-1].index: # rightmost of rightmost
+                    tlist.append(dep_childs[-1].text)
+                    tlist.append(dep_childs[-1].pos)
+                else:
+                    for _ in range(2):
+                        tlist.append(u"NONE")
+                if len(childs)>2 and childs[-2].index>token.index: # second rightmost
+                    tlist.append(childs[-2].text)
+                    tlist.append(childs[-2].pos)
+                else:
+                    for _ in range(2):
+                        tlist.append(u"NONE")
+            else:
+                for _ in range(6):
+                    tlist.append(u"NONE")
+        else:
+            for _ in range(12):
+                tlist.append(u"NONE")
+        return tlist
+
 class Parser(object):
 
 
@@ -201,6 +284,44 @@ class Parser(object):
             print u"Total number of trees:",total
             print u"Non-projectives:",non
             print u"Progress:",progress
+
+    def collect_train_data(self,inp,out):
+
+        print >> sys.stderr, "...collecting training data for regression"
+
+        for sent in read_conll(inp):
+            tree=Tree.new_from_conll(conll=sent,syn=True)
+            non_projs=tree.is_nonprojective()
+            if len(non_projs)>0:
+                tree.define_projective_order(non_projs)
+
+            state=State(sent,syn=False)
+            while not state.tree.ready:
+                if len(state.queue)==0 and len(state.stack)==2:
+                    break
+                if len(state.stack)>1:
+                    move,dtype=self.extract_dep(state,tree)
+                    if move is not None:
+                        if move not in state.valid_transitions():
+                            raise ValueError("Invalid transition:",move)
+
+                        # now collect tokens for regressor training
+                        reg_tokens=state.collect_tokens(move)
+                        print >> out, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
+
+                        state.update(move,dtype)
+                        continue
+
+                if (len(state.stack)>1) and (tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
+                    move=SWAP
+                else: # SHIFT
+                    move=SHIFT
+                state.update(move)
+
+        print >> sys.stderr, "...done"
+
+        
+
 
 
     def extract_transitions(self,gs_tree,sent):
@@ -389,6 +510,12 @@ class Parser(object):
 if __name__==u"__main__":
 
 
+    ## just to collect regressor traindata
+    parser=Parser(u"corpus_stats.pkl",None,beam_size=5)
+    parser.collect_train_data(codecs.getreader(u"utf-8")(sys.stdin),codecs.getreader(u"utf-8")(sys.stdout))
+    sys.exit()
+
+
     # ...HACK TO TRAIN REGRESSOR...
 
     vr=VRegressor(600,10)
@@ -402,7 +529,6 @@ if __name__==u"__main__":
     
     reg_wrapper=regressorWrapper("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",vr)
 
-
     parser=Parser(u"corpus_stats.pkl",reg_wrapper,beam_size=5)
     
     for i in xrange(0,10):
@@ -411,7 +537,7 @@ if __name__==u"__main__":
         parser.train(u"tdt-train-jktagged.conll09")
         break
         parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
-    #sys.exit()
+    sys.exit()
     parser.test_time=True
     outf=codecs.open(u"parsed.xxx.conll",u"wt",u"utf-8")
     parser.parse(u"tdt_test_mm_tagged.conll09",outf)
