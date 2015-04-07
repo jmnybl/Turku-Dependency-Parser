@@ -96,7 +96,7 @@ if __name__==u"__main__":
             continue
 
         if len(sent[0])>10: # conll09 --> conllu
-            sent=conllutil.conll09_to_conllu(sent)
+            sent=conllutil.conll09_to_conllu_no_features(sent)
 
         graph=Graph.create_from_conllu(sent)
         graph.floydWarshall()
