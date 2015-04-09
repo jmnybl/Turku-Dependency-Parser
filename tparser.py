@@ -171,83 +171,102 @@ class State(object):
         else:
             g,d=self.stack[-2],self.stack[-1]
         
-        tokens,pos=self.fill_token(g,[],[]) # ...collect everything from gov token
-        tokens,pos=self.fill_token(d,tokens,pos) # ...collect everything from dep token
+        tokens,pos,feat=self.fill_token(g,[],[],[]) # ...collect everything from gov token
+        tokens,pos,feat=self.fill_token(d,tokens,pos,feat) # ...collect everything from dep token
 
         # ...stack three
         if len(self.stack)>2 and self.stack[-3].text!=u"ROOT":
             tokens.append(self.stack[-3].text)
             pos.append(self.stack[-3].pos)
+            feat.append(self.stack[-3].feat)
         else:
             tokens.append(u"NONE")
             pos.append(u"NONE")
+            feat.append(u"NONE")
 
         # ...and queue
         for i in range(3):
             if len(self.queue)>i:
                 tokens.append(self.queue[i].text)
                 pos.append(self.queue[i].pos)
+                feat.append(self.queue[i].feat)
             else:
                 tokens.append(u"NONE")
                 pos.append(u"NONE")
+                feat.append(u"NONE")
         assert len(tokens)==len(pos) and len(tokens)==18
         final=[]
         for i in range(len(tokens)):
             final.append(u"W:"+tokens[i])
             final.append(u"POS:"+pos[i])
+            final.append(u"FEAT:"+feat[i])
         return final
 
-    def fill_token(self,token,tlist,plist):
+    def fill_token(self,token,tlist,plist,flist):
         tlist.append(token.text)
         plist.append(token.pos)
+        flist.append(token.feat)
         # left and rightmost dependents + leftmost of leftmost and rightmost of rightmost
         childs=sorted(self.tree.childs[token], key=lambda x:x.index)
         if len(childs)>0:
             if childs[0].index<token.index: # leftmost
                 tlist.append(childs[0].text)
                 plist.append(childs[0].pos)
+                flist.append(childs[0].feat)
                 dep_childs=sorted(self.tree.childs[childs[0]], key=lambda x:x.index)
                 if len(dep_childs)>0 and dep_childs[0].index<childs[0].index: # leftmost of leftmost
                     tlist.append(dep_childs[0].text)
                     plist.append(dep_childs[0].pos)
+                    flist.append(dep_childs[0].feat)
                 else:
                     tlist.append(u"NONE")
                     plist.append(u"NONE")
+                    flist.append(u"NONE")
                 if len(childs)>2 and childs[1].index<token.index: # second leftmost
                     tlist.append(childs[1].text)
                     plist.append(childs[1].pos)
+                    flist.append(childs[1].feat)
                 else:
                     tlist.append(u"NONE")
                     plist.append(u"NONE")
+                    flist.append(u"NONE")
             else:
                 for _ in range(3):
                     tlist.append(u"NONE")
                     plist.append(u"NONE")
+                    flist.append(u"NONE")
             if childs[-1].index>token.index: # rightmost
                 tlist.append(childs[-1].text)
                 plist.append(childs[-1].pos)
+                flist.append(childs[-1].feat)
                 dep_childs=sorted(self.tree.childs[childs[-1]], key=lambda x:x.index)
                 if len(dep_childs)>0 and dep_childs[-1].index>childs[-1].index: # rightmost of rightmost
                     tlist.append(dep_childs[-1].text)
                     plist.append(dep_childs[-1].pos)
+                    flist.append(dep_childs[-1].feat)
                 else:
                     tlist.append(u"NONE")
                     plist.append(u"NONE")
+                    flist.append(u"NONE")
                 if len(childs)>2 and childs[-2].index>token.index: # second rightmost
                     tlist.append(childs[-2].text)
                     plist.append(childs[-2].pos)
+                    flist.append(childs[-2].feat)
                 else:
                     tlist.append(u"NONE")
                     plist.append(u"NONE")
+                    flist.append(u"NONE")
             else:
                 for _ in range(3):
                     tlist.append(u"NONE")
                     plist.append(u"NONE")
+                    flist.append(u"NONE")
         else:
             for _ in range(6):
                 tlist.append(u"NONE")
                 plist.append(u"NONE")
-        return tlist,plist
+                flist.append(u"NONE")
+        return tlist,plist,flist
 
 class Parser(object):
 
