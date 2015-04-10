@@ -3,6 +3,7 @@ import sys
 import codecs
 import numpy
 import argparse
+import gzip
 
 inf=99999 # ...integer to represent inf
 
@@ -74,11 +75,11 @@ class Graph(object):
         self.next=next
 
 
-def print_walk(path,field):
+def print_walk(path,field,out):
     fields=field.split(u"|")
     def get_field(l):
         return u"|".join(l[conllu_columns[f]] for f in fields)
-    print >> sys.stdout, (u" ".join(get_field(sent[t]) for t in path)).encode(u"utf-8")
+    print >> out, (u" ".join(get_field(sent[t]) for t in path)).encode(u"utf-8")
 
 
 
@@ -86,11 +87,17 @@ if __name__==u"__main__":
 
     parser = argparse.ArgumentParser()
     g=parser.add_argument_group()
-    g.add_argument('--column', default=u"FORM", help='FORM, LEMMA, POS, FEAT or DEPREL, or their combination like POS|FEAT (default FORM)')
+    g.add_argument('--column', default=u"ALL", help='FORM, LEMMA, POS, FEAT or DEPREL, or their combination like POS|FEAT. ALL means "the usual suspects" written to files XXX_randwalks_NNNN.txt.gz (default ALL)')
     g.add_argument('-m', '--max', type=int, default=10000, help='How many sentences, 0 for all (default 10000)')
     args = parser.parse_args()
 
-    
+    if args.column=="ALL":
+        outputs=[['POS',"POS_randwalks_%(size)d.txt.gz"],['FEAT',"FEAT_randwalks_%(size)d.txt.gz"],['POS|FEAT',"POS_FEAT_randwalks_%(size)d.txt.gz"]]
+    else:
+        outputs=[(args.column,args.column.replace(u"|","_")+"_randwalks_%(size)d.txt.gz")]
+
+    for o in outputs:
+        o[1]=gzip.open(o[1]%{"size":args.max},"w")
 
     counter=0
     for comm,sent in conllutil.read_conllu(codecs.getreader(u"utf-8")(sys.stdin)):
@@ -110,13 +117,16 @@ if __name__==u"__main__":
                 if graph.dist[i][j]==inf: # ...no path found, incorrect tree
                     continue
                 path=graph.path(i,j)                
-                print_walk(path,args.column)
+                for col,o in outputs:
+                    print_walk(path,col,o)
         
         counter+=1
         if args.max!=0 and counter>=args.max:
             break
 
     print >> sys.stderr, counter
+    for col,o in outputs:
+        o.close()
 
 
 
