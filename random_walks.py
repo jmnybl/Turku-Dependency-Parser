@@ -92,7 +92,7 @@ if __name__==u"__main__":
     args = parser.parse_args()
 
     if args.column=="ALL":
-        outputs=[['POS',"POS_randwalks_%(size)d.txt.gz"],['FEAT',"FEAT_randwalks_%(size)d.txt.gz"],['POS|FEAT',"POS_FEAT_randwalks_%(size)d.txt.gz"]]
+        outputs=[['POS',"POS_UD_randwalks_%(size)d.txt.gz"],['FEAT',"FEAT_UD_randwalks_%(size)d.txt.gz"],['POS|FEAT',"POS_FEAT_UD_randwalks_%(size)d.txt.gz"]]
     else:
         outputs=[(args.column,args.column.replace(u"|","_")+"_randwalks_%(size)d.txt.gz")]
 
