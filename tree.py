@@ -5,8 +5,12 @@ import copy
 
 CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","DEPREL"])
 
+#conllu
+#0  1    2     3    4   5    6     7     8    9
+#ID FORM LEMMA CPOS POS FEAT HEAD DEPREL DEPS MISC
+
 #Column lists for the various formats
-formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10)}
+formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10),"conllu":CoNLLFormat(0,1,2,4,5,6,7)}
 
 
 
@@ -33,7 +37,7 @@ def read_conll(inp):
     if isinstance(inp,basestring):
         f.close() #Close it if you opened it
 
-def fill_conll(sent,state,conll_format=u"conll09"):
+def fill_conll(sent,state,conll_format=u"conllu"):
     form=formats[conll_format]
     for i in xrange(0,len(sent)):
         token=state.tree.tokens[i]
@@ -55,7 +59,7 @@ def write_conll(f,sent):
 class Tree(object):
 
     @classmethod
-    def new_from_conll(cls,conll,syn,conll_format="conll09"):
+    def new_from_conll(cls,conll,syn,conll_format="conllu"):
         t=cls()
         t.from_conll(conll,syn,conll_format)
         return t
