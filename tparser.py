@@ -200,6 +200,10 @@ class State(object):
             final.append(u"W:"+tokens[i])
             final.append(u"POS:"+pos[i])
             final.append(u"FEAT:"+feat[i])
+            if pos[i]!=u"NONE" and feat[i]!=u"NONE":
+                final.append(u"POS_FEAT:"+pos[i]+u"|"+feat[i])
+            else:
+                final.append(u"POS_FEAT:"+u"NONE")
         return final
 
     def fill_token(self,token,tlist,plist,flist):
