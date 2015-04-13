@@ -320,33 +320,36 @@ class Parser(object):
         print >> sys.stderr, "...collecting training data for regression"
 
         for sent in read_conll(inp):
-            tree=Tree.new_from_conll(conll=sent,syn=True)
-            non_projs=tree.is_nonprojective()
-            if len(non_projs)>0:
-                tree.define_projective_order(non_projs)
+            try:
+                tree=Tree.new_from_conll(conll=sent,syn=True)
+                non_projs=tree.is_nonprojective()
+                if len(non_projs)>0:
+                    tree.define_projective_order(non_projs)
 
-            state=State(sent,syn=False)
-            while not state.tree.ready:
-                if len(state.queue)==0 and len(state.stack)==2:
-                    break
-                if len(state.stack)>1:
-                    move,dtype=self.extract_dep(state,tree)
-                    if move is not None:
-                        if move not in state.valid_transitions():
-                            raise ValueError("Invalid transition:",move)
+                state=State(sent,syn=False)
+                while not state.tree.ready:
+                    if len(state.queue)==0 and len(state.stack)==2:
+                        break
+                    if len(state.stack)>1:
+                        move,dtype=self.extract_dep(state,tree)
+                        if move is not None:
+                            if move not in state.valid_transitions():
+                                raise ValueError("Invalid transition:",move)
 
-                        # now collect tokens for regressor training
-                        reg_tokens=state.collect_tokens(move)
-                        print >> out, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
+                            # now collect tokens for regressor training
+                            reg_tokens=state.collect_tokens(move)
+                            print >> out, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
 
-                        state.update(move,dtype)
-                        continue
+                            state.update(move,dtype)
+                            continue
 
-                if (len(state.stack)>1) and (tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
-                    move=SWAP
-                else: # SHIFT
-                    move=SHIFT
-                state.update(move)
+                    if (len(state.stack)>1) and (tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
+                        move=SWAP
+                    else: # SHIFT
+                        move=SHIFT
+                    state.update(move)
+            except:
+                print >> sys.stderr, "FAIL"
 
         print >> sys.stderr, "...done"
 
