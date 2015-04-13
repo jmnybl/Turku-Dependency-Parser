@@ -105,6 +105,9 @@ if __name__==u"__main__":
         if len(sent)==1: # ...no need for single token sentences
             continue
 
+        if len(sent)>256:
+            continue
+
         if len(sent[0])>10: # conll09 --> conllu
             sent=conllutil.conll09_to_conllu_no_features(sent)
 
@@ -121,6 +124,9 @@ if __name__==u"__main__":
                     print_walk(path,col,o)
         
         counter+=1
+        if counter%10000==0:
+            print >> sys.stderr, counter, "done"
+            sys.stderr.flush()
         if args.max!=0 and counter>=args.max:
             break
 
