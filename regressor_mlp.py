@@ -85,6 +85,41 @@ class SoftMaxLayer(object):
         # parameters of the model
         self.params = [self.W, self.b]
 
+
+    def negative_log_likelihood(self, y):
+        """Return the mean of the negative log-likelihood of the prediction
+        of this model under a given target distribution.
+
+        .. math::
+
+            \frac{1}{|\mathcal{D}|} \mathcal{L} (\theta=\{W,b\}, \mathcal{D}) =
+            \frac{1}{|\mathcal{D}|} \sum_{i=0}^{|\mathcal{D}|}
+                \log(P(Y=y^{(i)}|x^{(i)}, W,b)) \\
+            \ell (\theta=\{W,b\}, \mathcal{D})
+
+        :type y: theano.tensor.TensorType
+        :param y: corresponds to a vector that gives for each example the
+                  correct label
+
+        Note: we use the mean instead of the sum so that
+              the learning rate is less dependent on the batch size
+        """
+        # start-snippet-2
+        # y.shape[0] is (symbolically) the number of rows in y, i.e.,
+        # number of examples (call it n) in the minibatch
+        # T.arange(y.shape[0]) is a symbolic vector which will contain
+        # [0,1,2,... n-1] T.log(self.p_y_given_x) is a matrix of
+        # Log-Probabilities (call it LP) with one row per example and
+        # one column per class LP[T.arange(y.shape[0]),y] is a vector
+        # v containing [LP[0,y[0]], LP[1,y[1]], LP[2,y[2]], ...,
+        # LP[n-1,y[n-1]]] and T.mean(LP[T.arange(y.shape[0]),y]) is
+        # the mean (across minibatch examples) of the elements in v,
+        # i.e., the mean log-likelihood across the minibatch.
+        return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
+        # end-snippet-2
+
+
+
 # start-snippet-1
 class HiddenRepLayer(object):
     def __init__(self, rng, input, n_in, n_out, W=None, b=None,
@@ -242,7 +277,7 @@ class MLP(object):
 
         # the parameters of the model are the parameters of the two layer it is
         # made out of
-        self.params = self.hiddenLayer.params + self.softmaxLayer.params
+        self.params = self.hiddenLayer.params + self.softMaxLayer.params
         # end-snippet-3
 
         self.compile_train_classification() #compiles self.train_classification_model(x,y,l_rate)
@@ -252,9 +287,11 @@ class MLP(object):
 
         x = T.matrix('x',theano.config.floatX)  # minibatch, input
         y = T.matrix('y',theano.config.floatX)  # minibatch, output
-        l_rate = T.dscalar('lrate',theano.config.floatX) #Learning rate
+        l_rate = T.scalar('lrate',theano.config.floatX) #Learning rate
+        l1_reg = T.scalar('l1_reg',theano.config.floatX) #Learning rate
+        l2_reg = T.scalar('l2_reg',theano.config.floatX) #Learning rate
 
-        classification_cost=((self.softmaxLayer.y_regress-y)**2).sum()
+        classification_cost=((self.softMaxLayer.y_pred-y)**2).sum()+l1_reg*self.L1+l2_reg*self.L2_sqr
         gparams = [T.grad(classification_cost, param) for param in self.params]
 
         # specify how to update the parameters of the model as a list of
@@ -262,14 +299,14 @@ class MLP(object):
 
         updates = [
             (param, param - l_rate * gparam)
-            for param, gparam in zip(classifier.params, gparams)
+            for param, gparam in zip(self.params, gparams)
             ]
 
         # compiling a Theano function `train_model` that returns the cost, but
         # in the same time updates the parameter of the model based on the rules
         # defined in `updates`
         self.train_classification_model = theano.function(
-            inputs=[x,y,l_rate],
+            inputs=[x,y,l_rate,l1_reg,l2_reg],
             outputs=classification_cost,
             updates=updates,
             givens={
@@ -283,327 +320,3 @@ class MLP(object):
 
 
 
-
-    # def eval(self,X,types_model,correct_classes):
-    #     tst = theano.function(
-    #         inputs=[],
-    #         outputs=self.softmaxLayer.y_regress,
-    #         givens=[(self.hiddenLayer.input,X)]
-    #     )
-    #     regressions=tst()
-    #     correct=0
-    #     for i in xrange(len(correct_classes)):
-    #         pred=types_model.nearest(regressions[i],n=1)
-    #         if pred[0][0]==correct_classes[i]:
-    #             correct+=1
-    #     return float(correct)/len(correct_classes)
-            
-# #jmnybl@epsilon-it:~/git_checkout/parser-vectors.git/reg_traindata.txt
-# #jmnybl@epsilon-it:~/git_checkout/parser-vectors.git/reg_testdata.txt
-# def load_data(parser_states,type_model,word_model):
-#     type_wv=wvlib.load(type_model)
-#     word_wv=wvlib.load(word_model,max_rank=800000)
-#     _,word_dim=word_wv._vectors.vectors.shape
-#     _,type_dim=type_wv._vectors.vectors.shape
-#     gs_types=[]
-#     lines=[]
-#     with codecs.open(parser_states,"r","utf-8") as f_in:
-#         for line in f_in:
-#             line=line.strip()
-#             if not line:
-#                 continue
-#             lines.append(line)
-#     #lines=lines[:100000]
-    
-#     word_vecs=numpy.zeros((len(lines),word_dim*(len(lines[0].split())-1)),theano.config.floatX)
-#     type_vecs=numpy.zeros((len(lines),type_dim),theano.config.floatX)
-#     for line_idx,line in enumerate(lines):
-#         line=line.strip()
-#         words=line.split()
-#         #The first one is the type
-#         #the rest are the words (can also be NONE)
-#         pred_type=words[0]
-#         gs_types.append(pred_type)
-#         words=words[1:]
-#         for w_idx,w in enumerate(words):
-#             if w==u"NONE" or w not in word_wv.word_to_vector_mapping():
-#                 word_vecs[line_idx,(w_idx*word_dim):(w_idx*word_dim+word_dim)]=numpy.zeros(word_dim,theano.config.floatX)
-#             else:
-#                 word_vecs[line_idx,(w_idx*word_dim):(w_idx*word_dim+word_dim)]=word_wv.word_to_vector_mapping()[w]
-#         type_vecs[line_idx]=type_wv.word_to_vector_mapping()[pred_type]
-#     print "Word vecs:",word_vecs.shape
-#     print "Type vecs:",type_vecs.shape
-#     return theano.shared(word_vecs,borrow=True),theano.shared(type_vecs,borrow=True),type_wv,gs_types
-
-# def load_data_into_figs(parser_states,word_model):
-#     word_wv=wvlib.load(word_model,max_rank=800000)
-#     _,word_dim=word_wv._vectors.vectors.shape
-#     lines=[]
-#     with codecs.open(parser_states,"r","utf-8") as f_in:
-#         for line in f_in:
-#             line=line.strip()
-#             if not line:
-#                 continue
-#             lines.append(line)
-#     word_vecs=numpy.zeros((len(lines)*(len(lines[0].split())-1),word_dim),theano.config.floatX)
-#     types=[]
-#     zero_counters=[]
-#     counter=0
-#     for line_idx,line in enumerate(lines):
-#         line=line.strip()
-#         words=line.split()
-#         #The first one is the type
-#         #the rest are the words (can also be NONE)
-#         pred_type=words[0]
-#         types.append(pred_type)
-#         words=words[1:]
-#         for w_idx,w in enumerate(words):
-#             if w==u"NONE" or w not in word_wv.word_to_vector_mapping():
-#                 zero_counters.append(counter)
-#             else:
-#                 word_vecs[counter]=word_wv.word_to_vector_mapping()[w]
-#             counter+=1
-#     word_vecs=((word_vecs-word_vecs.min())/(word_vecs.max()-word_vecs.min())*255).astype(numpy.uint8)
-#     for x in zero_counters:
-#         word_vecs[x]=numpy.zeros(word_dim,numpy.uint8)
-#     L,_=word_vecs.shape
-#     L/=len(types) #This many rows per image
-#     print "L=",L
-#     for idx,t in enumerate(types):
-#         if not os.path.exists("my_data/"+t):
-#             os.system("mkdir my_data/"+t)
-#         fname=os.path.join("my_data",t,"%d.png"%idx)
-#         scipy.misc.imsave(fname,word_vecs[idx*L:idx*L+L])
-#     print word_vecs.min(),word_vecs.max()
-#     print "Word vecs:",word_vecs.shape
-    
-
-
-# def test_mlp(learning_rate=0.0000001, L1_reg=0.00, L2_reg=0.001, n_epochs=1000,
-#              dataset='mnist.pkl.gz', batch_size=100, n_hidden=20):
-#     """
-#     Demonstrate stochastic gradient descent optimization for a multilayer
-#     perceptron
-
-#     This is demonstrated on MNIST.
-
-#     :type learning_rate: float
-#     :param learning_rate: learning rate used (factor for the stochastic
-#     gradient
-
-#     :type L1_reg: float
-#     :param L1_reg: L1-norm's weight when added to the cost (see    regularization)
-
-#     :type L2_reg: float
-#     :param L2_reg: L2-norm's weight when added to the cost (see
-#     regularization)
-
-#     :type n_epochs: int
-#     :param n_epochs: maximal number of epochs to run the optimizer
-
-#     :type dataset: string
-#     :param dataset: the path of the MNIST dataset file from
-#                  http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz
-
-
-#    """
-    
-#     #datasets = load_data(dataset)
-#     train_set_x, train_set_y, _, _=load_data("/home/jmnybl/git_checkout/parser-vectors.git/reg_traindata.txt","/home/jmnybl/git_checkout/parser-vectors.git/vectors.bin","/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin")
-#     test_set_x, test_set_y, type_wv, gs_types=load_data("/home/jmnybl/git_checkout/parser-vectors.git/reg_testdata.txt","/home/jmnybl/git_checkout/parser-vectors.git/vectors.bin","/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin")
-
-#     # compute number of minibatches for training, validation and testing
-#     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
-#     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
-
-#     ######################
-#     # BUILD ACTUAL MODEL #
-#     ######################
-#     print '... building the model'
-
-#     # allocate symbolic variables for the data
-#     index = T.lscalar()  # index to a [mini]batch
-#     x = T.matrix('x',theano.config.floatX)  # the data is presented as rasterized images
-#     y = T.matrix('y',theano.config.floatX)  # the labels are presented as 10D vector of
-#                         # [int] labels
-
-#     rng = numpy.random.RandomState(1234)
-
-#     # construct the MLP class
-#     classifier = MLP(
-#         rng=rng,
-#         input=x,
-#         n_in=train_set_x.get_value(borrow=True).shape[1],
-#         n_hidden=n_hidden,
-#         n_out=train_set_y.get_value(borrow=True).shape[1]
-#     )
-#     # classifier = LR(
-#     #     rng=rng,
-#     #     input=x,
-#     #     n_in=train_set_x.get_value(borrow=True).shape[1],
-#     #     n_out=train_set_y.get_value(borrow=True).shape[1],
-#     # )
-
-#     # start-snippet-4
-#     # the cost we minimize during training is the negative log likelihood of
-#     # the model plus the regularization terms (L1 and L2); cost is expressed
-#     # here symbolically
-#     cost = (
-#         classifier.cost(y)
-#         + L1_reg * classifier.L1
-#         + L2_reg * classifier.L2_sqr
-#     )
-#     # end-snippet-4
-
-#     # compiling a Theano function that computes the mistakes that are made
-#     # by the model on a minibatch
-#     test_model = theano.function(
-#         inputs=[index],
-#         outputs=classifier.cost(y),
-#         givens={
-#             x: test_set_x[index * batch_size:(index + 1) * batch_size],
-#             y: test_set_y[index * batch_size:(index + 1) * batch_size]
-#         }
-#     )
-
-#     validate_model = theano.function(
-#         inputs=[index],
-#         outputs=classifier.cost(y),
-#         givens={
-#             x: test_set_x[index * batch_size:(index + 1) * batch_size],
-#             y: test_set_y[index * batch_size:(index + 1) * batch_size]
-#         }
-#     )
-    
-#     # start-snippet-5
-#     # compute the gradient of cost with respect to theta (sotred in params)
-#     # the resulting gradients will be stored in a list gparams
-#     gparams = [T.grad(cost, param) for param in classifier.params]
-
-#     # specify how to update the parameters of the model as a list of
-#     # (variable, update expression) pairs
-
-#     # given two list the zip A = [a1, a2, a3, a4] and B = [b1, b2, b3, b4] of
-#     # same length, zip generates a list C of same size, where each element
-#     # is a pair formed from the two lists :
-#     #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
-#     updates = [
-#         (param, param - learning_rate * gparam)
-#         for param, gparam in zip(classifier.params, gparams)
-#     ]
-
-#     # compiling a Theano function `train_model` that returns the cost, but
-#     # in the same time updates the parameter of the model based on the rules
-#     # defined in `updates`
-#     train_model = theano.function(
-#         inputs=[index],
-#         outputs=cost,
-#         updates=updates,
-#         givens={
-#             x: train_set_x[index * batch_size: (index + 1) * batch_size],
-#             y: train_set_y[index * batch_size: (index + 1) * batch_size]
-#         }
-#     )
-#     # end-snippet-5
-
-#     ###############
-#     # TRAIN MODEL #
-#     ###############
-#     print '... training'
-
-#     counter=1
-#     while True:
-#         for minibatch_index in xrange(n_train_batches):
-#             minibatch_avg_cost = train_model(minibatch_index)
-#             #print "avgcost", minibatch_avg_cost
-#         validation_losses = [validate_model(i) for i in xrange(n_test_batches)]
-#         this_validation_loss = numpy.mean(validation_losses)
-#         print counter, "VAL", this_validation_loss
-#         counter+=1
-#         if counter%10==0:
-#             print "      ACC=%.2f%%"%(classifier.eval(test_set_x, type_wv, gs_types)*100)
-#         sys.stdout.flush()
-
-#     # early-stopping parameters
-#     patience = 50000  # look as this many examples regardless
-#     patience_increase = 2  # wait this much longer when a new best is
-#                            # found
-#     improvement_threshold = 0.5  # a relative improvement of this much is
-#                                    # considered significant
-#     validation_frequency = min(n_train_batches, patience / 500)
-#                                   # go through this many
-#                                   # minibatche before checking the network
-#                                   # on the validation set; in this case we
-#                                   # check every epoch
-
-#     best_validation_loss = numpy.inf
-#     best_iter = 0
-#     test_score = 0.
-#     start_time = time.clock()
-
-#     epoch = 0
-#     done_looping = False
-
-#     while (epoch < n_epochs) and (not done_looping):
-#         epoch = epoch + 1
-#         for minibatch_index in xrange(n_train_batches):
-
-#             minibatch_avg_cost = train_model(minibatch_index)
-#             # iteration number
-#             iter = (epoch - 1) * n_train_batches + minibatch_index
-
-#             if (iter + 1) % validation_frequency == 0:
-#                 # compute zero-one loss on validation set
-#                 validation_losses = [validate_model(i) for i
-#                                      in xrange(n_test_batches)]
-#                 this_validation_loss = numpy.mean(validation_losses)
-
-#                 print(
-#                     'epoch %i, minibatch %i/%i, validation error %f' %
-#                     (
-#                         epoch,
-#                         minibatch_index + 1,
-#                         n_train_batches,
-#                         this_validation_loss
-#                     )
-#                 )
-
-#                 # # if we got the best validation score until now
-#                 # if this_validation_loss < best_validation_loss:
-#                 #     #improve patience if loss improvement is good enough
-#                 #     if (
-#                 #         this_validation_loss < best_validation_loss *
-#                 #         improvement_threshold
-#                 #     ):
-#                 #         patience = max(patience, iter * patience_increase)
-
-#                 #     best_validation_loss = this_validation_loss
-#                 #     best_iter = iter
-
-#                 #     # test it on the test set
-#                 #     test_losses = [test_model(i) for i
-#                 #                    in xrange(n_test_batches)]
-#                 #     test_score = numpy.mean(test_losses)
-
-#                 #     print(('     epoch %i, minibatch %i/%i, test error of '
-#                 #            'best model %f %%') %
-#                 #           (epoch, minibatch_index + 1, n_train_batches,
-#                 #            test_score * 100.))
-
-#             if patience <= iter:
-#                 done_looping = True
-#                 break
-
-#     end_time = time.clock()
-#     print(('Optimization complete. Best validation score of %f %% '
-#            'obtained at iteration %i, with test performance %f %%') %
-#           (best_validation_loss * 100., best_iter + 1, test_score * 100.))
-#     print >> sys.stderr, ('The code for file ' +
-#                           os.path.split(__file__)[1] +
-#                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-
-
-# if __name__ == '__main__':
-#     load_data_into_figs("/home/jmnybl/git_checkout/parser-vectors.git/reg_traindata.txt","/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin")
-#     #load_data("/home/jmnybl/git_checkout/parser-vectors.git/reg_traindata.txt","/home/jmnybl/git_checkout/parser-vectors.git/vectors.dtype.tdtjk.bin","/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin")
-#     #test_mlp()
