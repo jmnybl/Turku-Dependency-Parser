@@ -4,15 +4,10 @@ import codecs
 import os
 import sys
 import time
-
 import numpy
-
 import theano
 import theano.tensor as T
-
-
 import random
-
 import regressor_mlp
 
 def load_data(parser_states,models,classes):
@@ -33,7 +28,7 @@ def load_data(parser_states,models,classes):
             if not line:
                 continue
             lines.append(line)
-    lines=lines[:100]
+    lines=lines[:5000]
     random.shuffle(lines)
     #How much of space do we need?
     cols=0
@@ -90,7 +85,7 @@ def shared_dataset(data_xy, borrow=True):
                                            dtype=theano.config.floatX),
                              borrow=borrow)
     shared_y = theano.shared(numpy.asarray(data_y,
-                                           dtype=theano.config.floatX),
+                                           dtype='int32'),
                              borrow=borrow)
     # When storing data on the GPU it has to be stored as floats
     # therefore we will store the labels as ``floatX`` as well
@@ -99,10 +94,10 @@ def shared_dataset(data_xy, borrow=True):
     # floats it doesn't make sense) therefore instead of returning
     # ``shared_y`` we will have to cast it to int. This little hack
     # lets ous get around this issue
-    return shared_x, T.cast(shared_y, 'int32')
+    return shared_x, shared_y#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
+def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.00000, n_epochs=1000,
              batch_size=20, n_hidden=200):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
@@ -161,7 +156,7 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
 
     # # allocate symbolic variables for the data
     # index = T.lscalar()  # index to a [mini]batch
-    x = T.matrix('x')  # the data is presented as rasterized images
+    x = T.matrix('x')  # 
     y = T.ivector('y')  # the labels are presented as 1D vector of
     rng = numpy.random.RandomState(1234)
 
@@ -240,34 +235,37 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
     # ###############
     # # TRAIN MODEL #
     # ###############
-    # print '... training'
+    print '... training'
 
     # # early-stopping parameters
-    # patience = 1000000  # look as this many examples regardless
-    # patience_increase = 2  # wait this much longer when a new best is
+    patience = 1000000  # look as this many examples regardless
+    patience_increase = 2  # wait this much longer when a new best is
     #                        # found
-    # improvement_threshold = 0.995  # a relative improvement of this much is
+    improvement_threshold = 0.995  # a relative improvement of this much is
     #                                # considered significant
-    # validation_frequency = min(n_train_batches, patience / 2)
+    validation_frequency = min(n_train_batches, patience / 2)
     #                               # go through this many
     #                               # minibatche before checking the network
     #                               # on the validation set; in this case we
     #                               # check every epoch
 
-    # best_validation_loss = numpy.inf
-    # best_iter = 0
-    # test_score = 0.
-    # start_time = time.clock()
+    best_validation_loss = numpy.inf
+    best_iter = 0
+    test_score = 0.
+    start_time = time.clock()
 
-    # epoch = 0
-    # done_looping = False
+    epoch = 0
+    done_looping = False
 
-    # while (epoch < n_epochs) and (not done_looping):
-    #     sys.stdout.flush()
-    #     epoch = epoch + 1
-    #     for minibatch_index in xrange(n_train_batches):
-
-    #         minibatch_avg_cost = train_model(minibatch_index)
+    while (epoch < n_epochs) and (not done_looping):
+        sys.stdout.flush()
+        epoch = epoch + 1
+        for minibatch_index in xrange(n_train_batches):
+            i=batch_size*minibatch_index
+            xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
+            ys=train_set_y.get_value(borrow=True)[i:i+batch_size]
+            minibatch_avg_cost = classifier.train_classification_model(xs,ys,learning_rate,L1_reg,L2_reg)
+            print minibatch_avg_cost
     #         # iteration number
     #         iter = (epoch - 1) * n_train_batches + minibatch_index
 

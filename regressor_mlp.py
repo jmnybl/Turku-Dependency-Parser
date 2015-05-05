@@ -286,12 +286,13 @@ class MLP(object):
         """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost"""
 
         x = T.matrix('x',theano.config.floatX)  # minibatch, input
-        y = T.matrix('y',theano.config.floatX)  # minibatch, output
+        y = T.vector('y','int32')  # minibatch, output
         l_rate = T.scalar('lrate',theano.config.floatX) #Learning rate
         l1_reg = T.scalar('l1_reg',theano.config.floatX) #Learning rate
         l2_reg = T.scalar('l2_reg',theano.config.floatX) #Learning rate
 
-        classification_cost=((self.softMaxLayer.y_pred-y)**2).sum()+l1_reg*self.L1+l2_reg*self.L2_sqr
+        neg_likelihood=-T.mean(T.log(self.softMaxLayer.p_y_given_x)[T.arange(y.shape[0]), y])
+        classification_cost=neg_likelihood+l1_reg*self.L1+l2_reg*self.L2_sqr
         gparams = [T.grad(classification_cost, param) for param in self.params]
 
         # specify how to update the parameters of the model as a list of
