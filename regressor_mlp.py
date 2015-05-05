@@ -281,6 +281,16 @@ class MLP(object):
         # end-snippet-3
 
         self.compile_train_classification() #compiles self.train_classification_model(x,y,l_rate)
+        self.compile_test() #compiles self.test_classification_model(x)
+
+    def compile_test(self):
+
+        x = T.matrix('x',theano.config.floatX)
+        self.test_classification_model=theano.function(
+            inputs=[x],
+            outputs=self.softMaxLayer.y_pred,
+            givens={self.hiddenLayer.input:x}
+            )
 
     def compile_train_classification(self):
         """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost"""

@@ -18,7 +18,7 @@ def load_data(parser_states,models,classes):
             dims[t]=None
             continue
         if isinstance(mod_name,basestring):
-            models[t]=wvlib.load(mod_name,max_rank=800)
+            models[t]=wvlib.load(mod_name,max_rank=800000)
         dims[t]=models[t]._vectors.vectors.shape[1]
     gs_types=[]
     lines=[]
@@ -28,7 +28,7 @@ def load_data(parser_states,models,classes):
             if not line:
                 continue
             lines.append(line)
-    lines=lines[:5000]
+    #lines=lines[:5000]
     random.shuffle(lines)
     #How much of space do we need?
     cols=0
@@ -97,7 +97,7 @@ def shared_dataset(data_xy, borrow=True):
     return shared_x, shared_y#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.00000, n_epochs=1000,
+def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
              batch_size=20, n_hidden=200):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
@@ -265,25 +265,25 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.00000, n_epochs=1000,
             xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
             ys=train_set_y.get_value(borrow=True)[i:i+batch_size]
             minibatch_avg_cost = classifier.train_classification_model(xs,ys,learning_rate,L1_reg,L2_reg)
-            print minibatch_avg_cost
+#            print minibatch_avg_cost
+#            print classifier.test_classification_model(xs)
     #         # iteration number
-    #         iter = (epoch - 1) * n_train_batches + minibatch_index
+            tst=classifier.test_classification_model(xs)
+            iter = (epoch - 1) * n_train_batches + minibatch_index
 
-    #         if (iter + 1) % validation_frequency == 0:
-    #             # compute zero-one loss on validation set
-    #             validation_losses = [validate_model(i) for i
-    #                                  in xrange(n_valid_batches)]
-    #             this_validation_loss = numpy.mean(validation_losses)
-
-    #             print(
-    #                 'epoch %i, minibatch %i/%i, validation error %f %%' %
-    #                 (
-    #                     epoch,
-    #                     minibatch_index + 1,
-    #                     n_train_batches,
-    #                     this_validation_loss * 100.
-    #                 )
-    #             )
+            if (iter + 1) % validation_frequency == 0:
+                predictions=classifier.test_classification_model(valid_set_x.get_value(borrow=True))
+                this_validation_loss=((predictions==valid_set_y.get_value(borrow=True)).sum()*100.0)/valid_set_y.get_value(borrow=True).shape[0]
+                
+                print(
+                    'epoch %i, minibatch %i/%i, validation acc %f %%' %
+                    (
+                         epoch,
+                         minibatch_index + 1,
+                         n_train_batches,
+                         this_validation_loss
+                    )
+                    )
 
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:
