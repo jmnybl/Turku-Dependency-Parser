@@ -97,8 +97,8 @@ def shared_dataset(data_xy, borrow=True):
     return shared_x, shared_y#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
-             batch_size=20, n_hidden=200):
+def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
+             batch_size=10, n_hidden=200):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -129,11 +129,12 @@ def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
 
     classes={}
     models={"W":"/home/ginter/w2v-old/w2v_fin_50_wf.bin",
-            "POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
+            #"POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
+            "POS":None,
             #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
             "FEAT":None,
-            "POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
-            #"POS_FEAT":None,
+            #"POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
+            "POS_FEAT":None,
             }
 
     train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes)
@@ -284,7 +285,7 @@ def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.000001, n_epochs=1000,
                          this_validation_loss
                     )
                     )
-
+                classifier.save("cls")
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:
     #                 #improve patience if loss improvement is good enough

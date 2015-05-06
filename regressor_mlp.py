@@ -50,7 +50,7 @@ class SoftMaxLayer(object):
         # start-snippet-1
         # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
         self.W = theano.shared(
-            value=numpy.zeros(
+            value=numpy.ones(
                 (n_in, n_out),
                 dtype=theano.config.floatX
             ),
@@ -59,7 +59,7 @@ class SoftMaxLayer(object):
         )
         # initialize the baises b as a vector of n_out 0s
         self.b = theano.shared(
-            value=numpy.zeros(
+            value=numpy.ones(
                 (n_out,),
                 dtype=theano.config.floatX
             ),
@@ -192,6 +192,7 @@ class HiddenRepLayer(object):
             lin_output if activation is None
             else activation(lin_output)
         )
+        print self.output
         # parameters of the model
         self.params = [self.W, self.b]
 
@@ -207,6 +208,15 @@ class MLP(object):
     top layer is a softamx layer (defined here by a ``LogisticRegression``
     class).
     """
+
+    def save(self,dir_name):
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        numpy.save(os.path.join(dir_name,"softmax_w.npy"),self.softMaxLayer.W.get_value(borrow=True))
+        numpy.save(os.path.join(dir_name,"softmax_b.npy"),self.softMaxLayer.b.get_value(borrow=True))
+        numpy.save(os.path.join(dir_name,"hidden_w.npy"),self.hiddenLayer.W.get_value(borrow=True))
+        numpy.save(os.path.join(dir_name,"hidden_b.npy"),self.hiddenLayer.b.get_value(borrow=True))
+        
 
     def __init__(self, rng, input, n_in, n_hidden, n_out):
         """Initialize the parameters for the multilayer perceptron
