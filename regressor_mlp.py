@@ -5,7 +5,7 @@ by @fginter.
 """
 __docformat__ = 'restructedtext en'
 
-
+import json
 import os
 import sys
 import time
@@ -29,7 +29,21 @@ class SoftMaxLayer(object):
     determine a class membership probability.
     """
 
-    def __init__(self, input, n_in, n_out):
+    @classmethod
+    def load(cls,file_name,input):
+        with open(os.path.join(dir_name,file_name+"_classes.json"),"r") as f:
+            classes=json.load(f)
+        W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
+        b=numpy.load(os.path.join(dir_name,file_name+"_b.npy"))
+        return cls(input,W,b,classes)
+
+    @classmethod
+    def empty(cls,input,n_in,n_out,classes):
+        W=numpy.zeros((n_in,n_out),theano.config.floatX)
+        b=numpy.zeros((n_out,),theano.config.floatX)
+        return cls(input,W,b,classes)
+
+    def __init__(self, input, W, b, classes):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -46,23 +60,14 @@ class SoftMaxLayer(object):
 
         """
 
-        self.input=input
-        # start-snippet-1
-        # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
+        self.classes=classes
         self.W = theano.shared(
-            value=numpy.ones(
-                (n_in, n_out),
-                dtype=theano.config.floatX
+            value=W,dtype=theano.config.floatX
             ),
             name='W',
             borrow=True
         )
-        # initialize the baises b as a vector of n_out 0s
-        self.b = theano.shared(
-            value=numpy.ones(
-                (n_out,),
-                dtype=theano.config.floatX
-            ),
+        self.b = theano.shared(value=b,dtype=theano.config.floatX),
             name='b',
             borrow=True
         )
@@ -75,13 +80,13 @@ class SoftMaxLayer(object):
         # x is a matrix where row-j  represents input training sample-j
         # b is a vector where element-k represent the free parameter of hyper
         # plain-k
-        self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
 
+        self.input=input
+        self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
         # symbolic description of how to compute prediction as class whose
         # probability is maximal
         self.y_pred = T.argmax(self.p_y_given_x, axis=1)
         # end-snippet-1
-
         # parameters of the model
         self.params = [self.W, self.b]
 
@@ -122,8 +127,26 @@ class SoftMaxLayer(object):
 
 # start-snippet-1
 class HiddenRepLayer(object):
-    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
-                 activation=T.tanh):
+
+    @classmethod
+    def load(cls,file_name,input):
+        W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
+        b=numpy.load(os.path.join(dir_name,file_name+"_b.npy"))
+        return cls(input,W,b)
+
+    @classmethod
+    def empty(cls,input,n_in,n_out,rng=None):
+        if rng is None:
+            rng = numpy.random.RandomState(5678)
+
+        W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6. / (n_in + n_out)),high=numpy.sqrt(6. / (n_in + n_out)),size=(n_in, n_out)),
+                dtype=theano.config.floatX
+            )
+        b=numpy.zeros((n_out,),theano.config.floatX)
+        return cls(input,W,b)
+
+
+    def __init__(self, input, W, b, activation=T.tanh):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
         sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
@@ -167,33 +190,13 @@ class HiddenRepLayer(object):
 
         self.input=input
 
-        ### TODO: add shared memory support
-        if W is None:
-            W_values = numpy.asarray(
-                rng.uniform( 
-                   low=-numpy.sqrt(6. / (n_in + n_out)),
-                    high=numpy.sqrt(6. / (n_in + n_out)),
-                    size=(n_in, n_out)
-                ),
-                dtype=theano.config.floatX
-            )
-
-            W = theano.shared(value=W_values, name='W', borrow=True)
-
-        if b is None:
-            b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
-            b = theano.shared(value=b_values, name='b', borrow=True)
-
-        self.W = W
-        self.b = b
-
+        self.W = theano.shared(value=W_values, name='W', borrow=True)
+        self.b = theano.shared(value=b_values, name='b', borrow=True)
         lin_output = T.dot(input, self.W) + self.b
         self.output = (
             lin_output if activation is None
             else activation(lin_output)
         )
-        print self.output
-        # parameters of the model
         self.params = [self.W, self.b]
 
 
@@ -209,16 +212,26 @@ class MLP(object):
     class).
     """
 
+    def load(self,dir_name):
+        with open(os.path.join(dir_name,"classes.json"),"r") as f:
+            self.classes=json.load(f)
+        self.softMaxLayer.W.set_value(numpy.load(os.path.join(dir_name,"softmax_w.npy")))
+        self.softMaxLayer.b.set_value(numpy.load(os.path.join(dir_name,"softmax_b.npy")))
+        self.hiddenLayer.W.set_value(numpy.load(os.path.join(dir_name,"hidden_w.npy")))
+        self.hiddenLayer.b.set_value(numpy.load(os.path.join(dir_name,"hidden_b.npy")))
+
     def save(self,dir_name):
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
+        with open(os.path.join(dir_name,"classes.json"),"w") as f:
+            json.dump(self.classes,f)
         numpy.save(os.path.join(dir_name,"softmax_w.npy"),self.softMaxLayer.W.get_value(borrow=True))
         numpy.save(os.path.join(dir_name,"softmax_b.npy"),self.softMaxLayer.b.get_value(borrow=True))
         numpy.save(os.path.join(dir_name,"hidden_w.npy"),self.hiddenLayer.W.get_value(borrow=True))
         numpy.save(os.path.join(dir_name,"hidden_b.npy"),self.hiddenLayer.b.get_value(borrow=True))
         
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out):
+    def __init__(self, rng, input, n_in, n_hidden, n_out, classes):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -240,6 +253,8 @@ class MLP(object):
         which the labels lie
 
         """
+        
+        self.classes=classes
 
         # Since we are dealing with a one hidden layer MLP, this will translate
         # into a HiddenLayer with a tanh activation function connected to the

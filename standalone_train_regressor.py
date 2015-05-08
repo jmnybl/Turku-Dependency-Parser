@@ -170,6 +170,10 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
          n_hidden=n_hidden,
          n_out=len(classes)
     )
+    
+    classifier.load("cls")
+    classifier.compile_train_classification()
+    classifier.compile_test()
 
     # # start-snippet-4
     # # the cost we minimize during training is the negative log likelihood of
@@ -285,7 +289,7 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
                          this_validation_loss
                     )
                     )
-                classifier.save("cls")
+#                classifier.save("cls")
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:
     #                 #improve patience if loss improvement is good enough
