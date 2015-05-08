@@ -31,7 +31,7 @@ class SoftMaxLayer(object):
 
     @classmethod
     def load(cls,file_name,input):
-        with open(os.path.join(dir_name,file_name+"_classes.json"),"r") as f:
+        with open(file_name+"_classes.json","r") as f:
             classes=json.load(f)
         W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
         b=numpy.load(os.path.join(dir_name,file_name+"_b.npy"))
@@ -42,6 +42,13 @@ class SoftMaxLayer(object):
         W=numpy.zeros((n_in,n_out),theano.config.floatX)
         b=numpy.zeros((n_out,),theano.config.floatX)
         return cls(input,W,b,classes)
+
+    
+    def save(self,file_name):
+        with open(file_name+"_classes.json","w") as f:
+            json.dump(self.classes,f)
+        numpy.save(file_name+"_W.npy",self.W.get_value(borrow=True))
+        numpy.save(file_name+"_b.npy",self.b.get_value(borrow=True))
 
     def __init__(self, input, W, b, classes):
         """ Initialize the parameters of the logistic regression
@@ -62,11 +69,11 @@ class SoftMaxLayer(object):
 
         self.classes=classes
         self.W = theano.shared(
-            value=W,dtype=theano.config.floatX,
+            value=W,
             name='W',
             borrow=True
         )
-        self.b = theano.shared(value=b,dtype=theano.config.floatX,
+        self.b = theano.shared(value=b,
             name='b',
             borrow=True
         )
@@ -137,12 +144,15 @@ class HiddenRepLayer(object):
     def empty(cls,input,n_in,n_out,rng=None):
         if rng is None:
             rng = numpy.random.RandomState(5678)
-
-        W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6. / (n_in + n_out)),high=numpy.sqrt(6. / (n_in + n_out)),size=(n_in, n_out)),
+        W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6.0 / (n_in + n_out)),high=numpy.sqrt(6.0 / (n_in + n_out)),size=(n_in, n_out)),
                 dtype=theano.config.floatX
             )
         b=numpy.zeros((n_out,),theano.config.floatX)
         return cls(input,W,b)
+
+    def save(self,file_name):
+        numpy.save(file_name+"_W.npy",self.W.get_value(borrow=True))
+        numpy.save(file_name+"_b.npy",self.b.get_value(borrow=True))
 
 
     def __init__(self, input, W, b, activation=T.tanh):
@@ -189,8 +199,8 @@ class HiddenRepLayer(object):
 
         self.input=input
 
-        self.W = theano.shared(value=W_values, name='W', borrow=True)
-        self.b = theano.shared(value=b_values, name='b', borrow=True)
+        self.W = theano.shared(value=W, name='W', borrow=True)
+        self.b = theano.shared(value=b, name='b', borrow=True)
         lin_output = T.dot(input, self.W) + self.b
         self.output = (
             lin_output if activation is None
@@ -211,98 +221,46 @@ class MLP(object):
     class).
     """
 
-    def load(self,dir_name):
-        with open(os.path.join(dir_name,"classes.json"),"r") as f:
-            self.classes=json.load(f)
-        self.softMaxLayer.W.set_value(numpy.load(os.path.join(dir_name,"softmax_w.npy")))
-        self.softMaxLayer.b.set_value(numpy.load(os.path.join(dir_name,"softmax_b.npy")))
-        self.hiddenLayer.W.set_value(numpy.load(os.path.join(dir_name,"hidden_w.npy")))
-        self.hiddenLayer.b.set_value(numpy.load(os.path.join(dir_name,"hidden_b.npy")))
+    @classmethod
+    def load(cls,dir_name):
+        hidden_layer=HiddenRepLayer.load(os.path.join(dir_name,"hidden"))
+        softmax_layer=SoftMaxLayer.load(os.path.join(dir_name,"smax_type"),hidden_layer.output)
+        return cls(hidden_layer,softmax_layer)
 
+    @classmethod
+    def empty(cls,n_in,n_hidden,n_out,classes):
+        input= T.matrix('x',theano.config.floatX)
+        hidden_layer=HiddenRepLayer.empty(input,n_in,n_hidden)
+        softmax_layer=SoftMaxLayer.empty(hidden_layer.output,n_hidden,n_out,classes)
+        return cls(softmax_layer,hidden_layer)
+    
     def save(self,dir_name):
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
-        with open(os.path.join(dir_name,"classes.json"),"w") as f:
-            json.dump(self.classes,f)
-        numpy.save(os.path.join(dir_name,"softmax_w.npy"),self.softMaxLayer.W.get_value(borrow=True))
-        numpy.save(os.path.join(dir_name,"softmax_b.npy"),self.softMaxLayer.b.get_value(borrow=True))
-        numpy.save(os.path.join(dir_name,"hidden_w.npy"),self.hiddenLayer.W.get_value(borrow=True))
-        numpy.save(os.path.join(dir_name,"hidden_b.npy"),self.hiddenLayer.b.get_value(borrow=True))
+        self.hiddenLayer.save(os.path.join(dir_name,"hidden"))
+        self.softMaxLayer.save(os.path.join(dir_name,"smax_type"))
         
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out, classes):
+    def __init__(self, softmax_layer, hidden_layer):
         """Initialize the parameters for the multilayer perceptron
-
-        :type rng: numpy.random.RandomState
-        :param rng: a random number generator used to initialize weights
-
-        :type input: theano.tensor.TensorType
-        :param input: symbolic variable that describes the input of the
-        architecture (one minibatch)
-
-        :type n_in: int
-        :param n_in: number of input units, the dimension of the space in
-        which the datapoints lie
-
-        :type n_hidden: int
-        :param n_hidden: number of hidden units
-
-        :type n_out: int
-        :param n_out: number of output units, the dimension of the space in
-        which the labels lie
 
         """
         
-        self.classes=classes
+        self.hiddenLayer = hidden_layer
+        self.softMaxLayer = softmax_layer
 
-        # Since we are dealing with a one hidden layer MLP, this will translate
-        # into a HiddenLayer with a tanh activation function connected to the
-        # LogisticRegression layer; the activation function can be replaced by
-        # sigmoid or any other nonlinear function
-        self.input=input
-        self.hiddenLayer = HiddenRepLayer(
-            rng=rng,
-            input=self.input,
-            n_in=n_in,
-            n_out=n_hidden
-        )
-
-        # The logistic regression layer gets as input the hidden units
-        # of the hidden layer
-        self.softMaxLayer = SoftMaxLayer(
-            input=self.hiddenLayer.output,
-            n_in=n_hidden,
-            n_out=n_out
-        )
-        # end-snippet-2 start-snippet-3
-        # L1 norm ; one regularization option is to enforce L1 norm to
-        # be small
         self.L1 = (
             abs(self.hiddenLayer.W).sum()
             + abs(self.softMaxLayer.W).sum()
         )
 
-        # square of L2 norm ; one regularization option is to enforce
-        # square of L2 norm to be small
         self.L2_sqr = (
             (self.hiddenLayer.W ** 2).sum()
             + (self.softMaxLayer.W ** 2).sum() + (self.hiddenLayer.b ** 2).sum() + (self.softMaxLayer.b ** 2).sum()
         )
 
-        # negative log likelihood of the MLP is given by the negative
-        # log likelihood of the output of the model, computed in the
-        # logistic regression layer
-        
-#        self.negative_log_likelihood = (
-#            self.logRegressionLayer.negative_log_likelihood
-#        )
-        # same holds for the function computing the number of errors
-#        self.errors = self.logRegressionLayer.errors
-
-        # the parameters of the model are the parameters of the two layer it is
-        # made out of
         self.params = self.hiddenLayer.params + self.softMaxLayer.params
-        # end-snippet-3
+
 
         self.compile_train_classification() #compiles self.train_classification_model(x,y,l_rate)
         self.compile_test() #compiles self.test_classification_model(x)
@@ -348,10 +306,4 @@ class MLP(object):
                 self.hiddenLayer.input: x
                 }
             )
-
-
-
-
-
-
 

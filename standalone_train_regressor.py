@@ -10,7 +10,7 @@ import theano.tensor as T
 import random
 import regressor_mlp
 
-def load_data(parser_states,models,classes):
+def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
     "models is a dict W->w2v, P->w2v. etc"
     dims={}
     for t,mod_name in models.iteritems():
@@ -18,8 +18,8 @@ def load_data(parser_states,models,classes):
             dims[t]=None
             continue
         if isinstance(mod_name,basestring):
-            models[t]=wvlib.load(mod_name,max_rank=800000)
-        dims[t]=models[t]._vectors.vectors.shape[1]
+            models[t]=wvlib.load(mod_name,max_rank=max_rank)
+        dims[t]=models[t]._vectors.vectors[0].shape[0]
     gs_types=[]
     lines=[]
     with codecs.open(parser_states,"r","utf-8") as f_in:
@@ -28,6 +28,8 @@ def load_data(parser_states,models,classes):
             if not line:
                 continue
             lines.append(line)
+            if max_rows>0 and len(lines)>=max_rows:
+                break
     #lines=lines[:5000]
     random.shuffle(lines)
     #How much of space do we need?
@@ -103,8 +105,6 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
 
-    This is demonstrated on MNIST.
-
     :type learning_rate: float
     :param learning_rate: learning rate used (factor for the stochastic
     gradient
@@ -120,15 +120,10 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     :type n_epochs: int
     :param n_epochs: maximal number of epochs to run the optimizer
 
-    :type dataset: string
-    :param dataset: the path of the MNIST dataset file from
-                 http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz
-
-
    """
 
     classes={}
-    models={"W":"/home/ginter/w2v-old/w2v_fin_50_wf.bin",
+    models={"W":"data/w2v_fin_50_wf.bin",
             #"POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
             "POS":None,
             #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
@@ -137,9 +132,9 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             "POS_FEAT":None,
             }
 
-    train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes)
-    test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes)
-    valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes)
+    train_set_x, train_set_y=load_data("data/reg_traindata_ud.txt",models,classes,max_rank=1000,max_rows=1000)
+    test_set_x, test_set_y=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=1000,max_rows=1000)
+    valid_set_x, valid_set_y=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=1000,max_rows=1000)
         
     train_set_x,train_set_y=shared_dataset((train_set_x,train_set_y))
     test_set_x,test_set_y=shared_dataset((test_set_x,test_set_y))
@@ -150,30 +145,15 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
 
-    # ######################
-    # # BUILD ACTUAL MODEL #
-    # ######################
-    # print '... building the model'
-
     # # allocate symbolic variables for the data
-    # index = T.lscalar()  # index to a [mini]batch
     x = T.matrix('x')  # 
-    y = T.ivector('y')  # the labels are presented as 1D vector of
-    rng = numpy.random.RandomState(1234)
-
-    # # construct the MLP class
+    y = T.ivector('y')  # the labels are presented as 1D vector of integers
     
-    classifier = regressor_mlp.MLP(
-         rng=rng,
-         input=x,
-         n_in=train_set_x.get_value(borrow=True).shape[1],
-         n_hidden=n_hidden,
-         n_out=len(classes)
-    )
+    classifier = regressor_mlp.MLP.empty(train_set_x.get_value(borrow=True).shape[1],n_hidden,len(classes),classes)
     
-    classifier.load("cls")
-    classifier.compile_train_classification()
-    classifier.compile_test()
+    # classifier.load("cls")
+    # classifier.compile_train_classification()
+    # classifier.compile_test()
 
     # # start-snippet-4
     # # the cost we minimize during training is the negative log likelihood of
