@@ -62,12 +62,11 @@ class SoftMaxLayer(object):
 
         self.classes=classes
         self.W = theano.shared(
-            value=W,dtype=theano.config.floatX
-            ),
+            value=W,dtype=theano.config.floatX,
             name='W',
             borrow=True
         )
-        self.b = theano.shared(value=b,dtype=theano.config.floatX),
+        self.b = theano.shared(value=b,dtype=theano.config.floatX,
             name='b',
             borrow=True
         )
