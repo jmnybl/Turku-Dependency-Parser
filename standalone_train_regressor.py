@@ -19,6 +19,7 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
             continue
         if isinstance(mod_name,basestring):
             models[t]=wvlib.load(mod_name,max_rank=max_rank)
+            models[t]._vectors.vectors=models[t]._vectors.vectors.astype(theano.config.floatX)
         dims[t]=models[t]._vectors.vectors[0].shape[0]
     gs_types=[]
     lines=[]
@@ -32,13 +33,15 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
                 break
     #lines=lines[:5000]
     random.shuffle(lines)
-    #How much of space do we need?
+    #How many indices per row, and how many inputs does that translate into?
+    indices=0
     cols=0
     for w in lines[0].split()[1:]:
         t,_=w.split(":",1)
         if dims[t] is not None:
             cols+=dims[t]
-    word_vecs=numpy.zeros((len(lines),cols),theano.config.floatX)
+            indices+=1
+    word_indices=numpy.zeros((len(lines),indices),numpy.int32)
     class_matrix=numpy.zeros((len(lines),),numpy.int32)
     for line_idx,line in enumerate(lines):
         line=line.strip()
@@ -50,28 +53,35 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
         class_matrix[line_idx]=cls_index
         gs_types.append(pred_type)
         words=words[1:]
-        dim=0
+        idx=0
         for w in words:
             t,w=w.split(":",1)
-            t_dims=dims[t]
-            if t_dims==None:
+            if dims[t]==None:
+                #off
                 continue
+            #wv_row will be the row index in the vector embedding matrix
             if w!=u"NONE":
-                vec=models[t].word_to_vector_mapping().get(w,None)
-                if vec is None:
-                    vec=models[t].word_to_vector_mapping().get(w.lower(),None)
-            if w==u"NONE" or vec is None:
-                word_vecs[line_idx,dim:(dim+t_dims)]=numpy.zeros(t_dims,theano.config.floatX)
+                try:
+                    wv_row=models[t].rank(w)
+                except KeyError:
+                    wv_row=0
             else:
-                word_vecs[line_idx,dim:(dim+t_dims)]=vec
-            dim+=t_dims
-    print word_vecs
-    print class_matrix
-    print "Word vecs:",word_vecs.shape
+                wv_row=0
+            word_indices[line_idx,idx]=wv_row
+            idx+=1    
+    #Yet gather a list of models so we know what these indices refer to
+    model_list=[]
+    for w in lines[0].split()[1:]:
+        t,_=w.split(":",1)
+        if dims[t] is not None:
+            model_list.append(models[t])
+    assert len(model_list)==word_indices.shape[1]
+ 
+    print "Word indices:", word_indices
+    print "Class matrix:", class_matrix
+    print "Indices shape:",word_indices.shape
     print "Class matrix:",class_matrix.shape
-    return word_vecs,class_matrix
-
-
+    return model_list,word_indices,class_matrix
 
 def shared_dataset(data_xy, borrow=True):
     """ Function that loads the dataset into shared variables
@@ -84,7 +94,7 @@ def shared_dataset(data_xy, borrow=True):
     """
     data_x, data_y = data_xy
     shared_x = theano.shared(numpy.asarray(data_x,
-                                           dtype=theano.config.floatX),
+                                           dtype='int32'),
                              borrow=borrow)
     shared_y = theano.shared(numpy.asarray(data_y,
                                            dtype='int32'),
@@ -100,7 +110,7 @@ def shared_dataset(data_xy, borrow=True):
 
 
 def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
-             batch_size=10, n_hidden=200):
+             batch_size=13, n_hidden=197):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -132,10 +142,15 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             "POS_FEAT":None,
             }
 
-    train_set_x, train_set_y=load_data("data/reg_traindata_ud.txt",models,classes,max_rank=1000,max_rows=1000)
-    test_set_x, test_set_y=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=1000,max_rows=1000)
-    valid_set_x, valid_set_y=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=1000,max_rows=1000)
-        
+
+
+    model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
+    model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
+    model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
+    assert model_list==model_list2 and model_list2==model_list3
+
+    models["W"]._vectors.vectors[0,:]=[0.0]*50
+
     train_set_x,train_set_y=shared_dataset((train_set_x,train_set_y))
     test_set_x,test_set_y=shared_dataset((test_set_x,test_set_y))
     valid_set_x,valid_set_y=shared_dataset((valid_set_x,valid_set_y))
@@ -146,11 +161,13 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
 
     # # allocate symbolic variables for the data
-    x = T.matrix('x')  # 
+    x = T.imatrix('x')  # 
     y = T.ivector('y')  # the labels are presented as 1D vector of integers
     
-    classifier = regressor_mlp.MLP.empty(train_set_x.get_value(borrow=True).shape[1],n_hidden,len(classes),classes)
-    
+    wv_layer=regressor_mlp.VSpaceLayerCatenation.from_wvlibs(model_list,x)
+    classifier_mlp = regressor_mlp.MLP.empty(900,n_hidden,len(classes),classes,wv_layer.output)
+    classifier=regressor_mlp.MLP_WV(classifier_mlp,wv_layer,x)
+
     # classifier.load("cls")
     # classifier.compile_train_classification()
     # classifier.compile_test()
@@ -249,8 +266,9 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             i=batch_size*minibatch_index
             xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
             ys=train_set_y.get_value(borrow=True)[i:i+batch_size]
+            #print "TSTX", classifier.wv_layer.calcvals(xs)
             minibatch_avg_cost = classifier.train_classification_model(xs,ys,learning_rate,L1_reg,L2_reg)
-#            print minibatch_avg_cost
+            #print minibatch_avg_cost
 #            print classifier.test_classification_model(xs)
     #         # iteration number
             tst=classifier.test_classification_model(xs)

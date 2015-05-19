@@ -20,6 +20,56 @@ import scipy
 import codecs
 from wvlib import wvlib
 
+class VSpaceLayer(object):
+
+    """A layer which has a vector of numerical indices on its input
+    and the corresponding matrix rows on the output"""
+
+    @classmethod
+    def from_wvlib(cls,wvlib_obj,input):
+        """Input should be an int vector which selects the matrix rows"""
+        return cls(wvlib_obj.vectors(),input)
+
+    @classmethod
+    def from_matrix(cls,matrix,input):
+        """Input should be an int vector which selects the matrix rows"""
+        return cls(matrix,input)
+
+    def __init__(self,matrix,input):
+        self.input=input
+        self.wordvecs = theano.shared(
+            value=matrix,
+            name='M',
+            borrow=True
+        )
+        self.output=theano.sparse_grad(self.wordvecs[self.input])
+        self.params=[self.wordvecs]
+
+
+class VSpaceLayerCatenation(object):
+    
+    @classmethod
+    def from_wvlibs(cls,wvlibs,input):
+        """Input is an int matrix. Each row contains one example and
+        each column the index of one lexical entry in the embedding
+        matrix"""
+        input_T=input.dimshuffle(1,0) #Transpose because each layer works on one column
+        vsls=[]
+        for i in range(len(wvlibs)):
+            vsls.append(VSpaceLayer.from_wvlib(wvlibs[i],input_T[i]))
+        return cls(vsls,input)
+        
+    def __init__(self,vspace_layers,input):
+        self.input=input
+        self.vspace_layers=vspace_layers
+        self.output=T.concatenate([l.output for l in self.vspace_layers],axis=1)
+        self.params=[]
+        for l in self.vspace_layers:
+            self.params.extend(l.params)
+        x=T.imatrix('X')
+        self.calcvals=theano.function([x],outputs=self.output,givens={self.input:x})
+
+
 class SoftMaxLayer(object):
     """Multi-class Logistic Regression Class
 
@@ -228,8 +278,7 @@ class MLP(object):
         return cls(hidden_layer,softmax_layer)
 
     @classmethod
-    def empty(cls,n_in,n_hidden,n_out,classes):
-        input= T.matrix('x',theano.config.floatX)
+    def empty(cls,n_in,n_hidden,n_out,classes,input):
         hidden_layer=HiddenRepLayer.empty(input,n_in,n_hidden)
         softmax_layer=SoftMaxLayer.empty(hidden_layer.output,n_hidden,n_out,classes)
         return cls(softmax_layer,hidden_layer)
@@ -248,6 +297,7 @@ class MLP(object):
         
         self.hiddenLayer = hidden_layer
         self.softMaxLayer = softmax_layer
+        self.input=self.hiddenLayer.input
 
         self.L1 = (
             abs(self.hiddenLayer.W).sum()
@@ -307,3 +357,57 @@ class MLP(object):
                 }
             )
 
+
+class MLP_WV(object):
+
+    """A class with vector embeddings layer at the input and a MLP sitting on top
+    input are indices into the embeddings"""
+    
+    def __init__(self,mlp,wv_layer,input):
+        self.mlp=mlp
+        self.wv_layer=wv_layer
+        self.input=input
+        self.compile_test()
+        self.compile_train_classification()
+
+    def compile_test(self):
+
+        x = T.imatrix('x')
+        self.test_classification_model=theano.function(
+            inputs=[x],
+            outputs=self.mlp.softMaxLayer.y_pred,
+            givens={self.wv_layer.input:x}
+            )
+
+    def compile_train_classification(self):
+        """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost"""
+
+        x = T.imatrix('x')  # minibatch, input
+        y = T.ivector('y')  # minibatch, output
+        l_rate = T.scalar('lrate',theano.config.floatX) #Learning rate
+        l1_reg = T.scalar('l1_reg',theano.config.floatX) #Learning rate
+        l2_reg = T.scalar('l2_reg',theano.config.floatX) #Learning rate
+
+        neg_likelihood=-T.mean(T.log(self.mlp.softMaxLayer.p_y_given_x)[T.arange(y.shape[0]), y])
+        classification_cost=neg_likelihood+l1_reg*self.mlp.L1+l2_reg*self.mlp.L2_sqr
+        gparams = [T.grad(classification_cost, param) for param in self.mlp.params]
+
+        # specify how to update the parameters of the model as a list of
+        # (variable, update expression) pairs
+
+        updates = [
+            (param, param - l_rate * gparam)
+            for param, gparam in zip(self.mlp.params, gparams)
+            ]
+
+        # compiling a Theano function `train_model` that returns the cost, but
+        # in the same time updates the parameter of the model based on the rules
+        # defined in `updates`
+        self.train_classification_model = theano.function(
+            inputs=[x,y,l_rate,l1_reg,l2_reg],
+            outputs=classification_cost,
+            updates=updates,
+            givens={
+                self.wv_layer.input: x
+                }
+            )
