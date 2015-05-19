@@ -368,7 +368,9 @@ class MLP_WV(object):
         self.wv_layer=wv_layer
         self.input=input
         self.compile_test()
+        self.params=self.mlp.params+self.wv_layer.params
         self.compile_train_classification()
+
 
     def compile_test(self):
 
@@ -390,14 +392,14 @@ class MLP_WV(object):
 
         neg_likelihood=-T.mean(T.log(self.mlp.softMaxLayer.p_y_given_x)[T.arange(y.shape[0]), y])
         classification_cost=neg_likelihood+l1_reg*self.mlp.L1+l2_reg*self.mlp.L2_sqr
-        gparams = [T.grad(classification_cost, param) for param in self.mlp.params]
+        gparams = [T.grad(classification_cost, param) for param in self.params]
 
         # specify how to update the parameters of the model as a list of
         # (variable, update expression) pairs
 
         updates = [
             (param, param - l_rate * gparam)
-            for param, gparam in zip(self.mlp.params, gparams)
+            for param, gparam in zip(self.params, gparams)
             ]
 
         # compiling a Theano function `train_model` that returns the cost, but
