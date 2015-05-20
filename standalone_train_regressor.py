@@ -134,8 +134,8 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
 
     classes={}
     models={"W":"data/w2v_fin_50_wf.bin",
-            #"POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
-            "POS":None,
+            "POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
+            #"POS":None,
             #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
             "FEAT":None,
             #"POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
@@ -148,8 +148,10 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
     model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
     assert model_list==model_list2 and model_list2==model_list3
-
+    
+    #TODO: get rid of this hack!
     models["W"]._vectors.vectors[0,:]=[0.0]*50
+    n_in=sum(m.vectors().shape[1] for m in model_list) #The dimensionality of the input to the MLP
 
     train_set_x,train_set_y=shared_dataset((train_set_x,train_set_y))
     test_set_x,test_set_y=shared_dataset((test_set_x,test_set_y))
@@ -165,7 +167,7 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     y = T.ivector('y')  # the labels are presented as 1D vector of integers
     
     wv_layer=regressor_mlp.VSpaceLayerCatenation.from_wvlibs(model_list,x)
-    classifier_mlp = regressor_mlp.MLP.empty(900,n_hidden,len(classes),classes,wv_layer.output)
+    classifier_mlp = regressor_mlp.MLP.empty(n_in,n_hidden,len(classes),classes,wv_layer.output)
     classifier=regressor_mlp.MLP_WV(classifier_mlp,wv_layer,x)
 
     # classifier.load("cls")
