@@ -143,8 +143,6 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             #"POS_FEAT":None,
             }
 
-
-
     max_rank=1200000
     max_rows=1000000
     model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
