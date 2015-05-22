@@ -74,13 +74,13 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
     for w in lines[0].split()[1:]:
         t,_=w.split(":",1)
         if dims[t] is not None:
-            model_list.append(models[t])
+            model_list.append(t)
     assert len(model_list)==word_indices.shape[1]
  
-    print "Word indices:", word_indices
-    print "Class matrix:", class_matrix
+    # print "Word indices:", word_indices
+    # print "Class matrix:", class_matrix
     print "Indices shape:",word_indices.shape
-    print "Class matrix:",class_matrix.shape
+    print "Class matrix shape:",class_matrix.shape
     return model_list,word_indices,class_matrix
 
 def shared_dataset(data_xy, borrow=True):
@@ -133,25 +133,38 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
    """
 
     classes={}
-    models={"W":"data/w2v_fin_50_wf.bin",
+    models={#"W":"data/w2v_fin_50_wf.bin",
+            "W":"/home/ginter/w2v/pb34_wf_200_v2.bin",
             "POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
             #"POS":None,
             #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
             "FEAT":None,
-            #"POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
-            "POS_FEAT":None,
+            "POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
+            #"POS_FEAT":None,
             }
 
 
 
-    model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
-    model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
-    model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=800000,max_rows=1000000)
+    max_rank=1200000
+    max_rows=1000000
+    model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
+    model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
+    model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     assert model_list==model_list2 and model_list2==model_list3
     
     #TODO: get rid of this hack!
-    models["W"]._vectors.vectors[0,:]=[0.0]*50
-    n_in=sum(m.vectors().shape[1] for m in model_list) #The dimensionality of the input to the MLP
+    models["W"]._vectors.vectors[0,:]=[0.0]*models["W"]._vectors.vectors.shape[1]
+    
+
+    # # allocate symbolic variables for the data
+    x = T.imatrix('x')  # 
+    y = T.ivector('y')  # the labels are presented as 1D vector of integers
+    
+    # wv_layer=regressor_mlp.VSpaceLayerCatenation.from_wvlibs(model_list,x)
+    # classifier_mlp = regressor_mlp.MLP.empty(n_in,n_hidden,len(classes),classes,wv_layer.output)
+    classifier=regressor_mlp.MLP_WV.empty(n_hidden,classes,models,model_list)
+
+    print >> sys.stderr, "Dimensionality of hidden layer input:", classifier.wv_layer.n_out()
 
     train_set_x,train_set_y=shared_dataset((train_set_x,train_set_y))
     test_set_x,test_set_y=shared_dataset((test_set_x,test_set_y))
@@ -162,13 +175,6 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
     n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
 
-    # # allocate symbolic variables for the data
-    x = T.imatrix('x')  # 
-    y = T.ivector('y')  # the labels are presented as 1D vector of integers
-    
-    wv_layer=regressor_mlp.VSpaceLayerCatenation.from_wvlibs(model_list,x)
-    classifier_mlp = regressor_mlp.MLP.empty(n_in,n_hidden,len(classes),classes,wv_layer.output)
-    classifier=regressor_mlp.MLP_WV(classifier_mlp,wv_layer,x)
 
     # classifier.load("cls")
     # classifier.compile_train_classification()
@@ -257,13 +263,14 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
     best_iter = 0
     test_score = 0.
     start_time = time.clock()
-
+    time.ctime()
     epoch = 0
     done_looping = False
 
     while (epoch < n_epochs) and (not done_looping):
         sys.stdout.flush()
         epoch = epoch + 1
+        print >> sys.stderr, "Epoch", epoch, "started", time.ctime()
         for minibatch_index in xrange(n_train_batches):
             i=batch_size*minibatch_index
             xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
@@ -289,7 +296,9 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
                          this_validation_loss
                     )
                     )
-#                classifier.save("cls")
+                time.ctime()
+                classifier.save("cls")
+                time.ctime()
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:
     #                 #improve patience if loss improvement is good enough

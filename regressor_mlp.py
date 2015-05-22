@@ -47,21 +47,46 @@ class VSpaceLayer(object):
 
 
 class VSpaceLayerCatenation(object):
-    
+
     @classmethod
-    def from_wvlibs(cls,wvlibs,input):
+    def from_wvlibs(cls,wvlib_dict,wvlib_order,input):
         """Input is an int matrix. Each row contains one example and
         each column the index of one lexical entry in the embedding
-        matrix"""
+        matrix. wvlib_dict is a dictionary "name"->wvlib and wvlib_order is a list of these names.
+        """
         input_T=input.dimshuffle(1,0) #Transpose because each layer works on one column
         vsls=[]
-        for i in range(len(wvlibs)):
-            vsls.append(VSpaceLayer.from_wvlib(wvlibs[i],input_T[i]))
-        return cls(vsls,input)
-        
-    def __init__(self,vspace_layers,input):
+        for i,name in enumerate(wvlib_order):
+            vsls.append(VSpaceLayer.from_wvlib(wvlib_dict[name],input_T[i]))
+        return cls(vsls,wvlib_dict,wvlib_order,input)
+
+    @classmethod
+    def load(cls,dirname,input=None):
+        if input is None:
+            input=T.imatrix("M")
+        with open(os.path.join(dirname,"vs_order.json"),"w") as f:
+            wvlib_order=json.load(f)
+        wvlib_dict={}
+        for name in wvlib_order:
+            if name not in wvlib_dict:
+                wvlib_dict[name]=wvlib.load(os.path.join(dirname,name+".bin"))
+        return cls.from_wvlibs(wvlib_dict,wvlib_order,input)
+
+    def save(self,dirname):
+        with open(os.path.join(dirname,"vs_order.json"),"w") as f:
+            json.dump(self.wvlib_order,f)
+        for name,wvlib_obj in self.wvlib_dict.iteritems():
+            if wvlib_obj is None:
+                continue
+            out=os.path.join(dirname,name+".bin")
+            print >> sys.stderr, "Saving...", out
+            wvlib_obj.save_bin(out)
+
+    def __init__(self,vspace_layers,wvlib_dict,wvlib_order,input):
         self.input=input
         self.vspace_layers=vspace_layers
+        self.wvlib_dict=wvlib_dict
+        self.wvlib_order=wvlib_order
         self.output=T.concatenate([l.output for l in self.vspace_layers],axis=1)
         self.params=[]
         for l in self.vspace_layers:
@@ -69,6 +94,9 @@ class VSpaceLayerCatenation(object):
         x=T.imatrix('X')
         self.calcvals=theano.function([x],outputs=self.output,givens={self.input:x})
 
+    def n_out(self):
+        """How many output dimensions will I have?"""
+        return sum(l.wordvecs.get_value(borrow=True).shape[1] for l in self.vspace_layers)
 
 class SoftMaxLayer(object):
     """Multi-class Logistic Regression Class
@@ -80,7 +108,9 @@ class SoftMaxLayer(object):
     """
 
     @classmethod
-    def load(cls,file_name,input):
+    def load(cls,file_name,input=None):
+        if input is None:
+            input=T.matrix('x',theano.config.floatX)
         with open(file_name+"_classes.json","r") as f:
             classes=json.load(f)
         W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
@@ -88,7 +118,10 @@ class SoftMaxLayer(object):
         return cls(input,W,b,classes)
 
     @classmethod
-    def empty(cls,input,n_in,n_out,classes):
+    def empty(cls,n_in,classes,input=None):
+        if input is None:
+            input=T.matrix('x',theano.config.floatX)
+        n_out=len(classes)
         W=numpy.zeros((n_in,n_out),theano.config.floatX)
         b=numpy.zeros((n_out,),theano.config.floatX)
         return cls(input,W,b,classes)
@@ -185,13 +218,17 @@ class SoftMaxLayer(object):
 class HiddenRepLayer(object):
 
     @classmethod
-    def load(cls,file_name,input):
+    def load(cls,file_name,input=None):
+        if input is None:
+            input=T.matrix('x')
         W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
         b=numpy.load(os.path.join(dir_name,file_name+"_b.npy"))
         return cls(input,W,b)
 
     @classmethod
-    def empty(cls,input,n_in,n_out,rng=None):
+    def empty(cls,n_in,n_out,rng=None,input=None):
+        if input is None:
+            input=T.matrix('x')
         if rng is None:
             rng = numpy.random.RandomState(5678)
         W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6.0 / (n_in + n_out)),high=numpy.sqrt(6.0 / (n_in + n_out)),size=(n_in, n_out)),
@@ -272,15 +309,19 @@ class MLP(object):
     """
 
     @classmethod
-    def load(cls,dir_name):
-        hidden_layer=HiddenRepLayer.load(os.path.join(dir_name,"hidden"))
-        softmax_layer=SoftMaxLayer.load(os.path.join(dir_name,"smax_type"),hidden_layer.output)
+    def load(cls,dir_name,input=None):
+        if input is None:
+            input=T.matrix('x')
+        hidden_layer=HiddenRepLayer.load(os.path.join(dir_name,"hidden"),input)
+        softmax_layer=SoftMaxLayer.load(os.path.join(dir_name,"smax_type"),input=hidden_layer.output)
         return cls(hidden_layer,softmax_layer)
 
     @classmethod
-    def empty(cls,n_in,n_hidden,n_out,classes,input):
-        hidden_layer=HiddenRepLayer.empty(input,n_in,n_hidden)
-        softmax_layer=SoftMaxLayer.empty(hidden_layer.output,n_hidden,n_out,classes)
+    def empty(cls,n_in,n_hidden,classes,input=None):
+        if input is None:
+            input=T.matrix('x')
+        hidden_layer=HiddenRepLayer.empty(n_in,n_hidden,input=input)
+        softmax_layer=SoftMaxLayer.empty(n_hidden,classes,input=hidden_layer.output)
         return cls(softmax_layer,hidden_layer)
     
     def save(self,dir_name):
@@ -363,6 +404,29 @@ class MLP_WV(object):
     """A class with vector embeddings layer at the input and a MLP sitting on top
     input are indices into the embeddings"""
     
+    @classmethod
+    def load(cls,dir_name,input=None):
+        if input is None:
+            input=T.imatrix('M')
+        wv_layer=VSpaceLayerCatenation.load(dir_name,input)
+        mlp=MLP.load(dir_name,wv_layer.output)
+        return cls(mlp,wv_layer,input)
+
+    @classmethod
+    def empty(cls,n_hidden,classes,wvlib_dict,wvlib_order,input=None):
+        if input is None:
+            input=T.imatrix('M')
+        wv_layer=VSpaceLayerCatenation.from_wvlibs(wvlib_dict,wvlib_order,input=input)
+        hidden_in=wv_layer.n_out()
+        mlp=MLP.empty(hidden_in,n_hidden,classes,input=wv_layer.output)
+        return cls(mlp,wv_layer,input)
+    
+    def save(self,dir_name):
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        self.mlp.save(dir_name)
+        self.wv_layer.save(dir_name)
+
     def __init__(self,mlp,wv_layer,input):
         self.mlp=mlp
         self.wv_layer=wv_layer
@@ -370,7 +434,6 @@ class MLP_WV(object):
         self.compile_test()
         self.params=self.mlp.params+self.wv_layer.params
         self.compile_train_classification()
-
 
     def compile_test(self):
 
