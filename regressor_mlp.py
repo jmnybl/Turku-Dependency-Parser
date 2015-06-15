@@ -256,13 +256,12 @@ class MLP(object):
         self.train_classification_dtype = self.compile_train_classification(self.softmax_dtype) #)
         self.test_classification_dtype=self.compile_test(self.softmax_dtype) #
 
-
     def compile_test(self,softmax_layer):
 
         x = T.matrix('x',theano.config.floatX)
         return theano.function(
             inputs=[x],
-            outputs=self.softmax_dtype.y_pred,
+            outputs=softmax_layer.y_pred,
             givens={self.hiddenLayer.input:x}
             )
 
