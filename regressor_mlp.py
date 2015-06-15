@@ -231,7 +231,10 @@ class HiddenRepLayer(object):
             input=T.matrix('x')
         if rng is None:
             rng = numpy.random.RandomState(5678)
-        W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6.0 / (n_in + n_out)),high=numpy.sqrt(6.0 / (n_in + n_out)),size=(n_in, n_out)),
+        #W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6.0 / (n_in + n_out)),high=numpy.sqrt(6.0 / (n_in + n_out)),size=(n_in, n_out)),
+        #        dtype=theano.config.floatX
+        #    )
+        W = numpy.asarray(rng.uniform(low=-0.01,high=0.01,size=(n_in, n_out)),
                 dtype=theano.config.floatX
             )
         b=numpy.zeros((n_out,),theano.config.floatX)
@@ -288,7 +291,8 @@ class HiddenRepLayer(object):
 
         self.W = theano.shared(value=W, name='W', borrow=True)
         self.b = theano.shared(value=b, name='b', borrow=True)
-        lin_output = T.dot(input, self.W) + self.b
+        lin_output=T.dot(input, self.W) + self.b
+        #self.output= (lin_output)**3.0
         self.output = (
             lin_output if activation is None
             else activation(lin_output)
@@ -352,9 +356,11 @@ class MLP_WV(object):
     def load(cls,dir_name,input=None):
         if input is None:
             input=T.imatrix('M')
-        wv_layer=VSpaceLayerCatenation.load(dir_name,input)
-        mlp=MLP.load(dir_name,wv_layer.output)
-        return cls(mlp,wv_layer,input)
+        wv_layer=VSpaceLayerCatenation.load(os.path.join(dir_name,"wv"),input)
+        hidden_dep=HiddenRepLayer.load(os.path.join(dir_name,"hidden_dep"),input=wv_layer.output)
+        softmax_dtype=SoftMaxLayer.load(os.path.join(dir_name,"smax_dtype"),input=hidden_dep.output)
+        softmax_move=SoftMaxLayer.load(os.path.join(dir_name,"smax_move"),input=hidden_dep.output)
+        return cls(wv_layer,hidden_dep,softmax_dtype,softmax_move,input)
 
     @classmethod
     def empty(cls,n_hidden,classes,wvlib_dict,wvlib_order,input=None):
@@ -370,8 +376,10 @@ class MLP_WV(object):
     def save(self,dir_name):
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
-        self.mlp.save(dir_name)
-        self.wv_layer.save(dir_name)
+        self.hidden_dep.save(os.path.join(dir_name,"hidden_dep"))
+        self.softmax_dtype.save(os.path.join(dir_name,"smax_dtype"))
+        self.softmax_move.save(os.path.join(dir_name,"smax_move"))
+        self.wv_layer.save(os.path.join(dir_name,"wv"))
 
     def __init__(self,wv_layer,hidden_dep,softmax_dtype,softmax_move,input):
         self.input=input

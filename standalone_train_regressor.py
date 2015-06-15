@@ -109,8 +109,8 @@ def shared_dataset(data_xy, borrow=True):
     return shared_x, shared_y#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.2, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
-             batch_size=13, n_hidden=197):
+def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
+             batch_size=13, n_hidden=100):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -143,8 +143,8 @@ def test_mlp(learning_rate=0.2, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             #"POS_FEAT":None,
             }
 
-    max_rank=400000
-    max_rows=10000
+    max_rank=800000
+    max_rows=5000000
     model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
