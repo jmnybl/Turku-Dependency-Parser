@@ -115,9 +115,9 @@ class State(object):
         if move==SHIFT: # SHIFT
             self.shift()
         elif move==RIGHT: # RIGHT ARC
-            self.add_arc(self.stack[-2],self.stack.pop(-1),d_vector) 
+            self.add_arc(self.stack[-2],self.stack.pop(-1),d_type=None,d_vector=d_vector,g_vector=g_vector) 
         elif move==LEFT: # LEFT ARC
-            self.add_arc(self.stack[-1],self.stack.pop(-2),d_vector)
+            self.add_arc(self.stack[-1],self.stack.pop(-2),d_type=None,d_vector=d_vector,g_vector=g_vector)
         elif move==SWAP: # SWAP
             self.swap()
         else:
@@ -135,8 +135,7 @@ class State(object):
         if d_vector is not None:
             self.tree.d_vectors[dep.index]=d_vector
         if g_vector is not None:
-            self.tree.g_vectors[gov.index]+=g_vector
-
+            self.tree.g_vectors[gov.index]+=g_vector #accumulate the g_vectors
 
     def shift(self):
         self.stack.append(self.queue.pop(0))
@@ -529,7 +528,6 @@ class Parser(object):
             newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
         return new_beam #List of selected states, ordered by their score in this move
-
 
 
     def parse(self,inp,outp):
