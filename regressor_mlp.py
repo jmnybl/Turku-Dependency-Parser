@@ -335,7 +335,6 @@ class MLP(object):
         """Initialize the parameters for the multilayer perceptron
 
         """
-        
         self.hiddenLayer = hidden_layer
         self.softmax_dtype = softmax_dtype
         self.input=self.hiddenLayer.input

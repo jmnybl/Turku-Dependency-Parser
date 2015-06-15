@@ -63,10 +63,8 @@ class State(object):
         self.features=defaultdict(lambda:0.0)
         self.prev_state=None #The state from which this one was created, if any
         self.wrong_transitions=0 # number of wrong transitions, if 0 then same as gold
-        self.d_vectors=numpy.zeros((len(self.tree.tokens),vector_len)) #for every word its dependent vector
-        self.g_vectors=numpy.zeros((len(self.tree.tokens),vector_len)) #for every word its governor vector
-        
-        
+        self.d_vectors=numpy.zeros((len(self.tree.tokens),vector_len)) #for every word its dependent role vector (filled in arc transition)
+        self.g_vectors=numpy.zeros((len(self.tree.tokens),vector_len)) #for every word its governor role vector (accumulated when attaching its dependents)
 
     @classmethod
     def _copy_and_point(cls,s):
