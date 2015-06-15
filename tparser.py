@@ -111,15 +111,13 @@ class State(object):
             self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
 
-    def update(self,move,dtype=None):
+    def update(self,move,d_vector=None,g_vector=None):
         if move==SHIFT: # SHIFT
             self.shift()
         elif move==RIGHT: # RIGHT ARC
-            assert (dtype is not None)
-            self.add_arc(self.stack[-2],self.stack.pop(-1),dtype) 
+            self.add_arc(self.stack[-2],self.stack.pop(-1),d_vector) 
         elif move==LEFT: # LEFT ARC
-            assert (dtype is not None)
-            self.add_arc(self.stack[-1],self.stack.pop(-2),dtype)
+            self.add_arc(self.stack[-1],self.stack.pop(-2),d_vector)
         elif move==SWAP: # SWAP
             self.swap()
         else:
@@ -130,11 +128,14 @@ class State(object):
             self.tree.ready=True
 
 
-
-    def add_arc(self,gov,dep,dtype):
+    def add_arc(self,gov,dep,d_type=None,d_vector=None,g_vector=None):
         """ Gov and dep are Token class instances. """
-        dependency=Dep(gov,dep,dtype)
+        dependency=Dep(gov,dep,d_type) #Note that d_type can be None at this point, in case we don't know what type we have
         self.tree.add_dep(dependency)
+        if d_vector is not None:
+            self.tree.d_vectors[dep.index]=d_vector
+        if g_vector is not None:
+            self.tree.g_vectors[gov.index]+=g_vector
 
 
     def shift(self):
@@ -159,10 +160,10 @@ class State(object):
         return moves
 
     def __str__(self):
-        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep.gov.text+u" "+dep.dep.text+u" "+dep.dType+u")" for dep in self.tree.deps)).encode(u"utf-8")
+        return (u"Tree ready? "+unicode(self.tree.ready)+u"\nStack: ["+u" ".join(token.text for token in self.stack)+u"]\nQueue: ["+u" ".join(token.text for token in self.queue)+u"]\nScore:"+unicode(self.score)+u"\n"+u"\n".join(u"("+dep.gov.text+u" "+dep.dep.text+u" "+unicode(dep.dType)+u")" for dep in self.tree.deps)).encode(u"utf-8")
 
     def __repr__(self):
-        return u",".join(str(t.move)+u":"+str(t.dType) for t in self.transitions)
+        return u",".join(unicode(t.move)+u":"+unicode(t.dType) for t in self.transitions)
 
 
     def collect_tokens(self,move):

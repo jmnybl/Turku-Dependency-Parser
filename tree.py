@@ -250,9 +250,9 @@ class Dep(object):
 
 
     def __str__(self):
-        return (u"<Gov:"+unicode(self.gov.index)+u",Dep:"+unicode(self.dep.index)+u",dType:"+self.dType+u">").encode(u"utf-8")
+        return (u"<Gov:"+unicode(self.gov.index)+u",Dep:"+unicode(self.dep.index)+u",dType:"+unicode(self.dType)+u">").encode(u"utf-8")
 
     def __repr__(self):
-        return (u"<Gov:"+unicode(self.gov.index)+u",Dep:"+unicode(self.dep.index)+u",dType:"+self.dType+u">").encode(u"utf-8")
+        return (u"<Gov:"+unicode(self.gov.index)+u",Dep:"+unicode(self.dep.index)+u",dType:"+unicode(self.dType)+u">").encode(u"utf-8")
 
 
