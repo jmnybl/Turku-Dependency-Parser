@@ -296,111 +296,57 @@ class HiddenRepLayer(object):
         self.params = [self.W, self.b]
 
 
-# start-snippet-2
-class MLP(object):
-    """Multi-Layer Perceptron Class
+# # start-snippet-2
+# class MLP(object):
+#     """Multi-Layer Perceptron Class
 
-    A multilayer perceptron is a feedforward artificial neural network model
-    that has one layer or more of hidden units and nonlinear activations.
-    Intermediate layers usually have as activation function tanh or the
-    sigmoid function (defined here by a ``HiddenLayer`` class)  while the
-    top layer is a softamx layer (defined here by a ``LogisticRegression``
-    class).
-    """
+#     A multilayer perceptron is a feedforward artificial neural network model
+#     that has one layer or more of hidden units and nonlinear activations.
+#     Intermediate layers usually have as activation function tanh or the
+#     sigmoid function (defined here by a ``HiddenLayer`` class)  while the
+#     top layer is a softamx layer (defined here by a ``LogisticRegression``
+#     class).
+#     """
 
-    @classmethod
-    def load(cls,dir_name,input=None):
-        if input is None:
-            input=T.matrix('x')
-        hidden_layer=HiddenRepLayer.load(os.path.join(dir_name,"hidden"),input)
-        softmax_dtype=SoftMaxLayer.load(os.path.join(dir_name,"smax_dtype"),input=hidden_layer.output)
-        return cls(hidden_layer,softmax_dtype)
+#     @classmethod
+#     def load(cls,dir_name,input=None):
+#         if input is None:
+#             input=T.matrix('x')
+#         hidden_layer=HiddenRepLayer.load(os.path.join(dir_name,"hidden"),input)
+#         softmax_dtype=SoftMaxLayer.load(os.path.join(dir_name,"smax_dtype"),input=hidden_layer.output)
+#         return cls(hidden_layer,softmax_dtype)
 
-    @classmethod
-    def empty(cls,n_in,n_hidden,classes,input=None):
-        if input is None:
-            input=T.matrix('x')
-        hidden_layer=HiddenRepLayer.empty(n_in,n_hidden,input=input)
-        softmax_dtype=SoftMaxLayer.empty(n_hidden,classes,input=hidden_layer.output)
-        return cls(hidden_layer,softmax_dtype)
+#     @classmethod
+#     def empty(cls,n_in,n_hidden,classes,input=None):
+#         if input is None:
+#             input=T.matrix('x')
+#         hidden_layer=HiddenRepLayer.empty(n_in,n_hidden,input=input)
+#         softmax_dtype=SoftMaxLayer.empty(n_hidden,classes,input=hidden_layer.output)
+#         return cls(hidden_layer,softmax_dtype)
     
-    def save(self,dir_name):
-        if not os.path.exists(dir_name):
-            os.makedirs(dir_name)
-        self.hiddenLayer.save(os.path.join(dir_name,"hidden"))
-        self.softmax_dtype.save(os.path.join(dir_name,"smax_dtype"))
+#     def save(self,dir_name):
+#         if not os.path.exists(dir_name):
+#             os.makedirs(dir_name)
+#         self.hiddenLayer.save(os.path.join(dir_name,"hidden"))
+#         self.softmax_dtype.save(os.path.join(dir_name,"smax_dtype"))
         
 
-    def __init__(self, hidden_layer, softmax_dtype):
-        """Initialize the parameters for the multilayer perceptron
+#     def __init__(self, hidden_layer, softmax_dtype):
+#         """Initialize the parameters for the multilayer perceptron
 
-        """
-        self.hiddenLayer = hidden_layer
-        self.softmax_dtype = softmax_dtype
-        self.input=self.hiddenLayer.input
-        self.params = self.hiddenLayer.params
-        self.train_classification_dtype = self.compile_train_classification(self.softmax_dtype) #)
-        self.test_classification_dtype=self.compile_test(self.softmax_dtype) #
+#         """
+#         self.hiddenLayer = hidden_layer
+#         self.softmax_dtype = softmax_dtype
+#         self.input=self.hiddenLayer.input
+#         self.params = self.hiddenLayer.params
 
-    def compile_test(self,softmax_layer):
-
-        x = T.matrix('x',theano.config.floatX)
-        return theano.function(
-            inputs=[x],
-            outputs=softmax_layer.y_pred,
-            givens={self.hiddenLayer.input:x}
-            )
-
-    def compile_train_classification(self,softmax_layer):
-        """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost. softmax_layer should be one
-        of the softmax_layers in the mlp"""
-
-        x = T.matrix('x',theano.config.floatX)  # minibatch, input
-        y = T.vector('y','int32')  # minibatch, output
-        l_rate = T.scalar('lrate',theano.config.floatX) #Learning rate
-        l1_reg = T.scalar('l1_reg',theano.config.floatX) #Learning rate
-        l2_reg = T.scalar('l2_reg',theano.config.floatX) #Learning rate
-
-        L1 = (
-            abs(self.hiddenLayer.W).sum()
-            + abs(softmax_layer.W).sum()
-        )
-
-        L2_sqr = (
-            (self.hiddenLayer.W ** 2).sum()
-            + (softmax_layer.W ** 2).sum() + (self.hiddenLayer.b ** 2).sum() + (softmax_layer.b ** 2).sum()
-        )
-
-
-        neg_likelihood=-T.mean(T.log(softmax_layer.p_y_given_x)[T.arange(y.shape[0]), y])
-        classification_cost=neg_likelihood+l1_reg*L1+l2_reg*L2_sqr
-        gparams = [T.grad(classification_cost, param) for param in self.params+softmax_layer.params]
-
-        # specify how to update the parameters of the model as a list of
-        # (variable, update expression) pairs
-
-        updates = [
-            (param, param - l_rate * gparam)
-            for param, gparam in zip(self.params, gparams)
-            ]
-
-        # compiling a Theano function `train_model` that returns the cost, but
-        # in the same time updates the parameter of the model based on the rules
-        # defined in `updates`
-        return theano.function(
-            inputs=[x,y,l_rate,l1_reg,l2_reg],
-            outputs=classification_cost,
-            updates=updates,
-            givens={
-                self.hiddenLayer.input: x
-                }
-            )
 
 
 class MLP_WV(object):
 
     """A class with vector embeddings layer at the input and a MLP sitting on top
-    input are indices into the embeddings"""
+    input are indices into the embeddings. Two softmax output layers exist, one for
+    the next move, and one for the type"""
     
     @classmethod
     def load(cls,dir_name,input=None):
@@ -416,8 +362,10 @@ class MLP_WV(object):
             input=T.imatrix('M')
         wv_layer=VSpaceLayerCatenation.from_wvlibs(wvlib_dict,wvlib_order,input=input)
         hidden_in=wv_layer.n_out()
-        mlp=MLP.empty(hidden_in,n_hidden,classes,input=wv_layer.output)
-        return cls(mlp,wv_layer,input)
+        hidden_dep=HiddenRepLayer.empty(hidden_in,n_hidden,input=wv_layer.output)
+        softmax_dtype=SoftMaxLayer.empty(n_hidden,classes,input=hidden_dep.output)
+        softmax_move=SoftMaxLayer.empty(n_hidden,{"SHIFT":0,"RIGHT":1,"LEFT":2,"SWAP":3,"ERR":4},input=hidden_dep.output)
+        return cls(wv_layer,hidden_dep,softmax_dtype,softmax_move,input)
     
     def save(self,dir_name):
         if not os.path.exists(dir_name):
@@ -425,25 +373,31 @@ class MLP_WV(object):
         self.mlp.save(dir_name)
         self.wv_layer.save(dir_name)
 
-    def __init__(self,mlp,wv_layer,input):
-        self.mlp=mlp
-        self.wv_layer=wv_layer
+    def __init__(self,wv_layer,hidden_dep,softmax_dtype,softmax_move,input):
         self.input=input
-        self.compile_test()
-        self.params=self.mlp.params+self.wv_layer.params
-        self.compile_train_classification()
+        self.wv_layer=wv_layer
+        self.hidden_dep=hidden_dep
+        self.softmax_dtype=softmax_dtype
+        self.softmax_move=softmax_move
+        self.params=self.hidden_dep.params+self.wv_layer.params #These are valid for all softmax layers
+        self.train_classification_dtype = self.compile_train_classification(self.softmax_dtype) #)
+        self.test_classification_dtype=self.compile_test(self.softmax_dtype) #
+        self.train_classification_move = self.compile_train_classification(self.softmax_move) #)
+        self.test_classification_move=self.compile_test(self.softmax_move) #
 
-    def compile_test(self):
 
+    def compile_test(self,softmax_layer):
+        """softmax_layer is one of the possible output layers (this net will have several)"""
         x = T.imatrix('x')
-        self.test_classification_model=theano.function(
+        return theano.function(
             inputs=[x],
-            outputs=self.mlp.softMaxLayer.y_pred,
+            outputs=softmax_layer.y_pred,
             givens={self.wv_layer.input:x}
             )
 
-    def compile_train_classification(self):
-        """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost"""
+    def compile_train_classification(self,softmax_layer):
+        """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost. softmax_layer should be one
+        of the softmax_layers in the mlp"""
 
         x = T.imatrix('x')  # minibatch, input
         y = T.ivector('y')  # minibatch, output
@@ -451,22 +405,33 @@ class MLP_WV(object):
         l1_reg = T.scalar('l1_reg',theano.config.floatX) #Learning rate
         l2_reg = T.scalar('l2_reg',theano.config.floatX) #Learning rate
 
-        neg_likelihood=-T.mean(T.log(self.mlp.softMaxLayer.p_y_given_x)[T.arange(y.shape[0]), y])
-        classification_cost=neg_likelihood+l1_reg*self.mlp.L1+l2_reg*self.mlp.L2_sqr
-        gparams = [T.grad(classification_cost, param) for param in self.params]
+        L1 = (
+            abs(self.hidden_dep.W).sum()
+            + abs(softmax_layer.W).sum()
+        )
+
+        L2_sqr = (
+            (self.hidden_dep.W ** 2).sum()
+            + (softmax_layer.W ** 2).sum() + (self.hidden_dep.b ** 2).sum() + (softmax_layer.b ** 2).sum()
+        )
+
+
+        neg_likelihood=-T.mean(T.log(softmax_layer.p_y_given_x)[T.arange(y.shape[0]), y])
+        classification_cost=neg_likelihood+l2_reg*L2_sqr+l1_reg*0.0#L1+l2_reg*L2_sqr
+        gparams = [T.grad(classification_cost, param) for param in self.params+softmax_layer.params]
 
         # specify how to update the parameters of the model as a list of
         # (variable, update expression) pairs
 
         updates = [
             (param, param - l_rate * gparam)
-            for param, gparam in zip(self.params, gparams)
+            for param, gparam in zip(self.params+softmax_layer.params, gparams)
             ]
 
         # compiling a Theano function `train_model` that returns the cost, but
         # in the same time updates the parameter of the model based on the rules
         # defined in `updates`
-        self.train_classification_model = theano.function(
+        return theano.function(
             inputs=[x,y,l_rate,l1_reg,l2_reg],
             outputs=classification_cost,
             updates=updates,

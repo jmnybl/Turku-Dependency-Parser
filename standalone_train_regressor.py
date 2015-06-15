@@ -109,7 +109,7 @@ def shared_dataset(data_xy, borrow=True):
     return shared_x, shared_y#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
+def test_mlp(learning_rate=0.2, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
              batch_size=13, n_hidden=197):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
@@ -143,8 +143,8 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             #"POS_FEAT":None,
             }
 
-    max_rank=1200000
-    max_rows=1000000
+    max_rank=400000
+    max_rows=10000
     model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
@@ -274,15 +274,17 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
             xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
             ys=train_set_y.get_value(borrow=True)[i:i+batch_size]
             #print "TSTX", classifier.wv_layer.calcvals(xs)
-            minibatch_avg_cost = classifier.train_classification_model(xs,ys,learning_rate,L1_reg,L2_reg)
+            minibatch_avg_cost = classifier.train_classification_dtype(xs,ys,learning_rate,L1_reg,L2_reg)
             #print minibatch_avg_cost
 #            print classifier.test_classification_model(xs)
     #         # iteration number
-            tst=classifier.test_classification_model(xs)
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
-                predictions=classifier.test_classification_model(valid_set_x.get_value(borrow=True))
+                predictions=classifier.test_classification_dtype(valid_set_x.get_value(borrow=True))
+                print predictions
+                print valid_set_y.get_value(borrow=True)
+                print
                 this_validation_loss=((predictions==valid_set_y.get_value(borrow=True)).sum()*100.0)/valid_set_y.get_value(borrow=True).shape[0]
                 
                 print(
@@ -295,7 +297,7 @@ def test_mlp(learning_rate=0.02, L1_reg=0.00, L2_reg=0.000000001, n_epochs=1000,
                     )
                     )
                 time.ctime()
-                classifier.save("cls")
+                #classifier.save("cls")
                 time.ctime()
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:
