@@ -48,7 +48,7 @@ DEPTYPES=u"acomp adpos advcl advmod amod appos aux auxpass ccomp compar comparat
 
 class State(object):
 
-    def __init__(self,sent=None,syn=False):
+    def __init__(self,sent=None,syn=False,vector_len=20):
         if sent!=None:
             self.tree=Tree.new_from_conll(sent,syn)
             self.queue=self.tree.tokens[:]
@@ -63,6 +63,10 @@ class State(object):
         self.features=defaultdict(lambda:0.0)
         self.prev_state=None #The state from which this one was created, if any
         self.wrong_transitions=0 # number of wrong transitions, if 0 then same as gold
+        self.d_vectors=numpy.zeros((len(self.tree.tokens),vector_len)) #for every word its dependent vector
+        self.g_vectors=numpy.zeros((len(self.tree.tokens),vector_len)) #for every word its governor vector
+        
+        
 
     @classmethod
     def _copy_and_point(cls,s):
@@ -82,6 +86,8 @@ class State(object):
         newS.wrong_transitions=s.wrong_transitions
         #newS.tree=copy.deepcopy(s.tree)
         newS.tree=Tree.new_from_tree(s.tree) ###MUST get rid of token.dtype first
+        newS.d_vectors=s.d_vectors[:]
+        newS.g_vectors=s.g_vectors[:]
         return newS
         
     def create_feature_dict(self):
@@ -203,7 +209,7 @@ class State(object):
             if pos[i]!=u"NONE" and feat[i]!=u"NONE":
                 final.append(u"POS_FEAT:"+pos[i]+u"|"+feat[i])
             else:
-                final.append(u"POS_FEAT:"+u"NONE")
+                final.append(u"POS_FEAT:"+pos[i]+u"|"+u"NONE")
         return final
 
     def fill_token(self,token,tlist,plist,flist):
@@ -275,7 +281,7 @@ class State(object):
 class Parser(object):
 
 
-    def __init__(self,model_file_name,regressor,fName=None,gp=None,beam_size=40,test_time=False):
+    def __init__(self,model_file_name,regressor,fName=None,gp=None,beam_size=5,test_time=False):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
