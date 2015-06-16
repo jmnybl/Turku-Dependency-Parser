@@ -36,23 +36,26 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
     #How many indices per row, and how many inputs does that translate into?
     indices=0
     cols=0
-    for w in lines[0].split()[1:]:
+    for w in lines[0].split()[2:]:
         t,_=w.split(":",1)
         if dims[t] is not None:
             cols+=dims[t]
             indices+=1
     word_indices=numpy.zeros((len(lines),indices),numpy.int32)
     class_matrix=numpy.zeros((len(lines),),numpy.int32)
+    move_matrix=numpy.zeros((len(lines),),numpy.int32)
     for line_idx,line in enumerate(lines):
         line=line.strip()
         words=line.split()
         #The first one is the type
         #the rest are type:word (can also be type:NONE)
-        pred_type=words[0]
+        move=int(words[0])
+        pred_type=words[1]
         cls_index=classes.setdefault(pred_type,len(classes))
+        move_matrix[line_idx]=move
         class_matrix[line_idx]=cls_index
         gs_types.append(pred_type)
-        words=words[1:]
+        words=words[2:]
         idx=0
         for w in words:
             t,w=w.split(":",1)
@@ -71,7 +74,7 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
             idx+=1    
     #Yet gather a list of models so we know what these indices refer to
     model_list=[]
-    for w in lines[0].split()[1:]:
+    for w in lines[0].split()[2:]:
         t,_=w.split(":",1)
         if dims[t] is not None:
             model_list.append(t)
@@ -81,9 +84,9 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
     # print "Class matrix:", class_matrix
     print "Indices shape:",word_indices.shape
     print "Class matrix shape:",class_matrix.shape
-    return model_list,word_indices,class_matrix
+    return model_list,word_indices,class_matrix,move_matrix
 
-def shared_dataset(data_xy, borrow=True):
+def shared_dataset(data_xyz, borrow=True):
     """ Function that loads the dataset into shared variables
 
     The reason we store our dataset in shared variables is to allow
@@ -92,11 +95,14 @@ def shared_dataset(data_xy, borrow=True):
     is needed (the default behaviour if the data is not in a shared
     variable) would lead to a large decrease in performance.
     """
-    data_x, data_y = data_xy
+    data_x, data_y, data_z = data_xyz
     shared_x = theano.shared(numpy.asarray(data_x,
                                            dtype='int32'),
                              borrow=borrow)
     shared_y = theano.shared(numpy.asarray(data_y,
+                                           dtype='int32'),
+                             borrow=borrow)
+    shared_z = theano.shared(numpy.asarray(data_z,
                                            dtype='int32'),
                              borrow=borrow)
     # When storing data on the GPU it has to be stored as floats
@@ -106,7 +112,7 @@ def shared_dataset(data_xy, borrow=True):
     # floats it doesn't make sense) therefore instead of returning
     # ``shared_y`` we will have to cast it to int. This little hack
     # lets ous get around this issue
-    return shared_x, shared_y#T.cast(shared_y, 'int32')
+    return shared_x, shared_y, shared_z#T.cast(shared_y, 'int32')
 
 
 def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
@@ -144,10 +150,10 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
             }
 
     max_rank=800000
-    max_rows=5000000
-    model_list, train_set_x, train_set_y=load_data("/home/ginter/parser-vectors/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
-    model_list2, test_set_x, test_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
-    model_list3, valid_set_x, valid_set_y=load_data("/home/ginter/parser-vectors/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
+    max_rows=5000000000
+    model_list, train_set_x, train_set_y, train_set_move=load_data("data/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
+    model_list2, test_set_x, test_set_y, test_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
+    model_list3, valid_set_x, valid_set_y, valid_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     assert model_list==model_list2 and model_list2==model_list3
     
     #TODO: get rid of this hack!
@@ -164,9 +170,9 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
 
     print >> sys.stderr, "Dimensionality of hidden layer input:", classifier.wv_layer.n_out()
 
-    train_set_x,train_set_y=shared_dataset((train_set_x,train_set_y))
-    test_set_x,test_set_y=shared_dataset((test_set_x,test_set_y))
-    valid_set_x,valid_set_y=shared_dataset((valid_set_x,valid_set_y))
+    train_set_x,train_set_y,train_set_move=shared_dataset((train_set_x,train_set_y,train_set_move))
+    test_set_x,test_set_y,test_set_move=shared_dataset((test_set_x,test_set_y,test_set_move))
+    valid_set_x,valid_set_y,valid_set_move=shared_dataset((valid_set_x,valid_set_y,valid_set_move))
 
     # compute number of minibatches for training, validation and testing
     n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
@@ -273,8 +279,10 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
             i=batch_size*minibatch_index
             xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
             ys=train_set_y.get_value(borrow=True)[i:i+batch_size]
+            moves=train_set_move.get_value(borrow=True)[i:i+batch_size]
             #print "TSTX", classifier.wv_layer.calcvals(xs)
             minibatch_avg_cost = classifier.train_classification_dtype(xs,ys,learning_rate,L1_reg,L2_reg)
+            minibatch_avg_cost_move = classifier.train_classification_move(xs,moves,learning_rate,L1_reg,L2_reg)
             #print minibatch_avg_cost
 #            print classifier.test_classification_model(xs)
     #         # iteration number
@@ -282,18 +290,23 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
 
             if (iter + 1) % validation_frequency == 0:
                 predictions=classifier.test_classification_dtype(valid_set_x.get_value(borrow=True))
+                predictions_move=classifier.test_classification_move(valid_set_x.get_value(borrow=True))
                 print predictions
                 print valid_set_y.get_value(borrow=True)
+                print predictions_move
+                print valid_set_move.get_value(borrow=True)
                 print
                 this_validation_loss=((predictions==valid_set_y.get_value(borrow=True)).sum()*100.0)/valid_set_y.get_value(borrow=True).shape[0]
+                this_validation_loss_move=((predictions_move==valid_set_move.get_value(borrow=True)).sum()*100.0)/valid_set_move.get_value(borrow=True).shape[0]
                 
                 print(
-                    'epoch %i, minibatch %i/%i, validation acc %f %%' %
+                    'epoch %i, minibatch %i/%i, validation acc %f %% (dtype)  acc %f %% (move)' %
                     (
                          epoch,
                          minibatch_index + 1,
                          n_train_batches,
-                         this_validation_loss
+                         this_validation_loss,
+                         this_validation_loss_move
                     )
                     )
                 time.ctime()

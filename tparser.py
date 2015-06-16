@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import numpy
 import sys
 import os.path
 from tree import Token,Tree,Dep, read_conll, fill_conll, write_conll
@@ -111,13 +112,13 @@ class State(object):
             self.prev_state._populate_feature_dict(d,unicode(self.transitions[-1])) #Use the last transition as the prefix for the state which resulted in this one
 
 
-    def update(self,move,d_vector=None,g_vector=None):
+    def update(self,move,d_type=None,d_vector=None,g_vector=None):
         if move==SHIFT: # SHIFT
             self.shift()
         elif move==RIGHT: # RIGHT ARC
-            self.add_arc(self.stack[-2],self.stack.pop(-1),d_type=None,d_vector=d_vector,g_vector=g_vector) 
+            self.add_arc(self.stack[-2],self.stack.pop(-1),d_type=d_type,d_vector=d_vector,g_vector=g_vector) 
         elif move==LEFT: # LEFT ARC
-            self.add_arc(self.stack[-1],self.stack.pop(-2),d_type=None,d_vector=d_vector,g_vector=g_vector)
+            self.add_arc(self.stack[-1],self.stack.pop(-2),d_type=d_type,d_vector=d_vector,g_vector=g_vector)
         elif move==SWAP: # SWAP
             self.swap()
         else:
@@ -133,9 +134,9 @@ class State(object):
         dependency=Dep(gov,dep,d_type) #Note that d_type can be None at this point, in case we don't know what type we have
         self.tree.add_dep(dependency)
         if d_vector is not None:
-            self.tree.d_vectors[dep.index]=d_vector
+            self.d_vectors[dep.index]=d_vector
         if g_vector is not None:
-            self.tree.g_vectors[gov.index]+=g_vector #accumulate the g_vectors
+            self.g_vectors[gov.index]+=g_vector #accumulate the g_vectors
 
     def shift(self):
         self.stack.append(self.queue.pop(0))
@@ -170,13 +171,24 @@ class State(object):
             stack 1-3, queue 1-3, right 1-2 and left 1-2 dependent of stack 1-2 + leftmost of leftmost and rightmost of rightmost
             18 tokens + pos tags
         """
-        if move==LEFT:
-            g,d=self.stack[-1],self.stack[-2]
+#        if move==LEFT:
+        if len(self.stack)>0:
+            g=self.stack[-1]
+            tokens,pos,feat=self.fill_token(g,[],[],[]) # ...collect everything from gov token
         else:
-            g,d=self.stack[-2],self.stack[-1]
-        
-        tokens,pos,feat=self.fill_token(g,[],[],[]) # ...collect everything from gov token
-        tokens,pos,feat=self.fill_token(d,tokens,pos,feat) # ...collect everything from dep token
+            g=None
+            tokens=[u"NONE"]*7
+            pos=[u"NONE"]*7
+            feat=[u"NONE"]*7
+        if len(self.stack)>1:
+            d=self.stack[-2]
+            tokens,pos,feat=self.fill_token(d,tokens,pos,feat) # ...collect everything from dep token
+        else:
+            d=None
+            for _ in range(7):
+                tokens.append(u"NONE")
+                pos.append(u"NONE")
+                feat.append(u"NONE")
 
         # ...stack three
         if len(self.stack)>2 and self.stack[-3].text!=u"ROOT":
@@ -198,7 +210,7 @@ class State(object):
                 tokens.append(u"NONE")
                 pos.append(u"NONE")
                 feat.append(u"NONE")
-        assert len(tokens)==len(pos) and len(tokens)==18
+        assert len(tokens)==len(pos) and len(tokens)==18, len(tokens)
         final=[]
         for i in range(len(tokens)):
             final.append(u"W:"+tokens[i])
@@ -339,20 +351,26 @@ class Parser(object):
                         if move is not None:
                             if move not in state.valid_transitions():
                                 raise ValueError("Invalid transition:",move)
-
-                            # now collect tokens for regressor training
                             reg_tokens=state.collect_tokens(move)
-                            print >> out, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
+                            print >> out, move, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
+                            # now collect tokens for regressor training
+#                            reg_tokens=state.collect_tokens(move)
+#                            print >> out, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
 
                             state.update(move,dtype)
                             continue
+
 
                     if (len(state.stack)>1) and (tree.projective_order is not None) and (state.stack[-2].index<state.stack[-1].index) and (tree.is_proj(state.stack[-2],state.stack[-1])): # SWAP
                         move=SWAP
                     else: # SHIFT
                         move=SHIFT
+                    reg_tokens=state.collect_tokens(move)
+                    print >> out, move, u"None", (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
+
                     state.update(move)
             except:
+                traceback.print_exc()
                 print >> sys.stderr, "FAIL"
 
         print >> sys.stderr, "...done"
