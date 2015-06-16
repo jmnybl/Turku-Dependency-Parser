@@ -115,8 +115,8 @@ def shared_dataset(data_xyz, borrow=True):
     return shared_x, shared_y, shared_z#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
-             batch_size=13, n_hidden=100):
+def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
+             batch_size=13, n_hidden=50):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -139,18 +139,18 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
    """
 
     classes={}
-    models={#"W":"data/w2v_fin_50_wf.bin",
-            "W":"/home/ginter/w2v/pb34_wf_200_v2.bin",
+    models={"W":"data/w2v_fin_50_wf.bin",
+            #"W":"/home/ginter/w2v/pb34_wf_200_v2.bin",
             "POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
             #"POS":None,
             #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
             "FEAT":None,
-            "POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
-            #"POS_FEAT":None,
+            #"POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
+            "POS_FEAT":None,
             }
 
     max_rank=800000
-    max_rows=5000000000
+    max_rows=5000
     model_list, train_set_x, train_set_y, train_set_move=load_data("data/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list2, test_set_x, test_set_y, test_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list3, valid_set_x, valid_set_y, valid_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
@@ -183,69 +183,6 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
     # classifier.load("cls")
     # classifier.compile_train_classification()
     # classifier.compile_test()
-
-    # # start-snippet-4
-    # # the cost we minimize during training is the negative log likelihood of
-    # # the model plus the regularization terms (L1 and L2); cost is expressed
-    # # here symbolically
-    # cost = (
-    #     classifier.negative_log_likelihood(y)
-    #     + L1_reg * classifier.L1
-    #     + L2_reg * classifier.L2_sqr
-    # )
-    # # end-snippet-4
-
-    # # compiling a Theano function that computes the mistakes that are made
-    # # by the model on a minibatch
-    # test_model = theano.function(
-    #     inputs=[index],
-    #     outputs=classifier.errors(y),
-    #     givens={
-    #         x: test_set_x[index * batch_size:(index + 1) * batch_size],
-    #         y: test_set_y[index * batch_size:(index + 1) * batch_size]
-    #     }
-    # )
-
-    # validate_model = theano.function(
-    #     inputs=[index],
-    #     outputs=classifier.errors(y),
-    #     givens={
-    #         x: valid_set_x[index * batch_size:(index + 1) * batch_size],
-    #         y: valid_set_y[index * batch_size:(index + 1) * batch_size]
-    #     }
-    # )
-
-    # # start-snippet-5
-    # # compute the gradient of cost with respect to theta (sotred in params)
-    # # the resulting gradients will be stored in a list gparams
-    # gparams = [T.grad(cost, param) for param in classifier.params]
-
-    # # specify how to update the parameters of the model as a list of
-    # # (variable, update expression) pairs
-
-    # # given two list the zip A = [a1, a2, a3, a4] and B = [b1, b2, b3, b4] of
-    # # same length, zip generates a list C of same size, where each element
-    # # is a pair formed from the two lists :
-    # #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
-    # updates = [
-    #     (param, param - learning_rate * gparam)
-    #     for param, gparam in zip(classifier.params, gparams)
-    # ]
-
-    # # compiling a Theano function `train_model` that returns the cost, but
-    # # in the same time updates the parameter of the model based on the rules
-    # # defined in `updates`
-    # train_model = theano.function(
-    #     inputs=[index],
-    #     outputs=cost,
-    #     updates=updates,
-    #     givens={
-    #         x: train_set_x[index * batch_size: (index + 1) * batch_size],
-    #         y: train_set_y[index * batch_size: (index + 1) * batch_size]
-    #     }
-    # )
-    # # end-snippet-5
-
     # ###############
     # # TRAIN MODEL #
     # ###############
@@ -275,29 +212,31 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
         sys.stdout.flush()
         epoch = epoch + 1
         print >> sys.stderr, "Epoch", epoch, "started", time.ctime()
+        p=numpy.random.permutation(train_set_x.get_value(borrow=True).shape[0])
         for minibatch_index in xrange(n_train_batches):
             i=batch_size*minibatch_index
-            xs=train_set_x.get_value(borrow=True)[i:i+batch_size]
-            ys=train_set_y.get_value(borrow=True)[i:i+batch_size]
-            moves=train_set_move.get_value(borrow=True)[i:i+batch_size]
+            xs=train_set_x.get_value(borrow=True)[p[i:i+batch_size]]
+            ys=train_set_y.get_value(borrow=True)[p[i:i+batch_size]]
+            moves=train_set_move.get_value(borrow=True)[p[i:i+batch_size]]
             #print "TSTX", classifier.wv_layer.calcvals(xs)
             minibatch_avg_cost = classifier.train_classification_dtype(xs,ys,learning_rate,L1_reg,L2_reg)
             minibatch_avg_cost_move = classifier.train_classification_move(xs,moves,learning_rate,L1_reg,L2_reg)
-            #print minibatch_avg_cost
+            #print minibatch_avg_cost, minibatch_avg_cost_move
 #            print classifier.test_classification_model(xs)
     #         # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
                 predictions=classifier.test_classification_dtype(valid_set_x.get_value(borrow=True))
-                predictions_move=classifier.test_classification_move(valid_set_x.get_value(borrow=True))
+                this_validation_loss=((predictions==valid_set_y.get_value(borrow=True)).sum()*100.0)/valid_set_y.get_value(borrow=True).shape[0]
                 print predictions
                 print valid_set_y.get_value(borrow=True)
+                print "acc", this_validation_loss
+                predictions_move=numpy.copy(classifier.test_classification_move(valid_set_x.get_value(borrow=True)))
                 print predictions_move
                 print valid_set_move.get_value(borrow=True)
-                print
-                this_validation_loss=((predictions==valid_set_y.get_value(borrow=True)).sum()*100.0)/valid_set_y.get_value(borrow=True).shape[0]
                 this_validation_loss_move=((predictions_move==valid_set_move.get_value(borrow=True)).sum()*100.0)/valid_set_move.get_value(borrow=True).shape[0]
+                print "acc", this_validation_loss_move
                 
                 print(
                     'epoch %i, minibatch %i/%i, validation acc %f %% (dtype)  acc %f %% (move)' %
@@ -310,7 +249,7 @@ def test_mlp(learning_rate=0.002, L1_reg=0.00, L2_reg=0.00000001, n_epochs=1000,
                     )
                     )
                 time.ctime()
-                #classifier.save("cls")
+                classifier.save("cls")
                 time.ctime()
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:

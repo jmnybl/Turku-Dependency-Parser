@@ -72,13 +72,13 @@ class VSpaceLayerCatenation(object):
                 wvlib_dict[name]=wvlib.load(os.path.join(dirname,name+".bin"))
         return cls.from_wvlibs(wvlib_dict,wvlib_order,input)
 
-    def save(self,dirname):
-        with open(os.path.join(dirname,"vs_order.json"),"w") as f:
+    def save(self,fileprefix):
+        with open(fileprefix+"_vs_order.json","w") as f:
             json.dump(self.wvlib_order,f)
         for name,wvlib_obj in self.wvlib_dict.iteritems():
             if wvlib_obj is None:
                 continue
-            out=os.path.join(dirname,name+".bin")
+            out=fileprefix+"_"+name+".bin"
             print >> sys.stderr, "Saving...", out
             wvlib_obj.save_bin(out)
 
@@ -118,12 +118,22 @@ class SoftMaxLayer(object):
         return cls(input,W,b,classes)
 
     @classmethod
-    def empty(cls,n_in,classes,input=None):
+    def empty(cls,n_in,classes,input=None,rng=None):
         if input is None:
             input=T.matrix('x',theano.config.floatX)
+        if rng is None:
+            rng = numpy.random.RandomState(5678)
+        #W = numpy.asarray(rng.uniform(low=-numpy.sqrt(6.0 / (n_in + n_out)),high=numpy.sqrt(6.0 / (n_in + n_out)),size=(n_in, n_out)),
+        #        dtype=theano.config.floatX
+        #    )
         n_out=len(classes)
-        W=numpy.zeros((n_in,n_out),theano.config.floatX)
-        b=numpy.zeros((n_out,),theano.config.floatX)
+        W = numpy.asarray(rng.uniform(low=-0.01,high=0.01,size=(n_in, n_out)),
+                dtype=theano.config.floatX
+            )
+        b=numpy.asarray(rng.uniform(low=-0.01,high=0.01,size=(n_out,)),theano.config.floatX)
+
+        #W=numpy.zeros((n_in,n_out),theano.config.floatX)
+        #b=numpy.zeros((n_out,),theano.config.floatX)
         return cls(input,W,b,classes)
 
     
@@ -298,52 +308,6 @@ class HiddenRepLayer(object):
             else activation(lin_output)
         )
         self.params = [self.W, self.b]
-
-
-# # start-snippet-2
-# class MLP(object):
-#     """Multi-Layer Perceptron Class
-
-#     A multilayer perceptron is a feedforward artificial neural network model
-#     that has one layer or more of hidden units and nonlinear activations.
-#     Intermediate layers usually have as activation function tanh or the
-#     sigmoid function (defined here by a ``HiddenLayer`` class)  while the
-#     top layer is a softamx layer (defined here by a ``LogisticRegression``
-#     class).
-#     """
-
-#     @classmethod
-#     def load(cls,dir_name,input=None):
-#         if input is None:
-#             input=T.matrix('x')
-#         hidden_layer=HiddenRepLayer.load(os.path.join(dir_name,"hidden"),input)
-#         softmax_dtype=SoftMaxLayer.load(os.path.join(dir_name,"smax_dtype"),input=hidden_layer.output)
-#         return cls(hidden_layer,softmax_dtype)
-
-#     @classmethod
-#     def empty(cls,n_in,n_hidden,classes,input=None):
-#         if input is None:
-#             input=T.matrix('x')
-#         hidden_layer=HiddenRepLayer.empty(n_in,n_hidden,input=input)
-#         softmax_dtype=SoftMaxLayer.empty(n_hidden,classes,input=hidden_layer.output)
-#         return cls(hidden_layer,softmax_dtype)
-    
-#     def save(self,dir_name):
-#         if not os.path.exists(dir_name):
-#             os.makedirs(dir_name)
-#         self.hiddenLayer.save(os.path.join(dir_name,"hidden"))
-#         self.softmax_dtype.save(os.path.join(dir_name,"smax_dtype"))
-        
-
-#     def __init__(self, hidden_layer, softmax_dtype):
-#         """Initialize the parameters for the multilayer perceptron
-
-#         """
-#         self.hiddenLayer = hidden_layer
-#         self.softmax_dtype = softmax_dtype
-#         self.input=self.hiddenLayer.input
-#         self.params = self.hiddenLayer.params
-
 
 
 class MLP_WV(object):
