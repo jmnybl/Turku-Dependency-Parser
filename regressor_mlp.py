@@ -33,7 +33,7 @@ class VSpaceLayer(object):
     @classmethod
     def from_matrix(cls,matrix,input):
         """Input should be an int vector which selects the matrix rows"""
-        return cls(matrix,input)
+        return cls(matrix.astype(theano.config.floatX),input)
 
     def __init__(self,matrix,input):
         self.input=input
@@ -61,15 +61,16 @@ class VSpaceLayerCatenation(object):
         return cls(vsls,wvlib_dict,wvlib_order,input)
 
     @classmethod
-    def load(cls,dirname,input=None):
+    def load(cls,fileprefix,input=None):
         if input is None:
             input=T.imatrix("M")
-        with open(os.path.join(dirname,"vs_order.json"),"w") as f:
+        with open(fileprefix+"_vs_order.json","r") as f:
             wvlib_order=json.load(f)
         wvlib_dict={}
         for name in wvlib_order:
             if name not in wvlib_dict:
-                wvlib_dict[name]=wvlib.load(os.path.join(dirname,name+".bin"))
+                wvlib_dict[name]=wvlib.load(fileprefix+"_"+name+".bin")
+                wvlib_dict[name]._vectors.vectors=wvlib_dict[name]._vectors.vectors.astype(theano.config.floatX)
         return cls.from_wvlibs(wvlib_dict,wvlib_order,input)
 
     def save(self,fileprefix):
@@ -113,8 +114,8 @@ class SoftMaxLayer(object):
             input=T.matrix('x',theano.config.floatX)
         with open(file_name+"_classes.json","r") as f:
             classes=json.load(f)
-        W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
-        b=numpy.load(os.path.join(dir_name,file_name+"_b.npy"))
+        W=numpy.load(file_name+"_W.npy").astype(theano.config.floatX)
+        b=numpy.load(file_name+"_b.npy").astype(theano.config.floatX)
         return cls(input,W,b,classes)
 
     @classmethod
@@ -231,8 +232,8 @@ class HiddenRepLayer(object):
     def load(cls,file_name,input=None):
         if input is None:
             input=T.matrix('x')
-        W=numpy.load(os.path.join(dir_name,file_name+"_W.npy"))
-        b=numpy.load(os.path.join(dir_name,file_name+"_b.npy"))
+        W=numpy.load(file_name+"_W.npy").astype(theano.config.floatX)
+        b=numpy.load(file_name+"_b.npy").astype(theano.config.floatX)
         return cls(input,W,b)
 
     @classmethod

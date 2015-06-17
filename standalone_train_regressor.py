@@ -115,8 +115,8 @@ def shared_dataset(data_xyz, borrow=True):
     return shared_x, shared_y, shared_z#T.cast(shared_y, 'int32')
 
 
-def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
-             batch_size=13, n_hidden=50):
+def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
+             batch_size=4000, n_hidden=100):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -132,7 +132,7 @@ def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
     :type L2_reg: float
     :param L2_reg: L2-norm's weight when added to the cost (see
     regularization)
-
+    
     :type n_epochs: int
     :param n_epochs: maximal number of epochs to run the optimizer
 
@@ -141,20 +141,27 @@ def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
     classes={}
     models={"W":"data/w2v_fin_50_wf.bin",
             #"W":"/home/ginter/w2v/pb34_wf_200_v2.bin",
-            "POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
-            #"POS":None,
+            #"POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
+            "POS":None,
             #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
             "FEAT":None,
-            #"POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
-            "POS_FEAT":None,
+            "POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
+            #"POS_FEAT":None,
             }
 
+    classifier=regressor_mlp.MLP_WV.load("cls")
+    classes=classifier.softmax_dtype.classes
+#    print classes
+
     max_rank=800000
-    max_rows=5000
+    max_rows=5000000000
     model_list, train_set_x, train_set_y, train_set_move=load_data("data/reg_traindata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list2, test_set_x, test_set_y, test_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list3, valid_set_x, valid_set_y, valid_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     assert model_list==model_list2 and model_list2==model_list3
+#    print classes
+    
+    
     
     #TODO: get rid of this hack!
     models["W"]._vectors.vectors[0,:]=[0.0]*models["W"]._vectors.vectors.shape[1]
@@ -166,7 +173,7 @@ def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
     
     # wv_layer=regressor_mlp.VSpaceLayerCatenation.from_wvlibs(model_list,x)
     # classifier_mlp = regressor_mlp.MLP.empty(n_in,n_hidden,len(classes),classes,wv_layer.output)
-    classifier=regressor_mlp.MLP_WV.empty(n_hidden,classes,models,model_list)
+    #classifier=regressor_mlp.MLP_WV.empty(n_hidden,classes,models,model_list)
 
     print >> sys.stderr, "Dimensionality of hidden layer input:", classifier.wv_layer.n_out()
 
@@ -249,7 +256,7 @@ def test_mlp(learning_rate=0.05, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
                     )
                     )
                 time.ctime()
-                classifier.save("cls")
+                #classifier.save("cls")
                 time.ctime()
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:
