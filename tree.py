@@ -10,7 +10,7 @@ CoNLLFormat=namedtuple("CoNLLFormat",["ID","FORM","LEMMA","POS","FEAT","HEAD","D
 #ID FORM LEMMA CPOS POS FEAT HEAD DEPREL DEPS MISC
 
 #Column lists for the various formats
-formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10),"conllu":CoNLLFormat(0,1,2,4,5,6,7)}
+formats={"conll09":CoNLLFormat(0,1,2,4,6,8,10),"conllu":CoNLLFormat(0,1,2,3,5,6,7)}
 
 
 
@@ -97,7 +97,7 @@ class Tree(object):
         self.ready=False
 
     #Called from new_from_conll() classmethod
-    def from_conll(self,lines,syn,conll_format="conll09"):    
+    def from_conll(self,lines,syn,conll_format="conllu"):    
         """ Reads conll format and transforms it to a tree instance. `conll_format` is a format name
             which will be looked up in the formats module-level dictionary"""
         form=formats[conll_format] #named tuple with the column indices

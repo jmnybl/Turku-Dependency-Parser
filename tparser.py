@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import time
+import regressor_mlp
 import numpy
 import sys
 import os.path
@@ -166,7 +168,8 @@ class State(object):
         return u",".join(unicode(t.move)+u":"+unicode(t.dType) for t in self.transitions)
 
 
-    def collect_tokens(self,move):
+    def collect_tokens(self,move=None):
+        ##move not needed anymore
         """ Tokens used to train regressor
             stack 1-3, queue 1-3, right 1-2 and left 1-2 dependent of stack 1-2 + leftmost of leftmost and rightmost of rightmost
             18 tokens + pos tags
@@ -297,14 +300,6 @@ class Parser(object):
         self.beam_size=beam_size
         self.model=Model.load(model_file_name)
         self.regressor=regressor
-        if gp:
-            self.perceptron=gp
-            return
-        elif fName is not None:
-            self.perceptron_state=PerceptronSharedState.load(fName,retrainable=True)
-        else:
-            self.perceptron_state=PerceptronSharedState(5000000)
-        self.perceptron=GPerceptron.from_shared_state(self.perceptron_state)
 
 
     def train(self,inp,progress=0.0,quiet=False):
@@ -428,23 +423,23 @@ class Parser(object):
 
     def train_one_sent(self,gs_transitions,sent,progress):
         """ Sent is a list of conll lines."""
-        beam=[State(sent,syn=False)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
-        gs_state=State(sent,syn=False)
+        beam=[State(sent,syn=False,vector_len=self.regressor.hidden_dep.n_out)] # create an 'empty' state, use sent (because lemma+pos+feat), but do not fill syntax      
+        gs_state=State(sent,syn=False,vector_len=self.regressor.hidden_dep.n_out)
         while not self.beam_ready(beam):
             if not gs_state.tree.ready: # update gs if it's not ready
                 move,dtype=gs_transitions[len(gs_state.transitions)]
                 if move not in gs_state.valid_transitions():
                     raise ValueError("Invalid GS Transition")
-                s=self.perceptron.score(gs_state.features,False,prefix=unicode(move))
-                gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
-                gs_state.score+=s
+                #s=self.perceptron.score(gs_state.features,False,prefix=unicode(move))
+                #gs_state=State.copy_and_point(gs_state) #okay, this we could maybe avoid TODO @fginter
+                #gs_state.score+=s
                 
                 if move==RIGHT or move==LEFT:
                     if len(gs_state.queue)==0 and len(gs_state.stack)==2: 
                         dtype=u"ROOT"
 
                 gs_state.update(move,dtype)
-                gs_state.features=feats.create_features(gs_state)
+                #gs_state.features=feats.create_features(gs_state)
             else:
                 move,dtype=None,None
 
@@ -460,20 +455,16 @@ class Parser(object):
                 prog=float(len(best_state.transitions))/len(gs_transitions)
                 print "%.01f%%     %d/%d  "%(prog*100.0,len(best_state.transitions),len(gs_transitions))
                 sys.stdout.flush()
-                self.perceptron.update(best_state.create_feature_dict(),gs_state.create_feature_dict(),best_state.score,gs_state.score,best_state.wrong_transitions,progress) # update the perceptron
+                ###self.perceptron.update(best_state.create_feature_dict(),gs_state.create_feature_dict(),best_state.score,gs_state.score,best_state.wrong_transitions,progress) # update the perceptron
                 break
-#            elif state2nd is not None and best_state.score-state2nd.score<1.0: #Prediction OK, but no margin
-#                print "+", len(best_state.transitions)
-#                #Update and continue training...
-#                self.perceptron.update(state2nd.create_feature_dict(),best_state.create_feature_dict(),state2nd.score,best_state.score,progress)
         else: # gold still in beam and beam ready
             if beam[0].wrong_transitions==0: # no need for update
                 print "**", len(gs_state.transitions)
             else:
-                self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,beam[0].wrong_transitions,progress) # update the perceptron
+                #self.perceptron.update(beam[0].create_feature_dict(),gs_state.create_feature_dict(),beam[0].score,gs_state.score,beam[0].wrong_transitions,progress) # update the perceptron
                 print "*", len(gs_state.transitions)
         #Done with the example, update the average vector
-        self.perceptron.add_to_average()
+        #self.perceptron.add_to_average()
 
 
     def enum_transitions(self,state):
@@ -481,8 +472,6 @@ class Parser(object):
         for move in state.valid_transitions():
             yield move
                 
-
-
     def beam_ready(self,beam):
         for state in beam:
             if not state.tree.ready: return False
@@ -492,8 +481,6 @@ class Parser(object):
         for state in beam:
             if state.wrong_transitions==0: return True
         return False
-
-
 
     def give_next_state(self,beam,gs_move=None,gs_dtype=None):
         """ Predict next state and creates it. Also returns the next best state, needed for the margin update """
@@ -506,18 +493,40 @@ class Parser(object):
 
         #Rank the state w.r.t. every possible transition, use str(trans) as the prefix to differentiate features
         scores=[] #Holds (score,transition,state) tuples
+        feats=[] #features of the states to be evaluated in a minibatch
+        states=[] #the states in a minibatch
         for state in beam:
             if len(state.queue)==0 and len(state.stack)==1: # this state is ready
                 scores.append((state.score,None,state))
                 continue
+            feats.append(state.collect_tokens())
+            states.append(state)
+#            print "len feats", len(feats[-1])
+        reg_input=self.regressor.features_to_input(feats)
+        reg_scores=self.regressor.test_scores_move(reg_input)
+        print "feats"
+        print feats
+        print "len(states)", len(states)
+        print "reg input. shape=", reg_input.shape
+        print reg_input
+        print "reg scores. shape=", reg_scores.shape
+        print reg_scores
+        print
+        print
+        assert len(states)==len(feats) and reg_scores.shape[0]==len(states)
+        for s_idx, state in enumerate(states):
             for move in self.enum_transitions(state):
-                s=self.perceptron.score(state.features,self.test_time,prefix=unicode(move))
-                scores.append((state.score+s,move,state))
+                scores.append((reg_scores[s_idx,move],move,state))
+            
+            # for move in self.enum_transitions(state):
+            #     s=self.regressor.score(state)
+            #     scores.append((state.score+s,move,state))
         #Okay, now we have the possible continuations ranked
-        selected_transitions=sorted(scores, key=lambda s: s[0], reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
+        selected_transitions=sorted(scores, reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
 
         new_beam=[]
         for score,move,state in selected_transitions:
+           # print score, move
             #For each of these, we will now create a new state and build its features while we are at it, because now is the time to do it efficiently
             if move is None: # this state is ready
                 new_beam.append(state)
@@ -533,8 +542,7 @@ class Parser(object):
                         tokens=[state.stack[-2].text,state.stack[-1].text]
                     else:
                         tokens=[state.stack[-1].text,state.stack[-2].text]
-                    dtype=self.regressor.regress_vector(tokens).split(u"_")[1]
-                newS.update(move,dtype)
+                newS.update(move,d_type=u"xxx")
             else:
                 newS.update(move)
 
@@ -542,20 +550,30 @@ class Parser(object):
             #if (gs_trans is None) or (not transition==gs_trans):
             if (gs_move is None) or (gs_move!=move): # TODO: ignore deptype
                 newS.wrong_transitions+=1 # TODO: is this fair?
-            newS.features,factors=feats.create_general_features(newS)
-            newS.features.update(feats.create_deptype_features(newS,factors))
+#            newS.features,factors=feats.create_general_features(newS)
+#            newS.features.update(feats.create_deptype_features(newS,factors))
             new_beam.append(newS)
         return new_beam #List of selected states, ordered by their score in this move
 
 
     def parse(self,inp,outp):
         """outp should be a file open for writing unicode"""
+        sent_counter=0
+        token_counter=0
+        beg=time.time()
         for sent in read_conll(inp):
+            sent_counter+=1
+            token_counter+=len(sent)
             beam=[State(sent,syn=False)]
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,beam[0])
             write_conll(outp,sent)
+        end=time.time()
+        ms=end*1000.0-beg*1000.0
+        print >> sys.stderr, "Parsed %d trees %d tokens in %d seconds (without startup cost)"%(sent_counter,token_counter,int(end-beg))
+        print >> sys.stderr, "%.1f ms/tree, %.1f trees/sec, %.1f tokens/sec"%(ms/sent_counter,sent_counter/(end-beg),token_counter/(end-beg))
+        print >> sys.stderr
 
             
     
@@ -564,37 +582,39 @@ class Parser(object):
 if __name__==u"__main__":
 
 
-    ## just to collect regressor traindata
-    parser=Parser(u"corpus_stats.pkl",None,beam_size=5)
-    parser.collect_train_data(codecs.getreader(u"utf-8")(sys.stdin),codecs.getreader(u"utf-8")(sys.stdout))
-    sys.exit()
+    # ## just to collect regressor traindata
+    # parser=Parser(u"corpus_stats.pkl",None,beam_size=5)
+    # parser.collect_train_data(codecs.getreader(u"utf-8")(sys.stdin),codecs.getreader(u"utf-8")(sys.stdout))
+    # sys.exit()
 
 
-    # ...HACK TO TRAIN REGRESSOR...
+    # # ...HACK TO TRAIN REGRESSOR...
 
-    vr=VRegressor(600,10)
+    # vr=VRegressor(600,10)
     
-    #reg.train needs these arguments
-    arguments=namedtuple("arg_names",["wvtoken","wvmorpho","conll09","dtype","morpho"])
-    values={"val1":arguments("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",True,True,False)}
-    temp_args=values["val1"]
+    # #reg.train needs these arguments
+    # arguments=namedtuple("arg_names",["wvtoken","wvmorpho","conll09","dtype","morpho"])
+    # values={"val1":arguments("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",True,True,False)}
+    # temp_args=values["val1"]
     
-    train(temp_args,vr,0.01)
+    # train(temp_args,vr,0.01)
     
-    reg_wrapper=regressorWrapper("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",vr)
+    # reg_wrapper=regressorWrapper("/usr/share/ParseBank/vector-space-models/FIN/w2v_pbv3_wf.rev01.bin","vectors.dtype.tdtjk.bin",vr)
 
-    parser=Parser(u"corpus_stats.pkl",reg_wrapper,beam_size=5)
+    # parser=Parser(u"corpus_stats.pkl",reg_wrapper,beam_size=5)
     
-    for i in xrange(0,10):
+    # for i in xrange(0,10):
 
-        print >> sys.stderr, "iter",i+1
-        parser.train(u"tdt-train-jktagged.conll09")
-        break
-        parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
-    sys.exit()
+    #     print >> sys.stderr, "iter",i+1
+    #     parser.train(u"tdt-train-jktagged.conll09")
+    #     break
+    #     parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
+    # sys.exit()
+    regressor=regressor_mlp.MLP_WV.load("cls8386")
+    parser=Parser(u"corpus_stats.pkl",regressor,beam_size=5)
     parser.test_time=True
     outf=codecs.open(u"parsed.xxx.conll",u"wt",u"utf-8")
-    parser.parse(u"tdt_test_mm_tagged.conll09",outf)
+    parser.parse(u"data/fi-ud-dev-mmtagged.conllu",outf)
     outf.close()
 
 

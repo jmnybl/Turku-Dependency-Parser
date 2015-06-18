@@ -309,6 +309,7 @@ class HiddenRepLayer(object):
             else activation(lin_output)
         )
         self.params = [self.W, self.b]
+        self.n_out=self.W.get_value(borrow=True).shape[1]
 
 
 class MLP_WV(object):
@@ -352,12 +353,47 @@ class MLP_WV(object):
         self.hidden_dep=hidden_dep
         self.softmax_dtype=softmax_dtype
         self.softmax_move=softmax_move
-        self.params=self.hidden_dep.params+self.wv_layer.params #These are valid for all softmax layers
+        self.params=self.hidden_dep.params+self.wv_layer.params #These are optimized across all softmax layers
         self.train_classification_dtype = self.compile_train_classification(self.softmax_dtype) #)
         self.test_classification_dtype=self.compile_test(self.softmax_dtype) #
+        self.test_scores_dtype=self.compile_test_scores(self.softmax_dtype) #
         self.train_classification_move = self.compile_train_classification(self.softmax_move) #)
         self.test_classification_move=self.compile_test(self.softmax_move) #
+        self.test_scores_move=self.compile_test_scores(self.softmax_move) #
 
+    def features_to_input(self,feats):
+        """
+        feats is a list of lists of state-related features as used in standalone training
+        something like this:
+        W:tunne POS:N FEAT:Case=Nom|Number=Sing POS_FEAT:N|Case=Nom|Number=Sing W:NONE POS:NONE FEAT:NONE POS_FEAT:NONE|NONE
+        
+        because we work in a mini-batch mode, we take a list of lists, not a list
+        
+        these need to match the order for which the W2V layer was built, and are obtained from State()
+        
+        """
+        res=numpy.zeros((len(feats),len(self.wv_layer.vspace_layers)),numpy.int32)
+        for row_idx,feat_list in enumerate(feats):
+            col_idx=0
+            for w in feat_list:
+                t,w=w.split(":",1)
+                if self.wv_layer.wvlib_dict.get(t) is None:
+                    #this feature type is off
+                    continue
+                #wv_row will be the row index in the vector embedding matrix
+                if w!=u"NONE":
+                    try:
+                        wv_row=self.wv_layer.wvlib_dict[t].rank(w)
+                    except KeyError:
+                        wv_row=0
+                else:
+                    wv_row=0
+                res[row_idx,col_idx]=wv_row
+                col_idx+=1
+        assert col_idx==res.shape[1]
+        return res
+        
+        
 
     def compile_test(self,softmax_layer):
         """softmax_layer is one of the possible output layers (this net will have several)"""
@@ -367,6 +403,16 @@ class MLP_WV(object):
             outputs=softmax_layer.y_pred,
             givens={self.wv_layer.input:x}
             )
+
+    def compile_test_scores(self,softmax_layer):
+        """Same as compile_test, but returns the scores themselves, not the argmax class"""
+        x=T.imatrix('x')
+        return theano.function(
+            inputs=[x],
+            outputs=softmax_layer.p_y_given_x,
+            givens={self.wv_layer.input:x}
+            )
+
 
     def compile_train_classification(self,softmax_layer):
         """Builds the function self.train_classification_model(x,y,l_rate) which returns the cost. softmax_layer should be one
