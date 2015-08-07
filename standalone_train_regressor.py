@@ -38,7 +38,7 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
     cols=0
     for w in lines[0].split()[2:]:
         t,_=w.split(":",1)
-        if dims[t] is not None:
+        if dims.get(t) is not None:
             cols+=dims[t]
             indices+=1
     word_indices=numpy.zeros((len(lines),indices),numpy.int32)
@@ -59,7 +59,7 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
         idx=0
         for w in words:
             t,w=w.split(":",1)
-            if dims[t]==None:
+            if dims.get(t)==None:
                 #off
                 continue
             #wv_row will be the row index in the vector embedding matrix
@@ -76,7 +76,7 @@ def load_data(parser_states,models,classes,max_rank=600000,max_rows=-1):
     model_list=[]
     for w in lines[0].split()[2:]:
         t,_=w.split(":",1)
-        if dims[t] is not None:
+        if dims.get(t) is not None:
             model_list.append(t)
     assert len(model_list)==word_indices.shape[1]
  
@@ -115,6 +115,7 @@ def shared_dataset(data_xyz, borrow=True):
     return shared_x, shared_y, shared_z#T.cast(shared_y, 'int32')
 
 
+
 def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
              batch_size=4000, n_hidden=100):
     """
@@ -138,20 +139,24 @@ def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
 
    """
 
-    classes={}
-    models={"W":"data/w2v_fin_50_wf.bin",
-            #"W":"/home/ginter/w2v/pb34_wf_200_v2.bin",
-            #"POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
-            "POS":None,
-            #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
-            "FEAT":None,
-            "POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
-            #"POS_FEAT":None,
-            }
-
-    classifier=regressor_mlp.MLP_WV.load("cls")
-    classes=classifier.softmax_dtype.classes
-#    print classes
+    load_model=None
+    save_model="cls_ud"
+    if load_model:
+        print >> sys.stderr, "Loading model", load_model
+        classifier=regressor_mlp.MLP_WV.load(load_model)
+        classes=classifier.softmax_dtype.classes
+        models=classifier.wv_layer.wvlib_dict
+    else:
+        classes={}
+        models={"W":"data/w2v_fin_50_wf.bin",
+                #"W":"/home/ginter/w2v/pb34_wf_200_v2.bin",
+                "POS":"/home/ginter/parser-vectors/pos_ud.vectors.bin",
+                #"POS":None,
+                #"FEAT":"/home/ginter/parser-vectors/feat_ud.vectors.bin",
+                "FEAT":None,
+                "POS_FEAT":"/home/ginter/parser-vectors/pos_feat_ud.vectors.bin",
+                #"POS_FEAT":None,
+                }
 
     max_rank=800000
     max_rows=5000000000
@@ -159,13 +164,19 @@ def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
     model_list2, test_set_x, test_set_y, test_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     model_list3, valid_set_x, valid_set_y, valid_set_move=load_data("data/reg_devdata_ud.txt",models,classes,max_rank=max_rank,max_rows=max_rows)
     assert model_list==model_list2 and model_list2==model_list3
-#    print classes
-    
-    
+    print classes
+    print models
     
     #TODO: get rid of this hack!
-    models["W"]._vectors.vectors[0,:]=[0.0]*models["W"]._vectors.vectors.shape[1]
-    
+    if not load_model:
+        models["W"]._vectors.vectors[0,:]=0.01
+        if models.get("POS_FEAT"):
+            models["POS_FEAT"]._vectors.vectors[0,:]=0.01
+        if models.get("POS"):
+            models["POS"]._vectors.vectors[0,:]=0.01
+        if models.get("FEAT"):
+            models["FEAT"]._vectors.vectors[0,:]=0.01
+        classifier=regressor_mlp.MLP_WV.empty(n_hidden,classes,models,model_list)
 
     # # allocate symbolic variables for the data
     x = T.imatrix('x')  # 
@@ -215,6 +226,14 @@ def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
     epoch = 0
     done_looping = False
 
+    print "Performance before training"
+    predictions=classifier.test_classification_dtype(valid_set_x.get_value(borrow=True))
+    this_validation_loss=((predictions==valid_set_y.get_value(borrow=True)).sum()*100.0)/valid_set_y.get_value(borrow=True).shape[0]
+    print "dtype acc", this_validation_loss
+    predictions_move=numpy.copy(classifier.test_classification_move(valid_set_x.get_value(borrow=True)))
+    this_validation_loss_move=((predictions_move==valid_set_move.get_value(borrow=True)).sum()*100.0)/valid_set_move.get_value(borrow=True).shape[0]
+    print "move acc", this_validation_loss_move
+
     while (epoch < n_epochs) and (not done_looping):
         sys.stdout.flush()
         epoch = epoch + 1
@@ -223,6 +242,7 @@ def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
         for minibatch_index in xrange(n_train_batches):
             i=batch_size*minibatch_index
             xs=train_set_x.get_value(borrow=True)[p[i:i+batch_size]]
+            #print "XS",xs[:20]
             ys=train_set_y.get_value(borrow=True)[p[i:i+batch_size]]
             moves=train_set_move.get_value(borrow=True)[p[i:i+batch_size]]
             #print "TSTX", classifier.wv_layer.calcvals(xs)
@@ -256,7 +276,9 @@ def test_mlp(learning_rate=0.8, L1_reg=0.00, L2_reg=0.0000001, n_epochs=1000,
                     )
                     )
                 time.ctime()
-                #classifier.save("cls")
+                if save_model:
+                    print >> sys.stderr, "Saving model", save_model
+                    classifier.save(save_model)
                 time.ctime()
     #             # if we got the best validation score until now
     #             if this_validation_loss < best_validation_loss:

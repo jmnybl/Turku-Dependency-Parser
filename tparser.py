@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import random
 import time
 import regressor_mlp
 import numpy
@@ -298,7 +299,7 @@ class Parser(object):
         self.test_time=test_time
         self.features=Features()
         self.beam_size=beam_size
-        self.model=Model.load(model_file_name)
+        #self.model=Model.load(model_file_name)
         self.regressor=regressor
 
 
@@ -346,9 +347,9 @@ class Parser(object):
                         if move is not None:
                             if move not in state.valid_transitions():
                                 raise ValueError("Invalid transition:",move)
-                            reg_tokens=state.collect_tokens(move)
+                            reg_tokens=state.collect_tokens(move) 
                             print >> out, move, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
-                            # now collect tokens for regressor training
+                           # now collect tokens for regressor training
 #                            reg_tokens=state.collect_tokens(move)
 #                            print >> out, dtype, (u" ".join(t for t in reg_tokens)).encode(u"utf-8")
 
@@ -496,7 +497,7 @@ class Parser(object):
         feats=[] #features of the states to be evaluated in a minibatch
         states=[] #the states in a minibatch
         for state in beam:
-            if len(state.queue)==0 and len(state.stack)==1: # this state is ready
+            if len(state.queue)==0 and len(state.stack)==1: # this state is ready 
                 scores.append((state.score,None,state))
                 continue
             feats.append(state.collect_tokens())
@@ -504,25 +505,25 @@ class Parser(object):
 #            print "len feats", len(feats[-1])
         reg_input=self.regressor.features_to_input(feats)
         reg_scores=self.regressor.test_scores_move(reg_input)
-        print "feats"
-        print feats
-        print "len(states)", len(states)
-        print "reg input. shape=", reg_input.shape
-        print reg_input
-        print "reg scores. shape=", reg_scores.shape
-        print reg_scores
-        print
-        print
+        #print "feats"
+        #print feats
+        #print "len(states)", len(states)
+        #print "reg input. shape=", reg_input.shape
+        #print reg_input
+        #print "reg scores. shape=", reg_scores.shape
+        #print reg_scores
+        #print
+        #print
         assert len(states)==len(feats) and reg_scores.shape[0]==len(states)
         for s_idx, state in enumerate(states):
             for move in self.enum_transitions(state):
-                scores.append((reg_scores[s_idx,move],move,state))
-            
-            # for move in self.enum_transitions(state):
-            #     s=self.regressor.score(state)
-            #     scores.append((state.score+s,move,state))
+                scores.append((reg_scores[s_idx,move]+state.score,move,state))
         #Okay, now we have the possible continuations ranked
+        #print "Sorted scores"
+        #print sorted((x[:2] for x in scores), reverse=True)
+        
         selected_transitions=sorted(scores, reverse=True)[:self.beam_size] # now we have selected the new beam, next update states
+        
 
         new_beam=[]
         for score,move,state in selected_transitions:
@@ -546,7 +547,7 @@ class Parser(object):
             else:
                 newS.update(move)
 
-            newS.score=score # Do not use '+'
+            newS.score=score
             #if (gs_trans is None) or (not transition==gs_trans):
             if (gs_move is None) or (gs_move!=move): # TODO: ignore deptype
                 newS.wrong_transitions+=1 # TODO: is this fair?
@@ -565,6 +566,7 @@ class Parser(object):
             sent_counter+=1
             token_counter+=len(sent)
             beam=[State(sent,syn=False)]
+            #print "*********** SENT *****************"
             while not self.beam_ready(beam):
                 beam=self.give_next_state(beam) #This looks wasteful, but it is what the beam will do anyway
             fill_conll(sent,beam[0])
@@ -610,11 +612,12 @@ if __name__==u"__main__":
     #     break
     #     parser.perceptron_state.save(u"models/perceptron_model_"+str(i+1),retrainable=True)
     # sys.exit()
-    regressor=regressor_mlp.MLP_WV.load("cls8386")
-    parser=Parser(u"corpus_stats.pkl",regressor,beam_size=5)
+    regressor=regressor_mlp.MLP_WV.load("cls_ud")
+    parser=Parser(u"corpus_stats.pkl",regressor,beam_size=2)
     parser.test_time=True
     outf=codecs.open(u"parsed.xxx.conll",u"wt",u"utf-8")
     parser.parse(u"data/fi-ud-dev-mmtagged.conllu",outf)
+    #parser.parse(u"/home/ginter/UD/UD_Finnish/fi-ud-test.conllu",outf)
     outf.close()
 
 

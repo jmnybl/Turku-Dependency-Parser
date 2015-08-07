@@ -336,7 +336,7 @@ class MLP_WV(object):
         hidden_in=wv_layer.n_out()
         hidden_dep=HiddenRepLayer.empty(hidden_in,n_hidden,input=wv_layer.output)
         softmax_dtype=SoftMaxLayer.empty(n_hidden,classes,input=hidden_dep.output)
-        softmax_move=SoftMaxLayer.empty(n_hidden,{"SHIFT":0,"RIGHT":1,"LEFT":2,"SWAP":3,"ERR":4},input=hidden_dep.output)
+        softmax_move=SoftMaxLayer.empty(n_hidden,{"SHIFT":0,"RIGHT":1,"LEFT":2,"SWAP":3},input=hidden_dep.output)
         return cls(wv_layer,hidden_dep,softmax_dtype,softmax_move,input)
     
     def save(self,dir_name):
@@ -384,11 +384,14 @@ class MLP_WV(object):
                 if w!=u"NONE":
                     try:
                         wv_row=self.wv_layer.wvlib_dict[t].rank(w)
+                        #print "KNOWN", t, w.encode("utf-8")
                     except KeyError:
+                        #print "UNK", t, w.encode("utf-8")
                         wv_row=0
                 else:
                     wv_row=0
                 res[row_idx,col_idx]=wv_row
+                #print "SETTING ", t, w.encode("utf-8"), row_idx, col_idx, wv_row
                 col_idx+=1
         assert col_idx==res.shape[1]
         return res
